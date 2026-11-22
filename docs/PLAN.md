@@ -14,7 +14,7 @@ Last updated: 2026-11-22. **The project restarts from zero: nothing below is don
 
 | Phase | State | Active step | QA verdict | Closed on |
 |---|---|---|---|---|
-| M0 Foundation | Active | 2. Backend (ADIT) | — | — |
+| M0 Foundation | Active | 2. Backend (ADIT, CARLO) | — | — |
 | M1 Signup and super admin | Not started | — | — | — |
 | M2 Venue and menu | Not started | — | — | — |
 | M3 Service core (MVP) | Not started | — | — | — |
@@ -28,9 +28,18 @@ Last updated: 2026-11-22. **The project restarts from zero: nothing below is don
 | Person | Role | Task code | Owns |
 |---|---|---|---|
 | **ALAN** | Lead | `LD`, `CL` | Product and planning docs, `CLAUDE.md`, scope, review, merge, sign-off. Writes no app code |
-| **ADIT** | Backend developer | `BE` | `supabase/**`, `packages/db/**`, `apps/web/lib/**`, Server Actions, route handlers, `proxy.ts`, configuration, dependencies, CI and deploy workflows, `docs/contracts/**` |
+| **ADIT** | Backend developer | `BE` tasks marked ADIT | `supabase/config.toml`, `supabase/seed*.sql`, M0 migrations. CI and deploy workflows in `.github/workflows/**`, root configuration. Modules, with their migrations, `lib` code, actions and routes: platform admin (tenants, packages, settings), locations, areas, tables, QR, stations, orders, kitchen, guest order intake, opening hours, reservations, reports, schedules, PIN. Contracts for those modules in `docs/contracts/` |
+| **CARLO** | Backend developer | `BE` tasks marked CARLO | `apps/web/proxy.ts`, `apps/web/next.config.ts`, `apps/web/instrumentation.ts`, `apps/web/lib/env.ts`, `.env.example`. `apps/web/lib/{supabase,auth,analytics,email,money}/**`, `apps/web/lib/arcjet.ts` (email templates are REYKI's). Modules, with their migrations after M0, `lib` code, actions and routes: auth, organization, staff, roles, onboarding, menu, bills, payments, printing, storefront, table requests, DOKU, customers, theme data, subscription billing. Contracts for those modules in `docs/contracts/` |
 | **REYKI** | Frontend developer | `FE` | `apps/web/app/**` pages and layouts, `apps/web/components/**`, `globals.css`, `lib/theme.ts`, client providers and hooks, email markup, `supabase/templates/**`, translations |
 | **DAVIN** | QA | `QA` | `supabase/tests/**`, Playwright suites and config, `docs/qa/**` |
+
+**Backend split:**
+
+- A task has one owner. Work only on tasks with your name. Never pick up, finish or fix the other backend developer's task.
+- Never edit the other's files, migrations or module tables. A change to a table created in M0 is always an ADIT task. Ask ALAN to give that change to its owner. You may call their code through its contract.
+- Each migration is a new timestamped file made by the task's owner. Never edit another migration.
+- Only two files are shared, and only by command: generated types in `packages/db` (`pnpm db:types`) and dependencies (`pnpm add`, which updates `package.json` and the lockfile). Never hand-merge either: rebase, then run the command again.
+- If your task needs one of the other's tasks, wait until it is merged or ALAN gives you its branch to stack on.
 
 The more specific path wins. Unit tests belong to whoever owns the code they test.
 
@@ -41,12 +50,12 @@ One phase is active at a time, and one step inside it.
 | Step | Owner | Starts when | Hands off when |
 |---|---|---|---|
 | 1. Plan | ALAN | The previous phase is closed | Every `LD` task is done |
-| 2. Backend | ADIT | Plan is handed off | Every `BE` task has a green draft PR and a contract in `docs/contracts/` |
+| 2. Backend | ADIT and CARLO, by task | Plan is handed off | Every `BE` task has a green draft PR and a contract in `docs/contracts/` |
 | 3. Frontend | REYKI | Backend is handed off | Every `FE` task has a green draft PR, stacked on the backend |
 | 4. QA | DAVIN | Frontend is handed off | Every acceptance line has evidence and a PASS, with no open S1 or S2 bug |
 | 5. Close | ALAN | QA is handed off | PRs are merged, boxes are ticked, the phase is closed |
 
-- **Order:** do tasks top to bottom. A task may rely on any task above it, never on one below it.
+- **Order:** each person does their tasks top to bottom. A task may rely on any task above it, never on one below it.
 - **One task = one branch = one draft PR.** ALAN marks it ready only after DAVIN's PASS and ALAN's own review, then squash-merges one at a time in stack order. Retarget stacked PRs to `main` before deleting a branch. Markdown-only PRs skip QA.
 - **Failed QA:** DAVIN files the bug and ALAN reopens step 2 or 3. The fix passes through the remaining steps again.
 - **Bug in a closed phase:** S1 or S2 pauses the current step until it is fixed and verified. S3 and S4 go into the next Plan step.
@@ -114,40 +123,40 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [x] **M0-LD-03 Access.** Arrange repository, Vercel, Supabase, Resend, Arcjet, PostHog and DOKU sandbox access. *Done when:* each service is reachable and no secret is in a file.
 - [x] **M0-LD-04 Board.** Copy the M0 tasks to the HQ board with their IDs, owners and order. *Done when:* every task has one owner.
 
-### 4.2 Backend — ADIT
+### 4.2 Backend — ADIT and CARLO
 
 **Project setup**
-- [x] **M0-BE-01 Monorepo.** pnpm and Turborepo, Next.js 16 in `apps/web`, TypeScript 5.x, ESLint, Prettier, scripts `dev`, `build`, `lint`, `typecheck`, `test`, `db:*`. *Done when:* all scripts run on a clean clone and §2 is confirmed.
-- [x] **M0-BE-02 CI.** GitHub Actions: install, lint, typecheck, unit, build, database reset and pgTAP, plus an e2e job ready for DAVIN's suite. *Done when:* a draft PR gets a result from each job.
-- [ ] **M0-BE-03 Supabase.** Local config, auth settings, Mailpit, Resend SMTP block. *Done when:* `supabase start` and `db reset` work from zero.
-- [ ] **M0-BE-04 Environment.** `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
+- [x] **M0-BE-01 Monorepo.** _(ADIT)_ pnpm and Turborepo, Next.js 16 in `apps/web`, TypeScript 5.x, ESLint, Prettier, scripts `dev`, `build`, `lint`, `typecheck`, `test`, `db:*`. *Done when:* all scripts run on a clean clone and §2 is confirmed.
+- [x] **M0-BE-02 CI.** _(ADIT)_ GitHub Actions: install, lint, typecheck, unit, build, database reset and pgTAP, plus an e2e job ready for DAVIN's suite. *Done when:* a draft PR gets a result from each job.
+- [ ] **M0-BE-03 Supabase.** _(ADIT)_ Local config, auth settings, Mailpit, Resend SMTP block. *Done when:* `supabase start` and `db reset` work from zero.
+- [ ] **M0-BE-04 Environment.** _(CARLO)_ `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
 
 **Database**
-- [ ] **M0-BE-05 Identity tables.** `profiles` (synced from `auth.users`), `platform_admins` (service role only), `platform_settings` (deny by default), `audit_logs`. *Done when:* a client can't write admin, settings or audit rows.
-- [ ] **M0-BE-06 Tenancy tables.** `organizations` (unique slug of 3–40 characters, status, currency, timezone), `reserved_slugs`, `locations` (address, timezone, currency, tax and service-charge bps, tax-on-service flag), `org_branding` (https-only logo URL). *Done when:* constraints and RLS are in place.
-- [ ] **M0-BE-07 Packages.** `packages` (prices, trial days, limits, features, active, public, default) and `subscriptions`. *Done when:* one default package gives a new restaurant a trial.
-- [ ] **M0-BE-08 Roles.** `permissions`, `default_role_permissions`, `roles`, `role_permissions`, `organization_members`, `location_staff`, seeded from §4.2.1. *Done when:* the five system roles match that table.
-- [ ] **M0-BE-09 Invitations.** `staff_invitations` with SHA-256 token hash, capped expiry, accepted and revoked times, explicit all-locations flag. *Done when:* no raw token is stored.
-- [ ] **M0-BE-10 Helpers.** `is_platform_admin`, `is_org_member`, `has_permission` (fails closed), `has_location_access`, `my_permissions`, `get_org_package`, `my_org_membership`, `private.org_limit`, `private.write_audit`. *Done when:* a suspended org or deactivated member gets no access.
-- [ ] **M0-BE-11 Guards.** Triggers for plan limits (`PLAN_LIMIT:<key>`), last owner, system-role protection, no self-escalation, no member delete, `updated_at`, audit. *Done when:* each forbidden write fails in the database.
-- [ ] **M0-BE-12 RPCs.** `is_slug_available`, `create_organization` (one transaction, per-user cap), `accept_invitation` (email must match), `set_member_locations` (atomic), `get_storefront`. *Done when:* a failure leaves no partial rows.
-- [ ] **M0-BE-13 Seeds and types.** Local seed (three packages, Demo Restaurant with two locations, a second tenant, one user per role, platform admin), staging seed without users, `packages/db` generated types. *Done when:* a reset gives the same data each time.
+- [ ] **M0-BE-05 Identity tables.** _(ADIT)_ `profiles` (synced from `auth.users`), `platform_admins` (service role only), `platform_settings` (deny by default), `audit_logs`. *Done when:* a client can't write admin, settings or audit rows.
+- [ ] **M0-BE-06 Tenancy tables.** _(ADIT)_ `organizations` (unique slug of 3–40 characters, status, currency, timezone), `reserved_slugs`, `locations` (address, timezone, currency, tax and service-charge bps, tax-on-service flag), `org_branding` (https-only logo URL). *Done when:* constraints and RLS are in place.
+- [ ] **M0-BE-07 Packages.** _(ADIT)_ `packages` (prices, trial days, limits, features, active, public, default) and `subscriptions`. *Done when:* one default package gives a new restaurant a trial.
+- [ ] **M0-BE-08 Roles.** _(ADIT)_ `permissions`, `default_role_permissions`, `roles`, `role_permissions`, `organization_members`, `location_staff`, seeded from §4.2.1. *Done when:* the five system roles match that table.
+- [ ] **M0-BE-09 Invitations.** _(ADIT)_ `staff_invitations` with SHA-256 token hash, capped expiry, accepted and revoked times, explicit all-locations flag. *Done when:* no raw token is stored.
+- [ ] **M0-BE-10 Helpers.** _(ADIT)_ `is_platform_admin`, `is_org_member`, `has_permission` (fails closed), `has_location_access`, `my_permissions`, `get_org_package`, `my_org_membership`, `private.org_limit`, `private.write_audit`. *Done when:* a suspended org or deactivated member gets no access.
+- [ ] **M0-BE-11 Guards.** _(ADIT)_ Triggers for plan limits (`PLAN_LIMIT:<key>`), last owner, system-role protection, no self-escalation, no member delete, `updated_at`, audit. *Done when:* each forbidden write fails in the database.
+- [ ] **M0-BE-12 RPCs.** _(ADIT)_ `is_slug_available`, `create_organization` (one transaction, per-user cap), `accept_invitation` (email must match), `set_member_locations` (atomic), `get_storefront`. *Done when:* a failure leaves no partial rows.
+- [ ] **M0-BE-13 Seeds and types.** _(ADIT)_ Local seed (three packages, Demo Restaurant with two locations, a second tenant, one user per role, platform admin), staging seed without users, `packages/db` generated types. *Done when:* a reset gives the same data each time.
 
 **App infrastructure**
-- [ ] **M0-BE-14 Clients and proxy.** Supabase server, browser, proxy and server-only admin clients. `proxy.ts` resolves hosts, refreshes sessions, skips the DOKU webhook and serves Vercel preview hosts. *Done when:* an unknown host returns 404 and preview URLs open.
-- [ ] **M0-BE-15 Auth access layer.** `getCurrentUser`, `requireUser`, `getMembership`, `getOrgContext`, `requirePermission`, `requirePlatformAdmin`, `hasFeature`. *Done when:* all server code has one way to check access.
-- [ ] **M0-BE-16 Abuse protection.** Arcjet shield, bot detection, rate limits and a signup preset. *Done when:* repeated auth attempts are limited.
-- [ ] **M0-BE-17 Analytics and errors.** PostHog capture, typed events, org grouping, error tracking, allow-listed query parameters, masked tokens, autocapture and recording off. *Done when:* no token or personal field leaves the app.
-- [ ] **M0-BE-18 Email sender.** Resend wrapper with one recipient, idempotency key, log mode locally, failures logged and retryable. *Done when:* a failed send can be retried without a duplicate.
-- [ ] **M0-BE-19 Money.** Formatting (`Rp 25.000`), tax and service-charge calculation. *Done when:* rounding has unit tests.
+- [ ] **M0-BE-14 Clients and proxy.** _(CARLO)_ Supabase server, browser, proxy and server-only admin clients. `proxy.ts` resolves hosts, refreshes sessions, skips the DOKU webhook and serves Vercel preview hosts. *Done when:* an unknown host returns 404 and preview URLs open.
+- [ ] **M0-BE-15 Auth access layer.** _(CARLO)_ `getCurrentUser`, `requireUser`, `getMembership`, `getOrgContext`, `requirePermission`, `requirePlatformAdmin`, `hasFeature`. *Done when:* all server code has one way to check access.
+- [ ] **M0-BE-16 Abuse protection.** _(CARLO)_ Arcjet shield, bot detection, rate limits and a signup preset. *Done when:* repeated auth attempts are limited.
+- [ ] **M0-BE-17 Analytics and errors.** _(CARLO)_ PostHog capture, typed events, org grouping, error tracking, allow-listed query parameters, masked tokens, autocapture and recording off. *Done when:* no token or personal field leaves the app.
+- [ ] **M0-BE-18 Email sender.** _(CARLO)_ Resend wrapper with one recipient, idempotency key, log mode locally, failures logged and retryable. *Done when:* a failed send can be retried without a duplicate.
+- [ ] **M0-BE-19 Money.** _(CARLO)_ Formatting (`Rp 25.000`), tax and service-charge calculation. *Done when:* rounding has unit tests.
 
 **Features**
-- [ ] **M0-BE-20 Auth actions.** Login, signup, confirm by token hash, forgot and reset password, sign out, safe `next` redirect. *Done when:* all return one `ActionResult` shape and signed-in users skip the auth pages.
-- [ ] **M0-BE-21 Create restaurant.** Slug check and create action on the RPC. *Done when:* the user lands in their organization as Owner.
-- [ ] **M0-BE-22 Staff actions.** Invite, resend, revoke, accept, change role, set locations, deactivate with sign-out everywhere. *Done when:* every action is permission-checked and audited.
-- [ ] **M0-BE-23 Custom roles.** Create, edit and delete roles from the permission list, gated by package. *Done when:* nobody can grant a permission they lack.
-- [ ] **M0-BE-24 Staging delivery.** Vercel build and the database deploy workflow described in `STAGING.md`. *Done when:* the workflow's dry run passes. It applies only after merge.
-- [ ] **M0-BE-25 Contracts.** Auth, organization, staff, roles. *Done when:* each lists inputs, outputs, errors and permissions.
+- [ ] **M0-BE-20 Auth actions.** _(CARLO)_ Login, signup, confirm by token hash, forgot and reset password, sign out, safe `next` redirect. *Done when:* all return one `ActionResult` shape and signed-in users skip the auth pages.
+- [ ] **M0-BE-21 Create restaurant.** _(CARLO)_ Slug check and create action on the RPC. *Done when:* the user lands in their organization as Owner.
+- [ ] **M0-BE-22 Staff actions.** _(CARLO)_ Invite, resend, revoke, accept, change role, set locations, deactivate with sign-out everywhere. *Done when:* every action is permission-checked and audited.
+- [ ] **M0-BE-23 Custom roles.** _(CARLO)_ Create, edit and delete roles from the permission list, gated by package. *Done when:* nobody can grant a permission they lack.
+- [ ] **M0-BE-24 Staging delivery.** _(ADIT)_ Vercel build and the database deploy workflow described in `STAGING.md`. *Done when:* the workflow's dry run passes. It applies only after merge.
+- [ ] **M0-BE-25 Contracts.** _(CARLO)_ Auth, organization, staff, roles. *Done when:* each lists inputs, outputs, errors and permissions.
 
 #### 4.2.1 Permission catalog
 
@@ -160,6 +169,32 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 | Cashier | `pos.use, orders.view, orders.create, bills.print, payments.view, payments.take, customers.view, kitchen.view, tables.view` |
 | Waiter | `pos.use, orders.view, orders.create, bills.print, kitchen.view, tables.view, reservations.view` |
 | Kitchen | `kitchen.view, kitchen.update, orders.view` |
+
+#### 4.2.2 M0 backend dependencies
+
+| Task | Needs |
+|---|---|
+| M0-BE-05 | 03 |
+| M0-BE-06 | 05 |
+| M0-BE-07 | 06 |
+| M0-BE-08 | 06 |
+| M0-BE-09 | 08 |
+| M0-BE-10 | 07, 08 |
+| M0-BE-11 | 09, 10 |
+| M0-BE-12 | 11 |
+| M0-BE-13 | 12 |
+| M0-BE-14 | 03, 04 |
+| M0-BE-15 | 13, 14 |
+| M0-BE-16 | 14 |
+| M0-BE-17 | 04 |
+| M0-BE-18 | 04 |
+| M0-BE-19 | 01 |
+| M0-BE-20 | 15, 16, 18 |
+| M0-BE-21 | 15 |
+| M0-BE-22 | 15, 18 |
+| M0-BE-23 | 15 |
+| M0-BE-24 | 04, 13 |
+| M0-BE-25 | 20, 21, 22, 23 |
 
 ### 4.3 Frontend — REYKI
 
@@ -206,18 +241,19 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M1-LD-02 Copy.** Get marketing copy and approved Terms and Privacy text in both languages. *Done when:* REYKI needs no invented text.
 - [ ] **M1-LD-03 Board.** *Done when:* every M1 task is on the board with one owner.
 
-### 5.2 Backend — ADIT
+### 5.2 Backend — ADIT and CARLO
 
-- [ ] **M1-BE-01 Public data.** Active public packages and the demo link target, cached by tag. *Done when:* a package edit refreshes pricing immediately.
-- [ ] **M1-BE-02 Onboarding.** Resumable steps, branding save, logo upload with type and size limits, plan choice, trial start. *Done when:* a failed step leaves no half-created restaurant.
-- [ ] **M1-BE-03 Setup progress.** Derived status for menu, tables, QR print, staff invite and test order. *Done when:* items whose feature doesn't exist yet report not done.
-- [ ] **M1-BE-04 Tenants.** Paginated search with plan, status, signup, locations and last activity. Detail with usage against limits, subscription history, owner contact, password-reset trigger and audit. *Done when:* only platform admins can read it.
-- [ ] **M1-BE-05 Tenant status.** `admin_set_org_status` with a reason. *Done when:* suspension blocks the admin, hides the storefront and is audited.
-- [ ] **M1-BE-06 Package management.** Create, edit, archive, limits, features, default. *Done when:* archiving doesn't affect existing tenants.
-- [ ] **M1-BE-07 Platform settings.** Signup on or off, maintenance banner, currencies, tax presets. *Done when:* changes are audited and take effect on the server.
-- [ ] **M1-BE-08 Signup switch in Auth.** Refuse signup in the Auth hook too. *Done when:* a direct call to Supabase `/signup` is refused while signup is off.
-- [ ] **M1-BE-09 Funnel.** `signup_completed`, `onboarding_completed`, `trial_started` and a dashboard. *Done when:* events carry no personal data.
-- [ ] **M1-BE-10 Contracts.** Onboarding, packages, tenants, settings. *Done when:* published in `docs/contracts/`.
+- [ ] **M1-BE-01 Public data.** _(CARLO)_ Active public packages and the demo link target, cached by tag. *Done when:* a package edit refreshes pricing immediately.
+- [ ] **M1-BE-02 Onboarding.** _(CARLO)_ Resumable steps, branding save, logo upload with type and size limits, plan choice, trial start. *Done when:* a failed step leaves no half-created restaurant.
+- [ ] **M1-BE-03 Setup progress.** _(CARLO)_ Derived status for menu, tables, QR print, staff invite and test order. *Done when:* items whose feature doesn't exist yet report not done.
+- [ ] **M1-BE-04 Tenants.** _(ADIT)_ Paginated search with plan, status, signup, locations and last activity. Detail with usage against limits, subscription history, owner contact, password-reset trigger and audit. *Done when:* only platform admins can read it.
+- [ ] **M1-BE-05 Tenant status.** _(ADIT)_ `admin_set_org_status` with a reason. *Done when:* suspension blocks the admin, hides the storefront and is audited.
+- [ ] **M1-BE-06 Package management.** _(ADIT)_ Create, edit, archive, limits, features, default. *Done when:* archiving doesn't affect existing tenants.
+- [ ] **M1-BE-07 Platform settings.** _(ADIT)_ Signup on or off, maintenance banner, currencies, tax presets. *Done when:* changes are audited and take effect on the server.
+- [ ] **M1-BE-08 Signup switch in Auth.** _(ADIT)_ Refuse signup in the Auth hook too. *Done when:* a direct call to Supabase `/signup` is refused while signup is off.
+- [ ] **M1-BE-09 Funnel.** _(CARLO)_ `signup_completed`, `onboarding_completed`, `trial_started` and a dashboard. *Done when:* events carry no personal data.
+- [ ] **M1-BE-10 Contracts.** _(ADIT)_ Packages, tenants, platform settings. *Done when:* published in `docs/contracts/`.
+- [ ] **M1-BE-11 Contracts.** _(CARLO)_ Public data, onboarding. *Done when:* published in `docs/contracts/`.
 
 ### 5.3 Frontend — REYKI
 
@@ -266,20 +302,21 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M2-LD-02 Rules.** Confirm table limits, image limits, dietary tags and sample menu. *Done when:* recorded in §14.
 - [ ] **M2-LD-03 Board.** *Done when:* every M2 task is on the board with one owner.
 
-### 6.2 Backend — ADIT
+### 6.2 Backend — ADIT and CARLO
 
-- [ ] **M2-BE-01 Locations.** Add, edit, deactivate, with limits and permission. *Done when:* a small chain can manage every branch.
-- [ ] **M2-BE-02 Areas.** `areas` per location: name, order, active. *Done when:* create, rename, reorder and disable work.
-- [ ] **M2-BE-03 Tables.** `tables`: one area, capacity, position, status, `qr_token`, `max_tables` limit. *Done when:* a table can't point at another tenant's area.
-- [ ] **M2-BE-04 QR tokens.** Random token, rotate, printable payload. *Done when:* an old token stops working at once.
-- [ ] **M2-BE-05 Stations.** `kitchen_stations` per location and category routing. *Done when:* each category resolves to a station.
-- [ ] **M2-BE-06 Menu schema.** `menu_categories`, `menu_items`, `item_variants`, `modifier_groups`, `modifiers`, dietary tags, tax rate, published flag. *Done when:* minimum and maximum selections are enforced.
-- [ ] **M2-BE-07 Overrides.** `location_menu_overrides` for price, availability and sold out today. *Done when:* sold out resets on the location's local day.
-- [ ] **M2-BE-08 Menu actions.** Create, edit, archive, reorder, publish. *Done when:* each is permission-checked and refreshes its cache tag.
-- [ ] **M2-BE-09 Images.** Tenant-scoped storage, type and size checks, cleanup. *Done when:* one tenant can't write another's files.
-- [ ] **M2-BE-10 Realtime.** Menu changes per location. *Done when:* a subscriber sees a change within 2 seconds.
-- [ ] **M2-BE-11 Sample data.** Optional sample menu and tables in onboarding. *Done when:* it runs once and respects limits.
-- [ ] **M2-BE-12 Contracts.** Locations, venue, menu, QR. *Done when:* published in `docs/contracts/`.
+- [ ] **M2-BE-01 Locations.** _(ADIT)_ Add, edit, deactivate, with limits and permission. *Done when:* a small chain can manage every branch.
+- [ ] **M2-BE-02 Areas.** _(ADIT)_ `areas` per location: name, order, active. *Done when:* create, rename, reorder and disable work.
+- [ ] **M2-BE-03 Tables.** _(ADIT)_ `tables`: one area, capacity, position, status, `qr_token`, `max_tables` limit. *Done when:* a table can't point at another tenant's area.
+- [ ] **M2-BE-04 QR tokens.** _(ADIT)_ Random token, rotate, printable payload. *Done when:* an old token stops working at once.
+- [ ] **M2-BE-05 Stations.** _(ADIT)_ `kitchen_stations` per location and category routing. *Done when:* each category resolves to a station.
+- [ ] **M2-BE-06 Menu schema.** _(CARLO)_ `menu_categories`, `menu_items`, `item_variants`, `modifier_groups`, `modifiers`, dietary tags, tax rate, published flag. *Done when:* minimum and maximum selections are enforced.
+- [ ] **M2-BE-07 Overrides.** _(CARLO)_ `location_menu_overrides` for price, availability and sold out today. *Done when:* sold out resets on the location's local day.
+- [ ] **M2-BE-08 Menu actions.** _(CARLO)_ Create, edit, archive, reorder, publish. *Done when:* each is permission-checked and refreshes its cache tag.
+- [ ] **M2-BE-09 Images.** _(CARLO)_ Tenant-scoped storage, type and size checks, cleanup. *Done when:* one tenant can't write another's files.
+- [ ] **M2-BE-10 Realtime.** _(CARLO)_ Menu changes per location. *Done when:* a subscriber sees a change within 2 seconds.
+- [ ] **M2-BE-11 Sample data.** _(CARLO)_ Optional sample menu and tables in onboarding. *Done when:* it runs once and respects limits.
+- [ ] **M2-BE-12 Contracts.** _(ADIT)_ Locations, venue, QR. *Done when:* published in `docs/contracts/`.
+- [ ] **M2-BE-13 Contracts.** _(CARLO)_ Menu. *Done when:* published in `docs/contracts/`.
 
 ### 6.3 Frontend — REYKI
 
@@ -330,27 +367,28 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M3-LD-03 KDS thresholds.** `PROJECT.md` says configurable and `DESIGN.md` §6.4 says fixed 10 and 20 minutes. *Done when:* both docs agree. This plan follows `PROJECT.md`, with 10 and 20 as defaults.
 - [ ] **M3-LD-04 Board.** *Done when:* every M3 task is on the board with one owner.
 
-### 7.2 Backend — ADIT
+### 7.2 Backend — ADIT and CARLO
 
 **Orders and kitchen**
-- [ ] **M3-BE-01 Order schema.** `orders` (channel, table, waiter, status), `order_items` and `order_item_modifiers` (snapshots, notes), `order_events` (who, when, reason). *Done when:* menu edits never change past orders.
-- [ ] **M3-BE-02 State machine.** placed → accepted → preparing → ready → served → completed, or cancelled. *Done when:* illegal transitions fail in tests and in the database.
-- [ ] **M3-BE-03 Order actions.** Open, add round, send, serve, complete, idempotent submit. *Done when:* only new items go to the kitchen and a retry makes no duplicate.
-- [ ] **M3-BE-04 Voids.** Item or order, with `orders.void` and a reason. *Done when:* the history records both.
-- [ ] **M3-BE-05 Tickets.** `kitchen_tickets` and `kitchen_ticket_items`, station routing, item and ticket status, bump. *Done when:* ticket and order status stay consistent.
-- [ ] **M3-BE-06 KDS settings.** Amber and red thresholds per location. *Done when:* defaults are 10 and 20 minutes.
-- [ ] **M3-BE-07 Table service.** Available, reserved, occupied, needs cleaning, waiter assignment, move, merge, seated time, running total. *Done when:* moves and merges are atomic.
-- [ ] **M3-BE-08 Service realtime.** Orders, tickets, tables and ready alerts per location. *Done when:* order to ticket is under 2 seconds at p95.
+- [ ] **M3-BE-01 Order schema.** _(ADIT)_ `orders` (channel, table, waiter, status), `order_items` and `order_item_modifiers` (snapshots, notes), `order_events` (who, when, reason). *Done when:* menu edits never change past orders.
+- [ ] **M3-BE-02 State machine.** _(ADIT)_ placed → accepted → preparing → ready → served → completed, or cancelled. *Done when:* illegal transitions fail in tests and in the database.
+- [ ] **M3-BE-03 Order actions.** _(ADIT)_ Open, add round, send, serve, complete, idempotent submit. *Done when:* only new items go to the kitchen and a retry makes no duplicate.
+- [ ] **M3-BE-04 Voids.** _(ADIT)_ Item or order, with `orders.void` and a reason. *Done when:* the history records both.
+- [ ] **M3-BE-05 Tickets.** _(ADIT)_ `kitchen_tickets` and `kitchen_ticket_items`, station routing, item and ticket status, bump. *Done when:* ticket and order status stay consistent.
+- [ ] **M3-BE-06 KDS settings.** _(ADIT)_ Amber and red thresholds per location. *Done when:* defaults are 10 and 20 minutes.
+- [ ] **M3-BE-07 Table service.** _(ADIT)_ Available, reserved, occupied, needs cleaning, waiter assignment, move, merge, seated time, running total. *Done when:* moves and merges are atomic.
+- [ ] **M3-BE-08 Service realtime.** _(ADIT)_ Orders, tickets, tables and ready alerts per location. *Done when:* order to ticket is under 2 seconds at p95.
 
 **Bills and money**
-- [ ] **M3-BE-09 Bills.** `bills` and `bill_items` with rate snapshots, service charge and tax. *Done when:* totals match `lib/money` exactly.
-- [ ] **M3-BE-10 Discounts.** `discounts`: percent or fixed, item or bill, `pos.discount`. *Done when:* a total can't go below zero.
-- [ ] **M3-BE-11 Split.** By item or equal shares. *Done when:* shares always add up to the bill, including rounding.
-- [ ] **M3-BE-12 Payments.** `payments` for cash with change, recorded EDC card and other, with mixed and partial payments and derived status. *Done when:* concurrent payments can't overpay a bill.
-- [ ] **M3-BE-13 Payments list.** Live query by status, method, date and staff. *Done when:* it respects location access.
-- [ ] **M3-BE-14 Cash-up.** `cash_sessions` with expected, counted and variance note per method. *Done when:* a closed session can't be edited.
-- [ ] **M3-BE-15 Print data.** Bill and KOT payloads, tax ID, logo and footer settings, duplicate marker. *Done when:* any past bill reprints from its snapshot.
-- [ ] **M3-BE-16 Contracts.** Orders, kitchen, tables, bills, payments, printing. *Done when:* published in `docs/contracts/`.
+- [ ] **M3-BE-09 Bills.** _(CARLO)_ `bills` and `bill_items` with rate snapshots, service charge and tax. *Done when:* totals match `lib/money` exactly.
+- [ ] **M3-BE-10 Discounts.** _(CARLO)_ `discounts`: percent or fixed, item or bill, `pos.discount`. *Done when:* a total can't go below zero.
+- [ ] **M3-BE-11 Split.** _(CARLO)_ By item or equal shares. *Done when:* shares always add up to the bill, including rounding.
+- [ ] **M3-BE-12 Payments.** _(CARLO)_ `payments` for cash with change, recorded EDC card and other, with mixed and partial payments and derived status. *Done when:* concurrent payments can't overpay a bill.
+- [ ] **M3-BE-13 Payments list.** _(CARLO)_ Live query by status, method, date and staff. *Done when:* it respects location access.
+- [ ] **M3-BE-14 Cash-up.** _(CARLO)_ `cash_sessions` with expected, counted and variance note per method. *Done when:* a closed session can't be edited.
+- [ ] **M3-BE-15 Print data.** _(CARLO)_ Bill and KOT payloads, tax ID, logo and footer settings, duplicate marker. *Done when:* any past bill reprints from its snapshot.
+- [ ] **M3-BE-16 Contracts.** _(ADIT)_ Orders, kitchen, tables. *Done when:* published in `docs/contracts/`.
+- [ ] **M3-BE-17 Contracts.** _(CARLO)_ Bills, payments, printing. *Done when:* published in `docs/contracts/`.
 
 ### 7.3 Frontend — REYKI
 
@@ -429,18 +467,19 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M4-LD-02 Guest rules.** Confirm opening hours, pickup timing, QR approval default and three layouts. *Done when:* recorded in §14.
 - [ ] **M4-LD-03 Board.** *Done when:* every M4 task is on the board with one owner.
 
-### 8.2 Backend — ADIT
+### 8.2 Backend — ADIT and CARLO
 
-- [ ] **M4-BE-01 Host separation.** `{slug}` storefront, `app.` admin, root marketing, redirects. *Done when:* each surface answers only on its host.
-- [ ] **M4-BE-02 Storefront data.** Menu, branding, locations, contact, demo logo seed. *Done when:* only published data of active orgs is public.
-- [ ] **M4-BE-03 Opening hours.** Hours and exceptions per location timezone. *Done when:* closed locations refuse orders.
-- [ ] **M4-BE-04 Guest sessions.** Table-linked session and private order-status token. *Done when:* one guest can't read another's order.
-- [ ] **M4-BE-05 Order intake.** QR and pickup, price recompute, availability, hours, Arcjet, idempotency. *Done when:* tampered or repeated requests are refused.
-- [ ] **M4-BE-06 QR approval.** Automatic or staff-approved per location. *Done when:* unapproved orders never reach the KDS.
-- [ ] **M4-BE-07 Table requests.** Call waiter and request bill, rate limited. *Done when:* staff see them live.
-- [ ] **M4-BE-08 Pickup.** Pay at counter, ready notification by live status and email. *Done when:* the order can be completed from the board.
-- [ ] **M4-BE-09 Guest realtime.** Order status and menu changes. *Done when:* updates arrive within 2 seconds without exposing other data.
-- [ ] **M4-BE-10 Contracts.** Storefront, guest orders, hours. *Done when:* published in `docs/contracts/`.
+- [ ] **M4-BE-01 Host separation.** _(CARLO)_ `{slug}` storefront, `app.` admin, root marketing, redirects. *Done when:* each surface answers only on its host.
+- [ ] **M4-BE-02 Storefront data.** _(CARLO)_ Menu, branding, locations, contact, demo logo seed. *Done when:* only published data of active orgs is public.
+- [ ] **M4-BE-03 Opening hours.** _(ADIT)_ Hours and exceptions per location timezone. *Done when:* closed locations refuse orders.
+- [ ] **M4-BE-04 Guest sessions.** _(ADIT)_ Table-linked session and private order-status token. *Done when:* one guest can't read another's order.
+- [ ] **M4-BE-05 Order intake.** _(ADIT)_ QR and pickup, price recompute, availability, hours, Arcjet, idempotency. *Done when:* tampered or repeated requests are refused.
+- [ ] **M4-BE-06 QR approval.** _(ADIT)_ Automatic or staff-approved per location. *Done when:* unapproved orders never reach the KDS.
+- [ ] **M4-BE-07 Table requests.** _(CARLO)_ Call waiter and request bill, rate limited. *Done when:* staff see them live.
+- [ ] **M4-BE-08 Pickup.** _(ADIT)_ Pay at counter, ready notification by live status and email. *Done when:* the order can be completed from the board.
+- [ ] **M4-BE-09 Guest realtime.** _(ADIT)_ Order status and menu changes. *Done when:* updates arrive within 2 seconds without exposing other data.
+- [ ] **M4-BE-10 Contracts.** _(ADIT)_ Guest orders, hours. *Done when:* published in `docs/contracts/`.
+- [ ] **M4-BE-11 Contracts.** _(CARLO)_ Storefront, table requests. *Done when:* published in `docs/contracts/`.
 
 ### 8.3 Frontend — REYKI
 
@@ -489,18 +528,19 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M5-LD-02 Access.** Arrange sandbox and production merchant access and test method list. *Done when:* credentials are only in secret storage.
 - [ ] **M5-LD-03 Board.** *Done when:* every M5 task is on the board with one owner.
 
-### 9.2 Backend — ADIT
+### 9.2 Backend — ADIT and CARLO
 
-- [ ] **M5-BE-01 Gateway accounts.** `payment_gateway_accounts`: encrypted credentials per org, sandbox or live, connection test. *Done when:* a secret is never returned to the browser.
-- [ ] **M5-BE-02 Provider interface.** `createCheckout`, `getStatus`, `verifyNotification`, `parseNotification`. *Done when:* a new gateway needs no change outside the payments module.
-- [ ] **M5-BE-03 Signature.** DOKU Non-SNAP signing and verification. *Done when:* DOKU's documented vectors pass.
-- [ ] **M5-BE-04 Checkout.** Invoice number (`RM-…`) stored before redirect, full or partial amount. *Done when:* a double submit creates one payment.
-- [ ] **M5-BE-05 Webhook.** Raw body, signature, secret by Client-Id, dedup in `payment_notifications`, amount and currency check, one transaction, fast 200. *Done when:* two deliveries apply once.
-- [ ] **M5-BE-06 Reconciliation.** Check Status for pending payments older than 15 minutes. *Done when:* a lost notification still resolves.
-- [ ] **M5-BE-07 Expiry.** 60-minute default and retry. *Done when:* an expired link can be replaced safely.
-- [ ] **M5-BE-08 Refunds.** `refunds`: full and partial, `payments.refund`, manual path where there is no API. *Done when:* refunds can't exceed what was paid.
-- [ ] **M5-BE-09 Paid-order rules.** Online orders enter the kitchen after payment when required, tables close when paid. *Done when:* a redirect alone changes nothing.
-- [ ] **M5-BE-10 Contracts.** Gateway, checkout, refunds. *Done when:* published in `docs/contracts/`.
+- [ ] **M5-BE-01 Gateway accounts.** _(CARLO)_ `payment_gateway_accounts`: encrypted credentials per org, sandbox or live, connection test. *Done when:* a secret is never returned to the browser.
+- [ ] **M5-BE-02 Provider interface.** _(CARLO)_ `createCheckout`, `getStatus`, `verifyNotification`, `parseNotification`. *Done when:* a new gateway needs no change outside the payments module.
+- [ ] **M5-BE-03 Signature.** _(CARLO)_ DOKU Non-SNAP signing and verification. *Done when:* DOKU's documented vectors pass.
+- [ ] **M5-BE-04 Checkout.** _(CARLO)_ Invoice number (`RM-…`) stored before redirect, full or partial amount. *Done when:* a double submit creates one payment.
+- [ ] **M5-BE-05 Webhook.** _(CARLO)_ Raw body, signature, secret by Client-Id, dedup in `payment_notifications`, amount and currency check, one transaction, fast 200. *Done when:* two deliveries apply once.
+- [ ] **M5-BE-06 Reconciliation.** _(CARLO)_ Check Status for pending payments older than 15 minutes. *Done when:* a lost notification still resolves.
+- [ ] **M5-BE-07 Expiry.** _(CARLO)_ 60-minute default and retry. *Done when:* an expired link can be replaced safely.
+- [ ] **M5-BE-08 Refunds.** _(CARLO)_ `refunds`: full and partial, `payments.refund`, manual path where there is no API. *Done when:* refunds can't exceed what was paid.
+- [ ] **M5-BE-09 Paid-order rules.** _(ADIT)_ Online orders enter the kitchen after payment when required, tables close when paid. *Done when:* a redirect alone changes nothing.
+- [ ] **M5-BE-10 Contracts.** _(CARLO)_ Gateway, checkout, refunds. *Done when:* published in `docs/contracts/`.
+- [ ] **M5-BE-11 Contracts.** _(ADIT)_ Paid-order rules. *Done when:* published in `docs/contracts/`.
 
 ### 9.3 Frontend — REYKI
 
@@ -549,30 +589,31 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M6-LD-02 Launch checklist.** Support, incident contact, rollback, backups, status page, legal. *Done when:* the project owner agrees to it.
 - [ ] **M6-LD-03 Board.** *Done when:* every M6 task is on the board with one owner.
 
-### 10.2 Backend — ADIT
+### 10.2 Backend — ADIT and CARLO
 
 **Reservations and customers**
-- [ ] **M6-BE-01 Reservation schema.** Rules, slots, blackout dates, statuses, exclusion constraint. *Done when:* overlapping bookings are impossible.
-- [ ] **M6-BE-02 Booking.** Availability, create, cancel link, confirmation email. *Done when:* only suitable free tables are offered.
-- [ ] **M6-BE-03 Seating.** Confirm, seat, open order, no-show count. *Done when:* seating updates the table atomically.
-- [ ] **M6-BE-04 Customers.** Profiles from bookings and online orders, history, spend, preferences, allergies, notes. *Done when:* duplicates are merged per tenant.
-- [ ] **M6-BE-05 Feedback and deletion.** Post-visit rating, low-rating alert, deletion request. *Done when:* deletion removes personal data and keeps financial totals.
+- [ ] **M6-BE-01 Reservation schema.** _(ADIT)_ Rules, slots, blackout dates, statuses, exclusion constraint. *Done when:* overlapping bookings are impossible.
+- [ ] **M6-BE-02 Booking.** _(ADIT)_ Availability, create, cancel link, confirmation email. *Done when:* only suitable free tables are offered.
+- [ ] **M6-BE-03 Seating.** _(ADIT)_ Confirm, seat, open order, no-show count. *Done when:* seating updates the table atomically.
+- [ ] **M6-BE-04 Customers.** _(CARLO)_ Profiles from bookings and online orders, history, spend, preferences, allergies, notes. *Done when:* duplicates are merged per tenant.
+- [ ] **M6-BE-05 Feedback and deletion.** _(CARLO)_ Post-visit rating, low-rating alert, deletion request. *Done when:* deletion removes personal data and keeps financial totals.
 
 **Reports and staff**
-- [ ] **M6-BE-06 Reports.** Security-invoker functions for sales, staff, tables, reservations, customers and payments, with compare and area filters. *Done when:* totals equal the source records.
-- [ ] **M6-BE-07 CSV export.** Permission and package gated. *Done when:* exports are safe from spreadsheet formula injection.
-- [ ] **M6-BE-08 Schedules.** Weekly shifts per location. *Done when:* staff read only their own unless they manage staff.
-- [ ] **M6-BE-09 POS PIN.** Hashed PIN, lockout, registered shared device. *Done when:* a PIN alone can't sign in elsewhere.
+- [ ] **M6-BE-06 Reports.** _(ADIT)_ Security-invoker functions for sales, staff, tables, reservations, customers and payments, with compare and area filters. *Done when:* totals equal the source records.
+- [ ] **M6-BE-07 CSV export.** _(ADIT)_ Permission and package gated. *Done when:* exports are safe from spreadsheet formula injection.
+- [ ] **M6-BE-08 Schedules.** _(ADIT)_ Weekly shifts per location. *Done when:* staff read only their own unless they manage staff.
+- [ ] **M6-BE-09 POS PIN.** _(ADIT)_ Hashed PIN, lockout, registered shared device. *Done when:* a PIN alone can't sign in elsewhere.
 
 **Brand, billing and operations**
-- [ ] **M6-BE-10 Theme.** Draft and publish for logo, cover, colours, fonts, style and preset, also used by bills and emails. *Done when:* drafts are never public.
-- [ ] **M6-BE-11 Subscription invoices.** `platform_invoices` (`RMSUB-…`), Restomate DOKU checkout, emailed link. *Done when:* each period is billed once.
-- [ ] **M6-BE-12 Billing lifecycle.** Trial end, reminders, failure, grace, past due, read-only, recovery. *Done when:* each transition is tested and audited.
-- [ ] **M6-BE-13 Billing admin.** Invoices, renewals, failures, plan change, trial extension, manual credit. *Done when:* every action is audited.
-- [ ] **M6-BE-14 Plan enforcement.** All features and limits in `PROJECT.md` §6, including Basic tiers. *Done when:* no gate exists only in the UI.
-- [ ] **M6-BE-15 Remaining platform settings.** Enabled gateways and editable email templates. *Done when:* changes are audited and take effect.
-- [ ] **M6-BE-16 Production readiness.** SPF, DKIM, DMARC, SMTP, Arcjet live, monitoring, point-in-time recovery, status page. *Done when:* prepared, and production changes wait for approval.
-- [ ] **M6-BE-17 Contracts.** All M6 modules. *Done when:* published in `docs/contracts/`.
+- [ ] **M6-BE-10 Theme.** _(CARLO)_ Draft and publish for logo, cover, colours, fonts, style and preset, also used by bills and emails. *Done when:* drafts are never public.
+- [ ] **M6-BE-11 Subscription invoices.** _(CARLO)_ `platform_invoices` (`RMSUB-…`), Restomate DOKU checkout, emailed link. *Done when:* each period is billed once.
+- [ ] **M6-BE-12 Billing lifecycle.** _(CARLO)_ Trial end, reminders, failure, grace, past due, read-only, recovery. *Done when:* each transition is tested and audited.
+- [ ] **M6-BE-13 Billing admin.** _(CARLO)_ Invoices, renewals, failures, plan change, trial extension, manual credit. *Done when:* every action is audited.
+- [ ] **M6-BE-14 Plan enforcement.** _(CARLO)_ All features and limits in `PROJECT.md` §6, including Basic tiers. *Done when:* no gate exists only in the UI.
+- [ ] **M6-BE-15 Remaining platform settings.** _(ADIT)_ Enabled gateways and editable email templates. *Done when:* changes are audited and take effect.
+- [ ] **M6-BE-16 Production readiness.** _(ADIT)_ SPF, DKIM, DMARC, SMTP, Arcjet live, monitoring, point-in-time recovery, status page. *Done when:* prepared, and production changes wait for approval.
+- [ ] **M6-BE-17 Contracts.** _(ADIT)_ Reservations, reports, schedules, settings. *Done when:* published in `docs/contracts/`.
+- [ ] **M6-BE-18 Contracts.** _(CARLO)_ Customers, theme, billing. *Done when:* published in `docs/contracts/`.
 
 ### 10.3 Frontend — REYKI
 
@@ -667,7 +708,7 @@ ALAN picks one item. It gets its own detailed tasks and passes all five steps be
 ### 11.2 Steps for the picked item
 
 1. **Plan — ALAN:** spec, acceptance criteria, tasks, decisions.
-2. **Backend — ADIT:** data, RLS, logic, integration, contract.
+2. **Backend — ADIT or CARLO (one per item):** data, RLS, logic, integration, contract.
 3. **Frontend — REYKI:** screens, states, both languages.
 4. **QA — DAVIN:** isolation, acceptance, regression, sign-off.
 5. **Close — ALAN:** review, merge, approved release.
@@ -725,6 +766,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | Staging Supabase is `Restomate-Dev`, ref `byexuyfafpnrcfedubtb`, ap-southeast-1; `STAGING.md` updated. Owner will provide the `SUPABASE_STAGING_DB_URL` secret and service keys (M0-LD-03) | Project owner |
 | 2026-11-22 | M0-LD-04: board `MF` holds `MF-T01` to `MF-T40` in PLAN order. Tasks are assigned at each step handoff, never earlier | ALAN |
 | 2026-11-22 | M0-BE-01 (PR #3) and M0-BE-02 (PR #4) merged. Notes carried forward: BE-15/22 (4.9.6) must not rely on `'use cache: private'` for "signed out everywhere", because it can stay in the browser's router cache for 5 minutes and every action re-checks; `updateTag` works only in Server Actions, so route handlers such as the DOKU webhook use `revalidateTag`; BE-24's deploy gate must not wait for a CI run on a docs-only tip of main (CI skips `docs/**` and `*.md`); QA-01 Playwright files under `apps/web` cannot be `*.spec.ts`, or Vitest collects them; CI is run locally with `pnpm run ci` (plain `pnpm ci` is a pnpm built-in that checks nothing). Follow-ups: lint should use `--max-warnings 0`; branch protection on main is an owner decision before launch | ALAN, from ADIT and DAVIN reports |
+| 2026-11-22 | CARLO joins as a second backend developer. Each backend task and file has one owner (§1.1) | Project owner |
 
 ### Open
 
