@@ -57,6 +57,7 @@ One phase is active at a time, and one step inside it.
 
 - **Order:** each person does their tasks top to bottom. A task may rely on any task above it, never on one below it.
 - **One task = one branch = one draft PR.** ALAN marks it ready only after DAVIN's PASS and ALAN's own review, then squash-merges one at a time in stack order. Retarget stacked PRs to `main` before deleting a branch. Markdown-only PRs skip QA.
+- **Second task:** ALAN may give ADIT or CARLO one more task while their current one is blocked, parked, or pushed and waiting for QA or merge. They work on one at a time, on separate branches and files, with the same QA and review before each merge.
 - **Failed QA:** DAVIN files the bug and ALAN reopens step 2 or 3. The fix passes through the remaining steps again.
 - **Bug in a closed phase:** S1 or S2 pauses the current step until it is fixed and verified. S3 and S4 go into the next Plan step.
 - **Severity:** S1 data leak, money error or outage. S2 a main flow is broken. S3 broken with a workaround. S4 cosmetic.
@@ -775,6 +776,8 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | M0-BE-03 pins the Supabase CLI to exactly 3.2.0 (PR #9, merges after its gate and QA), because 2.122.1 has a `db reset` race (supabase/cli 7380). M0-BE-24 must use v3's explicit `--remote` target, and `--yes` only on the apply step | ALAN |
 | 2026-11-22 | M0-BE-04 boot check: failing closed with 500 is accepted in place of exiting the process, because Next keeps the process up | ALAN, from CARLO's evidence |
 | 2026-11-22 | Staging setup from the rows above is complete as of 18:13 UTC: the four Vercel variables are set for Production and Preview, the Auth Site and Redirect URLs work, and the `SUPABASE_STAGING_DB_URL` secret exists. Values are not verified: formats are tested by the first build with M0-BE-26 and M0-BE-04, the secret by M0-BE-24's dry run, the Supabase ref behind `NEXT_PUBLIC_SUPABASE_URL` in M0-CL-02 | ALAN, from the Vercel log, build logs and read-only checks |
+| 2026-11-22 | ADIT and CARLO may hold a second task while the first is blocked, parked, or waiting for QA or merge (§1.2). This is the exception to assigning only to agents HQ shows as free | Project owner, marked the yes/no request done at 18:25 UTC. ALAN read that as yes |
+| 2026-11-22 | M0-BE-19 default, as the spec has no rounding rule: half up to the smallest unit, separately for service charge and for tax. Tax applies to the subtotal, plus the service charge when the location's flag is on. Reconfirm in M3 Plan | ALAN, default. The project owner can change it |
 
 ### Open
 
@@ -784,6 +787,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | POS printers and cash drawers | M3-LD-02 |
 | Tipping at launch | M3-LD-02 |
 | Configurable or fixed KDS thresholds | M3-LD-03 |
+| Confirm the rounding default for tax and service charge | M3 Plan, before M3-BE-09 |
 | DOKU merchant onboarding | M5-LD-01 |
 | Email only or WhatsApp at launch | M6-LD-01 |
 | E-Faktur for subscription invoices | M6-LD-01 |
