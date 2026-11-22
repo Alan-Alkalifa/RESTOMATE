@@ -53,15 +53,20 @@ const hostname = z.preprocess(
     )
     .optional(),
 );
+function isBase64Of32Bytes(v: string): boolean {
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(v)) return false;
+  try {
+    return atob(v).length === 32;
+  } catch {
+    return false;
+  }
+}
+
 const encryptionKey = z.preprocess(
   unset,
   z
     .string()
-    .refine(
-      (v) =>
-        /^[0-9a-f]{64}$/i.test(v) ||
-        (/^[A-Za-z0-9+/]+={0,2}$/.test(v) && Buffer.from(v, "base64").length === 32),
-    )
+    .refine((v) => /^[0-9a-f]{64}$/i.test(v) || isBase64Of32Bytes(v))
     .optional(),
 );
 
@@ -131,24 +136,29 @@ export function validateEnv(
       }
     }
   }
-  const env = parsed.success ? parsed.data : undefined;
-
-  if (env && production) {
+  // Required checks run even when a value is malformed, so every invalid and
+  // missing name is reported at once.
+  if (production) {
+    const reported = new Set(issues.map((i) => i.name));
+    const isSet = (name: string) => (source[name] ?? "").trim() !== "";
     for (const name of REQUIRED_IN_PRODUCTION) {
-      if (env[name] === undefined) issues.push({ name, reason: "is required in production" });
+      if (!reported.has(name) && !isSet(name))
+        issues.push({ name, reason: "is required in production" });
     }
-    if (!env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (!isSet("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") && !isSet("NEXT_PUBLIC_SUPABASE_ANON_KEY")) {
       issues.push({
         name: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
         reason: "is required in production (or set NEXT_PUBLIC_SUPABASE_ANON_KEY)",
       });
     }
-    if (env.EMAIL_DELIVERY === "log") {
+    if (source.EMAIL_DELIVERY === "log") {
       issues.push({ name: "EMAIL_DELIVERY", reason: 'must be "resend" in production' });
     }
   }
 
-  return issues.length > 0 || !env ? { ok: false, issues } : { ok: true, env };
+  return issues.length > 0 || !parsed.success
+    ? { ok: false, issues }
+    : { ok: true, env: parsed.data };
 }
 
 let cached: ServerEnv | undefined;
@@ -160,6 +170,23 @@ export function getServerEnv(): ServerEnv {
   if (!result.ok) throw new EnvError("[env] Invalid environment", result.issues);
   cached = result.env;
   return cached;
+}
+
+/**
+ * Public values. Next inlines only static `process.env.NEXT_PUBLIC_X` references,
+ * so each one is written out literally. Use this (never a dynamic lookup) for
+ * anything that must work in the browser bundle.
+ */
+export function readPublicEnv(): EnvSource {
+  return {
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_ROOT_DOMAIN: process.env.NEXT_PUBLIC_ROOT_DOMAIN,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  };
 }
 
 /**
@@ -183,8 +210,12 @@ function slice<K extends keyof ServerEnv>(
   return result.data as unknown as Pick<ServerEnv, K>;
 }
 
-function need<K extends keyof ServerEnv>(names: readonly K[], label: string) {
-  const env = slice(names, label);
+function need<K extends keyof ServerEnv>(
+  names: readonly K[],
+  label: string,
+  source: EnvSource = process.env,
+) {
+  const env = slice(names, label, source);
   const missing = names
     .filter((n) => env[n] === undefined)
     .map((n) => ({ name: String(n), reason: "is required" }));
@@ -201,6 +232,7 @@ export function getSupabaseEnv() {
       "NEXT_PUBLIC_SUPABASE_ANON_KEY",
     ],
     "Supabase",
+    readPublicEnv(),
   );
   const publishableKey =
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -217,7 +249,8 @@ export function getSupabaseEnv() {
 }
 
 export const getSupabaseAdminEnv = () => need(["SUPABASE_SERVICE_ROLE_KEY"], "Supabase admin");
-export const getAppEnv = () => need(["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_ROOT_DOMAIN"], "app");
+export const getAppEnv = () =>
+  need(["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_ROOT_DOMAIN"], "app", readPublicEnv());
 export const getArcjetEnv = () => need(["ARCJET_KEY"], "Arcjet");
 export const getDokuEnv = () => need(["DOKU_ENV", "DOKU_CLIENT_ID", "DOKU_SECRET_KEY"], "DOKU");
 export const getEncryptionEnv = () => need(["APP_ENCRYPTION_KEY"], "encryption");
@@ -237,7 +270,11 @@ export function getEmailEnv() {
 
 /** PostHog is optional; analytics never blocks the app. */
 export function getPostHogEnv() {
-  const env = slice(["NEXT_PUBLIC_POSTHOG_KEY", "NEXT_PUBLIC_POSTHOG_HOST"], "PostHog");
+  const env = slice(
+    ["NEXT_PUBLIC_POSTHOG_KEY", "NEXT_PUBLIC_POSTHOG_HOST"],
+    "PostHog",
+    readPublicEnv(),
+  );
   return { key: env.NEXT_PUBLIC_POSTHOG_KEY, host: env.NEXT_PUBLIC_POSTHOG_HOST };
 }
 
