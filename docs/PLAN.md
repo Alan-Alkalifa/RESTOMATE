@@ -111,7 +111,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 
 - [x] **M0-LD-01 Starting point.** Confirm with the project owner what happens to any earlier code, branches, Vercel project and staging database. *Done when:* each is marked keep, reset or replace in §14, and nothing was deleted without approval.
 - [x] **M0-LD-02 Engineering rules.** Write `CLAUDE.md`: stack, layout tree, §2 rules, surfaces and routing, environment variables, email. *Done when:* every `CLAUDE.md` reference in the docs resolves.
-- [ ] **M0-LD-03 Access.** Arrange repository, Vercel, Supabase, Resend, Arcjet, PostHog and DOKU sandbox access. *Done when:* each service is reachable and no secret is in a file.
+- [x] **M0-LD-03 Access.** Arrange repository, Vercel, Supabase, Resend, Arcjet, PostHog and DOKU sandbox access. *Done when:* each service is reachable and no secret is in a file.
 - [x] **M0-LD-04 Board.** Copy the M0 tasks to the HQ board with their IDs, owners and order. *Done when:* every task has one owner.
 
 ### 4.2 Backend — ADIT
@@ -722,6 +722,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | Carried over | DOKU for guest payments and SaaS billing, Resend for email | `PROJECT.md` §11 |
 | Carried over | Indonesia and IDR at launch, tax configurable per location | `PROJECT.md` §11 |
 | 2026-11-22 | M0-LD-01: earlier code is reset (the repo holds none). Vercel project `restomate-staging` is kept. The staging Supabase project is kept and its schema is built only by forward-only migrations after merge. Nothing is deleted. `STAGING.md` names ref `hnpcfaecrdilwongitbg`, but the connected Supabase account lists only `Restomate-Dev` (`byexuyfafpnrcfedubtb`): ADIT confirms the target ref before the first staging deploy (M0-BE-24) | ALAN, under the owner's "restart from zero" |
+| 2026-11-22 | Staging Supabase is `Restomate-Dev`, ref `byexuyfafpnrcfedubtb`, ap-southeast-1; `STAGING.md` updated. Owner will provide the `SUPABASE_STAGING_DB_URL` secret and service keys (M0-LD-03) | Project owner |
 | 2026-11-22 | M0-LD-04: board `MF` holds `MF-T01` to `MF-T40` in PLAN order. Tasks are assigned at each step handoff, never earlier | ALAN |
 
 ### Open
