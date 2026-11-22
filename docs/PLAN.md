@@ -130,7 +130,8 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [x] **M0-BE-01 Monorepo.** _(ADIT)_ pnpm and Turborepo, Next.js 16 in `apps/web`, TypeScript 5.x, ESLint, Prettier, scripts `dev`, `build`, `lint`, `typecheck`, `test`, `db:*`. *Done when:* all scripts run on a clean clone and §2 is confirmed.
 - [x] **M0-BE-02 CI.** _(ADIT)_ GitHub Actions: install, lint, typecheck, unit, build, database reset and pgTAP, plus an e2e job ready for DAVIN's suite. *Done when:* a draft PR gets a result from each job.
 - [ ] **M0-BE-03 Supabase.** _(ADIT)_ Local config, auth settings, Mailpit, Resend SMTP block. *Done when:* `supabase start` and `db reset` work from zero.
-- [ ] **M0-BE-26 Turbo build env.** _(ADIT)_ `turbo.json` declares the server variables on the build task. Merges before M0-BE-04. *Done when:* with M0-BE-04 applied, a root build with `VERCEL=1` passes on valid values and fails by name when one is missing.
+- [x] **M0-BE-26 Turbo build env.** _(ADIT)_ `turbo.json` declares the server variables on the build task. Merges before M0-BE-04. *Done when:* with M0-BE-04 applied, a root build with `VERCEL=1` passes on valid values and fails by name when one is missing.
+- [ ] **M0-BE-27 Turbo dev env.** _(ADIT)_ `turbo.json` passes the 9 server variables through to the dev task. *Done when:* `pnpm dev` sees them from the shell and undeclared names stay hidden.
 - [ ] **M0-BE-04 Environment.** _(CARLO)_ `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
 
 **Database**
@@ -198,6 +199,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 | M0-BE-24 | 04, 13 |
 | M0-BE-25 | 20, 21, 22, 23 |
 | M0-BE-26 | 01 |
+| M0-BE-27 | 26 |
 
 ### 4.3 Frontend — REYKI
 
@@ -778,6 +780,9 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | Staging setup from the rows above is complete as of 18:13 UTC: the four Vercel variables are set for Production and Preview, the Auth Site and Redirect URLs work, and the `SUPABASE_STAGING_DB_URL` secret exists. Values are not verified: formats are tested by the first build with M0-BE-26 and M0-BE-04, the secret by M0-BE-24's dry run, the Supabase ref behind `NEXT_PUBLIC_SUPABASE_URL` in M0-CL-02 | ALAN, from the Vercel log, build logs and read-only checks |
 | 2026-11-22 | ADIT and CARLO may hold a second task while the first is blocked, parked, or waiting for QA or merge (§1.2). This is the exception to assigning only to agents HQ shows as free | Project owner, marked the yes/no request done at 18:25 UTC. ALAN read that as yes |
 | 2026-11-22 | M0-BE-19 default, as the spec has no rounding rule: half up to the smallest unit, separately for service charge and for tax. Tax applies to the subtotal, plus the service charge when the location's flag is on. Reconfirm in M3 Plan | ALAN, default. The project owner can change it |
+| 2026-11-22 | M0-BE-19 details: tax on service uses the rounded service charge the bill shows; `formatMoney` writes a plain space after `Rp` and rejects negatives (signed refund and discount display is decided in M3 Plan); `lib/money` sets no upper rate limit, so M0-BE-06 constraints and the settings schemas do | ALAN, from CARLO's PR #14. The project owner can change them |
+| 2026-11-22 | M0-BE-26 merged (PR #13). `turbo run dev` hides the same server variables when they come from the shell, so M0-BE-27 fixes that separately | ALAN, from ADIT's and DAVIN's reports |
+| 2026-11-22 | M0-BE-03 gate: a service that is briefly unhealthy while `start` or `db reset` boots it is not a failure if it is healthy when the command returns. Crashes, unexpected restarts, timeouts and unhealthy states outside those commands are | ALAN, from ADIT's evidence |
 
 ### Open
 
@@ -787,7 +792,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | POS printers and cash drawers | M3-LD-02 |
 | Tipping at launch | M3-LD-02 |
 | Configurable or fixed KDS thresholds | M3-LD-03 |
-| Confirm the rounding default for tax and service charge | M3 Plan, before M3-BE-09 |
+| Confirm the rounding default for tax and service charge, and how refunds and discounts show a minus sign | M3 Plan, before M3-BE-09 |
 | DOKU merchant onboarding | M5-LD-01 |
 | Email only or WhatsApp at launch | M6-LD-01 |
 | E-Faktur for subscription invoices | M6-LD-01 |
