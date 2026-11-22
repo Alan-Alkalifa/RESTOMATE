@@ -5,7 +5,7 @@ Real services on a staging environment, before any production work. **Nothing he
 | Piece | Staging |
 |---|---|
 | App | Vercel Hobby, `https://restomate-staging.vercel.app` (no custom domain yet) |
-| Database + Auth | Supabase project `restomate-staging`, ref `hnpcfaecrdilwongitbg`, region ap-northeast-1 (Tokyo), created through the Vercel Marketplace |
+| Database + Auth | Supabase project `restomate-staging`, ref `byexuyfafpnrcfedubtb` (project name `Restomate-Dev`), region ap-southeast-1 (Singapore), created through the Vercel Marketplace |
 | Payments | DOKU **sandbox** only (`DOKU_ENV=sandbox`) |
 | Email | Resend, `EMAIL_DELIVERY=resend` (production rules apply: `log` is rejected) |
 
@@ -25,7 +25,7 @@ The app and the database deploy independently. A migration that the new code nee
 |---|---|
 | `SUPABASE_STAGING_DB_URL` | The staging project's **Session pooler** connection string, password included |
 
-Where to copy it: Supabase dashboard -> the `restomate-staging` project -> **Connect** -> **Session pooler** (not "Direct connection": that host is IPv6 only and GitHub runners are IPv4). It looks like `postgresql://postgres.<project-ref>:<password>@<region>.pooler.supabase.com:5432/postgres`. Replace the `[YOUR-PASSWORD]` placeholder with the database password, URL-encoded if it contains special characters (`@` -> `%40`, `#` -> `%23`, `/` -> `%2F`). Paste the finished string into the secret; never into chat, an issue or a file.
+Where to copy it: Supabase dashboard -> the `restomate-staging` project -> **Connect** -> **Session pooler** (not "Direct connection": that host is IPv6 only and GitHub runners are IPv4). It looks like `postgresql://postgres.byexuyfafpnrcfedubtb:<password>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres`. Replace the `[YOUR-PASSWORD]` placeholder with the database password, URL-encoded if it contains special characters (`@` -> `%40`, `#` -> `%23`, `/` -> `%2F`). Paste the finished string into the secret; never into chat, an issue or a file.
 
 **Why only this one (least privilege):** there is deliberately **no** Supabase personal access token. A token is account-wide, so a leaked CI secret would expose every other project in the account. The connection string reaches this one database and nothing else. The workflow stops with an error naming the secret if it is missing, masks the string (and its password on its own) in the logs, and never prints it.
 
