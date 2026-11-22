@@ -17,12 +17,12 @@ Before writing integration code, use the installed skills (`supabase`, `arcjet`,
 
 ```
 apps/web/                 Next.js app
-  app/                    pages, layouts (REYKI); route handlers and Server Actions (ADIT)
+  app/                    pages, layouts (REYKI); route handlers and Server Actions (ADIT or CARLO, by module)
   components/             UI (REYKI)
-  lib/                    server logic, env, money, access layer, email (ADIT)
-  proxy.ts                host routing, session refresh, Arcjet (ADIT)
+  lib/                    server logic (ADIT or CARLO, by module); env, money, access layer, email (CARLO)
+  proxy.ts                host routing, session refresh, Arcjet (CARLO)
   AGENTS.md               stays committed
-packages/db/              generated database types (ADIT)
+packages/db/              generated database types (never edit by hand)
 supabase/                 config, migrations, seed.sql, seed-staging.sql, templates/, tests/ (pgTAP)
 docs/                     PROJECT, PLAN, DESIGN, STAGING, contracts/, qa/
 .github/workflows/        CI and deploy (ADIT)
