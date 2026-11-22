@@ -132,7 +132,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M0-BE-03 Supabase.** _(ADIT)_ Local config, auth settings, Mailpit, Resend SMTP block. *Done when:* `supabase start` and `db reset` work from zero.
 - [x] **M0-BE-26 Turbo build env.** _(ADIT)_ `turbo.json` declares the server variables on the build task. Merges before M0-BE-04. *Done when:* with M0-BE-04 applied, a root build with `VERCEL=1` passes on valid values and fails by name when one is missing.
 - [ ] **M0-BE-27 Turbo dev env.** _(ADIT)_ `turbo.json` passes the 9 server variables through to the dev task. *Done when:* `pnpm dev` sees them from the shell and undeclared names stay hidden.
-- [ ] **M0-BE-28 core-js build decision.** _(ADIT)_ `core-js: false` under `allowBuilds`. Merges before M0-BE-17. *Done when:* a frozen install passes with `posthog-js` added.
+- [x] **M0-BE-28 core-js build decision.** _(ADIT)_ `core-js: false` under `allowBuilds`. Merges before M0-BE-17. *Done when:* a frozen install passes with `posthog-js` added.
 - [x] **M0-BE-04 Environment.** _(CARLO)_ `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
 
 **Database**
@@ -791,6 +791,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | M0-BE-28: `core-js` install script blocked (`false`). It only prints a banner, and pnpm 12 fails an install with an undecided script | ALAN, from CARLO's report |
 | 2026-11-22 | M0-BE-29: an explicit-grant baseline is the first migration, before any table. Every later migration grants what it needs. DAVIN pins it in pgTAP in the QA step | ALAN, from ADIT's report |
 | 2026-11-22 | Auth's redirect check accepts loopback IPs, and any port on a loopback Site URL, whatever the allow list says. The M0-BE-03 gate expects that. M0-BE-20 validates `next` itself, and M0-FE-10's `token_hash` links are built on the Site URL, never on a caller's redirect host | ALAN, from ADIT's gate and the GoTrue v2.198.0 source |
+| 2026-11-22 | Correction to the M0-BE-03 gate row: CLI 3.2.0's `db reset` never waits for the health of the services it restarts, so they must be healthy within 60 seconds after it returns (`start` is unchanged: healthy at return). Scripts and tests that use Auth, Storage or Realtime straight after a reset wait for health first (M0-QA-01) | ALAN, from ADIT's evidence and the CLI source |
 
 ### Open
 
