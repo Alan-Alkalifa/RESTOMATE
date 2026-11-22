@@ -89,7 +89,7 @@ token_verifications = 300
 token_refresh = 150
 
 [auth.email]
-enable_signup = true
+enabled = true
 enable_confirmations = true
 double_confirm_changes = true
 # A session older than 24 hours must reauthenticate to change the password.
@@ -113,7 +113,7 @@ sender_name = "Restomate"
 # that doesn't exist yet stops `supabase start`.
 
 [auth.sms]
-enable_signup = false
+enabled = false
 
 [auth.mfa.totp]
 enroll_enabled = false
