@@ -1,0 +1,193 @@
+# Run the same checks locally with `pnpm run ci`. Plain `pnpm ci` is a pnpm built-in (clean
+# install) and runs none of them.
+# The staging deploy (M0-BE-24) follows this workflow by its name, "CI".
+name: CI
+
+on:
+  # No branch filter: stacked and draft PRs need results too.
+  pull_request:
+    paths-ignore: ["docs/**", "*.md"]
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "*.md"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# No repository secrets: this runs code from pull requests of a public repo.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash # adds pipefail
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read # find the last green run on main
+    outputs:
+      database: ${{ steps.scope.outputs.database }}
+      pgtap: ${{ steps.scope.outputs.pgtap }}
+      e2e: ${{ steps.scope.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # A PR needs the merge commit's parent, main needs history back to the last green run.
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      # On main the diff starts at the last green run, not the previous push. Otherwise a migration
+      # whose run failed or was cancelled would go untested under the next, unrelated, green run.
+      - name: Decide which jobs to run
+        id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            base="HEAD^1"
+          else
+            base="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty' || true)"
+          fi
+
+          # An unknown base counts as changed.
+          changed=true
+          if [ -n "$base" ] && git diff --quiet "$base" HEAD -- supabase apps packages .github package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json; then
+            changed=false
+          fi
+
+          database=false
+          pgtap=false
+          e2e=false
+          if [ -n "$(git ls-files -- supabase)" ]; then
+            if [ ! -f supabase/config.toml ]; then
+              echo "::error::supabase/ has files but no config.toml"
+              exit 1
+            fi
+            database="$changed"
+            if [ -n "$(git ls-files -- 'supabase/tests/*.sql' 'supabase/tests/*.pg')" ]; then
+              pgtap="$changed"
+            else
+              echo "::notice::No pgTAP tests yet (M0-QA-01)."
+            fi
+          else
+            echo "::notice::Database job skipped: no Supabase project yet (M0-BE-03)."
+          fi
+
+          suites="$(git ls-files -- 'playwright.config.*' '*/playwright.config.*' ':!.agents' ':!.claude')"
+          if [ -z "$suites" ]; then
+            echo "::notice::E2E job skipped: no Playwright suite yet (M0-QA-01)."
+          elif grep -qv '^apps/web/playwright\.config\.' <<< "$suites"; then
+            echo "::error::The Playwright config must be in apps/web, where pnpm test:e2e runs it"
+            exit 1
+          else
+            e2e="$changed"
+          fi
+
+          {
+            echo "database=$database"
+            echo "pgtap=$pgtap"
+            echo "e2e=$e2e"
+          } >> "$GITHUB_OUTPUT"
+          echo "changed=$changed database=$database pgtap=$pgtap e2e=$e2e"
+
+      # pnpm's version is pinned by packageManager in package.json. Don't use `npm i -g pnpm`:
+      # npm 12 skips its install script and every Turbo task then fails with "Exec format error".
+      - &pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          cache: true # pnpm store
+      - &node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Turbo cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      - name: Install, format, lint, typecheck, test, build
+        run: pnpm run ci
+
+  database:
+    name: Database
+    needs: check
+    if: needs.check.outputs.database == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - &checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - *pnpm
+      - *node
+      - &install
+        name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Start and reset the database
+        run: pnpm run ci:db
+      - name: Run pgTAP
+        if: needs.check.outputs.pgtap == 'true'
+        run: pnpm run db:test
+
+  e2e:
+    name: E2E
+    needs: check
+    if: needs.check.outputs.e2e == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - *checkout
+      - *pnpm
+      - *node
+      - *install
+      - name: Start Supabase
+        if: hashFiles('supabase/config.toml') != ''
+        run: |
+          # db:start prints the local keys, so its stdout stays out of the public log.
+          pnpm run db:start > /dev/null
+          pnpm run db:reset
+          status="$(pnpm --silent run db:status)"
+          export_value() {
+            local value
+            value="$(jq -r --arg key "$2" '.[$key] // empty' <<< "$status")"
+            if [ -z "$value" ]; then
+              echo "::error::db:status has no $2"
+              exit 1
+            fi
+            echo "::add-mask::$value"
+            echo "$1=$value" >> "$GITHUB_ENV"
+          }
+          export_value NEXT_PUBLIC_SUPABASE_URL API_URL
+          export_value NEXT_PUBLIC_SUPABASE_ANON_KEY ANON_KEY
+          export_value SUPABASE_SERVICE_ROLE_KEY SERVICE_ROLE_KEY
+      - name: Install browsers
+        run: pnpm run test:e2e:install
+      - name: Run Playwright
+        env:
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_PUBLIC_ROOT_DOMAIN: localhost
+          EMAIL_DELIVERY: log
+        run: pnpm run test:e2e
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
