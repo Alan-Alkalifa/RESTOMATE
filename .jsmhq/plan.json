@@ -5,7 +5,670 @@
       "title": "Backlog",
       "status": "active",
       "order": 0
+    },
+    {
+      "id": "MF",
+      "title": "M0 Foundation",
+      "status": "active",
+      "order": 1
     }
   ],
-  "tasks": []
+  "tasks": [
+    {
+      "id": "MF-T01",
+      "boardId": "MF",
+      "title": "M0-BE-01 Monorepo",
+      "ownerId": "adit",
+      "status": "done",
+      "needs": [],
+      "prNumber": 3,
+      "description": "Owner ADIT. pnpm and Turborepo, Next.js 16 in apps/web, TypeScript 5.x, ESLint, Prettier, scripts dev/build/lint/typecheck/test/db:*. Confirm PLAN §2 against node_modules/next/dist/docs. Keep apps/web/AGENTS.md committed.",
+      "files": [
+        "package.json",
+        "pnpm-workspace.yaml",
+        "turbo.json",
+        "apps/web/**",
+        "packages/**"
+      ],
+      "doneWhen": "All scripts run on a clean clone and §2 is confirmed.",
+      "note": "Draft PR up: https://github.com/Alan-Alkalifa/RESTOMATE/pull/3 (branch mf-t01-monorepo, head 5a6a4ab). Your four approved files are listed under \"Extra files (approved by ALAN)\".\n\nVerified on a fresh clone of that commit: --frozen-lockfile install, format, lint, typecheck, test, build and dev all pa"
+    },
+    {
+      "id": "MF-T02",
+      "boardId": "MF",
+      "title": "M0-BE-02 CI",
+      "ownerId": "adit",
+      "status": "done",
+      "needs": [
+        "MF-T01"
+      ],
+      "prNumber": 4,
+      "description": "Owner ADIT. GitHub Actions: install, lint, typecheck, unit, build, database reset and pgTAP, plus an e2e job ready for DAVIN's suite.",
+      "files": [
+        ".github/workflows/**"
+      ],
+      "doneWhen": "A draft PR gets a result from each job.",
+      "note": "Draft PR up against main: https://github.com/Alan-Alkalifa/RESTOMATE/pull/4 (mf-t02-ci, head 618726c).\n\nThe hosted run DID start and passed, so no need to mark it waiting on billing: https://github.com/Alan-Alkalifa/RESTOMATE/actions/runs/45043687605. Check passed in 32s; Database and E2E were skipp"
+    },
+    {
+      "id": "MF-T03",
+      "boardId": "MF",
+      "title": "M0-BE-03 Supabase",
+      "ownerId": "adit",
+      "status": "in-progress",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Local config, auth settings, Mailpit, Resend SMTP block.",
+      "files": [
+        "supabase/config.toml"
+      ],
+      "doneWhen": "supabase start and db reset work from zero.",
+      "note": null
+    },
+    {
+      "id": "MF-T04",
+      "boardId": "MF",
+      "title": "M0-BE-04 Environment",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. lib/env.ts with Zod, .env.example, publishable key with anon-key fallback, EMAIL_DELIVERY=resend required in production, build and boot checks (see docs/STAGING.md).",
+      "files": [
+        "apps/web/lib/env.ts",
+        "apps/web/next.config.ts",
+        "apps/web/instrumentation.ts",
+        ".env.example"
+      ],
+      "doneWhen": "A bad variable fails with its name and never its value.",
+      "note": null
+    },
+    {
+      "id": "MF-T05",
+      "boardId": "MF",
+      "title": "M0-BE-05 Identity tables",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. profiles (synced from auth.users), platform_admins (service role only), platform_settings (deny by default), audit_logs. Follow PLAN §2 database rules.",
+      "files": [
+        "supabase/migrations/**"
+      ],
+      "doneWhen": "A client can't write admin, settings or audit rows.",
+      "note": null
+    },
+    {
+      "id": "MF-T06",
+      "boardId": "MF",
+      "title": "M0-BE-06 Tenancy tables",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. organizations (unique slug 3-40 chars, status, currency, timezone), reserved_slugs, locations (address, timezone, currency, tax and service-charge bps, tax-on-service flag), org_branding (https-only logo URL).",
+      "files": [
+        "supabase/migrations/**"
+      ],
+      "doneWhen": "Constraints and RLS are in place.",
+      "note": null
+    },
+    {
+      "id": "MF-T07",
+      "boardId": "MF",
+      "title": "M0-BE-07 Packages",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. packages (prices, trial days, limits, features, active, public, default) and subscriptions.",
+      "files": [
+        "supabase/migrations/**"
+      ],
+      "doneWhen": "One default package gives a new restaurant a trial.",
+      "note": null
+    },
+    {
+      "id": "MF-T08",
+      "boardId": "MF",
+      "title": "M0-BE-08 Roles",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. permissions, default_role_permissions, roles, role_permissions, organization_members, location_staff, seeded from PLAN §4.2.1 catalog.",
+      "files": [
+        "supabase/migrations/**"
+      ],
+      "doneWhen": "The five system roles match the §4.2.1 table.",
+      "note": null
+    },
+    {
+      "id": "MF-T09",
+      "boardId": "MF",
+      "title": "M0-BE-09 Invitations",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. staff_invitations with SHA-256 token hash, capped expiry, accepted and revoked times, explicit all-locations flag.",
+      "files": [
+        "supabase/migrations/**"
+      ],
+      "doneWhen": "No raw token is stored.",
+      "note": null
+    },
+    {
+      "id": "MF-T10",
+      "boardId": "MF",
+      "title": "M0-BE-10 Helpers",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. is_platform_admin, is_org_member, has_permission (fails closed), has_location_access, my_permissions, get_org_package, my_org_membership, private.org_limit, private.write_audit.",
+      "files": [
+        "supabase/migrations/**"
+      ],
+      "doneWhen": "A suspended org or deactivated member gets no access.",
+      "note": null
+    },
+    {
+      "id": "MF-T11",
+      "boardId": "MF",
+      "title": "M0-BE-11 Guards",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Triggers for plan limits (PLAN_LIMIT:<key>), last owner, system-role protection, no self-escalation, no member delete, updated_at, audit.",
+      "files": [
+        "supabase/migrations/**"
+      ],
+      "doneWhen": "Each forbidden write fails in the database.",
+      "note": null
+    },
+    {
+      "id": "MF-T12",
+      "boardId": "MF",
+      "title": "M0-BE-12 RPCs",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. is_slug_available, create_organization (one transaction, per-user cap), accept_invitation (email must match), set_member_locations (atomic), get_storefront.",
+      "files": [
+        "supabase/migrations/**"
+      ],
+      "doneWhen": "A failure leaves no partial rows.",
+      "note": null
+    },
+    {
+      "id": "MF-T13",
+      "boardId": "MF",
+      "title": "M0-BE-13 Seeds and types",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Local seed (three packages, Demo Restaurant with two locations, a second tenant, one user per role, platform admin), staging seed without users (supabase/seed-staging.sql), packages/db generated types.",
+      "files": [
+        "supabase/seed.sql",
+        "supabase/seed-staging.sql",
+        "packages/db/**"
+      ],
+      "doneWhen": "A reset gives the same data each time.",
+      "note": null
+    },
+    {
+      "id": "MF-T14",
+      "boardId": "MF",
+      "title": "M0-BE-14 Clients and proxy",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Supabase server, browser, proxy and server-only admin clients. proxy.ts resolves hosts, refreshes sessions, skips the DOKU webhook and serves Vercel preview hosts (STAGING.md).",
+      "files": [
+        "apps/web/proxy.ts",
+        "apps/web/lib/supabase/**"
+      ],
+      "doneWhen": "An unknown host returns 404 and preview URLs open.",
+      "note": null
+    },
+    {
+      "id": "MF-T15",
+      "boardId": "MF",
+      "title": "M0-BE-15 Auth access layer",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. getCurrentUser, requireUser, getMembership, getOrgContext, requirePermission, requirePlatformAdmin, hasFeature.",
+      "files": [
+        "apps/web/lib/auth/**"
+      ],
+      "doneWhen": "All server code has one way to check access.",
+      "note": null
+    },
+    {
+      "id": "MF-T16",
+      "boardId": "MF",
+      "title": "M0-BE-16 Abuse protection",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Arcjet shield, bot detection, rate limits and a signup preset. Use the arcjet skill.",
+      "files": [
+        "apps/web/lib/arcjet.ts",
+        "apps/web/proxy.ts"
+      ],
+      "doneWhen": "Repeated auth attempts are limited.",
+      "note": null
+    },
+    {
+      "id": "MF-T17",
+      "boardId": "MF",
+      "title": "M0-BE-17 Analytics and errors",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. PostHog capture, typed events, org grouping, error tracking, allow-listed query parameters, masked tokens, autocapture and recording off. Use the PostHog skills.",
+      "files": [
+        "apps/web/lib/analytics/**"
+      ],
+      "doneWhen": "No token or personal field leaves the app.",
+      "note": null
+    },
+    {
+      "id": "MF-T18",
+      "boardId": "MF",
+      "title": "M0-BE-18 Email sender",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Resend wrapper with one recipient, idempotency key, log mode locally, failures logged and retryable.",
+      "files": [
+        "apps/web/lib/email/**"
+      ],
+      "doneWhen": "A failed send can be retried without a duplicate.",
+      "note": null
+    },
+    {
+      "id": "MF-T19",
+      "boardId": "MF",
+      "title": "M0-BE-19 Money",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Formatting (Rp 25.000), tax and service-charge calculation in basis points, integers only.",
+      "files": [
+        "apps/web/lib/money/**"
+      ],
+      "doneWhen": "Rounding has unit tests.",
+      "note": null
+    },
+    {
+      "id": "MF-T20",
+      "boardId": "MF",
+      "title": "M0-BE-20 Auth actions",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Login, signup, confirm by token hash, forgot and reset password, sign out, safe next redirect.",
+      "files": [
+        "apps/web/lib/actions/auth/**",
+        "apps/web/app/auth/confirm/route.ts"
+      ],
+      "doneWhen": "All return one ActionResult shape and signed-in users skip the auth pages.",
+      "note": null
+    },
+    {
+      "id": "MF-T21",
+      "boardId": "MF",
+      "title": "M0-BE-21 Create restaurant",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Slug check and create action on the create_organization RPC.",
+      "files": [
+        "apps/web/lib/actions/organization/**"
+      ],
+      "doneWhen": "The user lands in their organization as Owner.",
+      "note": null
+    },
+    {
+      "id": "MF-T22",
+      "boardId": "MF",
+      "title": "M0-BE-22 Staff actions",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Invite, resend, revoke, accept, change role, set locations, deactivate with sign-out everywhere.",
+      "files": [
+        "apps/web/lib/actions/staff/**"
+      ],
+      "doneWhen": "Every action is permission-checked and audited.",
+      "note": null
+    },
+    {
+      "id": "MF-T23",
+      "boardId": "MF",
+      "title": "M0-BE-23 Custom roles",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Create, edit and delete roles from the permission list, gated by package.",
+      "files": [
+        "apps/web/lib/actions/roles/**"
+      ],
+      "doneWhen": "Nobody can grant a permission they lack.",
+      "note": null
+    },
+    {
+      "id": "MF-T24",
+      "boardId": "MF",
+      "title": "M0-BE-24 Staging delivery",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Vercel build and the Deploy DB (staging) workflow described in docs/STAGING.md. Applies only after merge.",
+      "files": [
+        ".github/workflows/deploy-db-staging.yml",
+        "apps/web/next.config.ts"
+      ],
+      "doneWhen": "The workflow's dry run passes.",
+      "note": null
+    },
+    {
+      "id": "MF-T25",
+      "boardId": "MF",
+      "title": "M0-BE-25 Contracts",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [],
+      "prNumber": null,
+      "description": "Owner ADIT. Contracts for auth, organization, staff, roles in docs/contracts/. Required before backend handoff.",
+      "files": [
+        "docs/contracts/**"
+      ],
+      "doneWhen": "Each contract lists inputs, outputs, errors and permissions.",
+      "note": null
+    },
+    {
+      "id": "MF-T26",
+      "boardId": "MF",
+      "title": "M0-FE-01 Theme",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T25"
+      ],
+      "prNumber": null,
+      "description": "Owner REYKI (starts only after backend handoff). Tokens from DESIGN.md §10, 60-30-10 theme map, Plus Jakarta Sans.",
+      "files": [
+        "apps/web/app/globals.css",
+        "apps/web/lib/theme.ts"
+      ],
+      "doneWhen": "Changing the map re-themes the app with no component edit.",
+      "note": null
+    },
+    {
+      "id": "MF-T27",
+      "boardId": "MF",
+      "title": "M0-FE-02 Base components",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T26"
+      ],
+      "prNumber": null,
+      "description": "Owner REYKI. Buttons, fields, cards, badges, tabs, tables, modal, sheet, toast, skeleton, empty, error, offline bar.",
+      "files": [
+        "apps/web/components/ui/**"
+      ],
+      "doneWhen": "Each has every state in DESIGN.md §6 and works by keyboard.",
+      "note": null
+    },
+    {
+      "id": "MF-T28",
+      "boardId": "MF",
+      "title": "M0-FE-03 Translations",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T27"
+      ],
+      "prNumber": null,
+      "description": "Owner REYKI. English and Bahasa Indonesia, language switch, number and date formats.",
+      "files": [
+        "apps/web/messages/**",
+        "apps/web/components/i18n/**"
+      ],
+      "doneWhen": "No screen has hard-coded text.",
+      "note": null
+    },
+    {
+      "id": "MF-T29",
+      "boardId": "MF",
+      "title": "M0-FE-04 Auth screens",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T28"
+      ],
+      "prNumber": null,
+      "description": "Owner REYKI. Login, signup, check email, forgot, reset, invalid link.",
+      "files": [
+        "apps/web/app/(auth)/**"
+      ],
+      "doneWhen": "Errors keep the user's input.",
+      "note": null
+    },
+    {
+      "id": "MF-T30",
+      "boardId": "MF",
+      "title": "M0-FE-05 Create restaurant",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T29"
+      ],
+      "prNumber": null,
+      "description": "Owner REYKI. Name, live slug check, first location with tax and service defaults.",
+      "files": [
+        "apps/web/app/(onboarding)/**"
+      ],
+      "doneWhen": "It ends on the restaurant dashboard.",
+      "note": null
+    },
+    {
+      "id": "MF-T31",
+      "boardId": "MF",
+      "title": "M0-FE-06 Admin shell",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T30"
+      ],
+      "prNumber": null,
+      "description": "Owner REYKI. Sidebar from permissions, location switcher, no-access and global error pages.",
+      "files": [
+        "apps/web/app/(admin)/**",
+        "apps/web/components/shell/**"
+      ],
+      "doneWhen": "Each role sees only its navigation.",
+      "note": null
+    },
+    {
+      "id": "MF-T32",
+      "boardId": "MF",
+      "title": "M0-FE-07 Staff screens",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T31"
+      ],
+      "prNumber": null,
+      "description": "Owner REYKI. Members, pending invites, invite form, role and location edit, deactivate, accept page.",
+      "files": [
+        "apps/web/app/(admin)/staff/**",
+        "apps/web/app/invite/**"
+      ],
+      "doneWhen": "A bad invite link always shows the same generic page.",
+      "note": null
+    },
+    {
+      "id": "MF-T33",
+      "boardId": "MF",
+      "title": "M0-FE-08 Role editor",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T32"
+      ],
+      "prNumber": null,
+      "description": "Owner REYKI. Permission checklist, system roles read-only, locked state by package.",
+      "files": [
+        "apps/web/app/(admin)/roles/**"
+      ],
+      "doneWhen": "An owner can create and assign a role.",
+      "note": null
+    },
+    {
+      "id": "MF-T34",
+      "boardId": "MF",
+      "title": "M0-FE-09 Public and platform shells",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T33"
+      ],
+      "prNumber": null,
+      "description": "Owner REYKI. Marketing layout, guarded super admin layout with its dark sidebar, storefront placeholder and suspended notice.",
+      "files": [
+        "apps/web/app/(marketing)/**",
+        "apps/web/app/admin/**",
+        "apps/web/app/(storefront)/**"
+      ],
+      "doneWhen": "Each surface opens on its own route.",
+      "note": null
+    },
+    {
+      "id": "MF-T35",
+      "boardId": "MF",
+      "title": "M0-FE-10 Emails",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T34"
+      ],
+      "prNumber": null,
+      "description": "Owner REYKI. Confirmation, recovery and staff invitation templates in the Restomate theme.",
+      "files": [
+        "supabase/templates/**",
+        "apps/web/lib/email/templates/**"
+      ],
+      "doneWhen": "Links use token_hash and render in Mailpit.",
+      "note": null
+    },
+    {
+      "id": "MF-T36",
+      "boardId": "MF",
+      "title": "M0-QA-01 Test base",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T35"
+      ],
+      "prNumber": null,
+      "description": "Owner DAVIN (starts only after frontend handoff). Test plan, bug and report templates, pgTAP and Playwright setup.",
+      "files": [
+        "supabase/tests/**",
+        "e2e/**",
+        "playwright.config.ts",
+        "docs/qa/**"
+      ],
+      "doneWhen": "Both suites run in CI.",
+      "note": null
+    },
+    {
+      "id": "MF-T37",
+      "boardId": "MF",
+      "title": "M0-QA-02 Isolation",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T36"
+      ],
+      "prNumber": null,
+      "description": "Owner DAVIN. Select, insert, update and delete across two tenants on every table.",
+      "files": [
+        "supabase/tests/**"
+      ],
+      "doneWhen": "Every cross-tenant attempt fails.",
+      "note": null
+    },
+    {
+      "id": "MF-T38",
+      "boardId": "MF",
+      "title": "M0-QA-03 Abuse",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T37"
+      ],
+      "prNumber": null,
+      "description": "Owner DAVIN. Escalation, last owner, limits, reused, expired and wrong-email invites, slug rules, rate limit.",
+      "files": [
+        "supabase/tests/**",
+        "e2e/**"
+      ],
+      "doneWhen": "Each is refused.",
+      "note": null
+    },
+    {
+      "id": "MF-T39",
+      "boardId": "MF",
+      "title": "M0-QA-04 End to end",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T38"
+      ],
+      "prNumber": null,
+      "description": "Owner DAVIN. Signup, confirm, create restaurant, invite Cashier, accept, deactivate.",
+      "files": [
+        "e2e/**"
+      ],
+      "doneWhen": "The exit passes on desktop and tablet.",
+      "note": null
+    },
+    {
+      "id": "MF-T40",
+      "boardId": "MF",
+      "title": "M0-QA-05 Sign-off",
+      "ownerId": null,
+      "status": "todo",
+      "needs": [
+        "MF-T39"
+      ],
+      "prNumber": null,
+      "description": "Owner DAVIN. Write docs/qa/M0-signoff.md with evidence for each M0 acceptance line (4.9.1, 4.9.2, 4.9.3, 4.9.6) and PASS/FAIL verdict.",
+      "files": [
+        "docs/qa/M0-signoff.md"
+      ],
+      "doneWhen": "docs/qa/M0-signoff.md gives evidence for each acceptance line.",
+      "note": null
+    }
+  ]
 }
