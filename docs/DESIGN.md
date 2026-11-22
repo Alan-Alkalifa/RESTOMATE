@@ -8,7 +8,7 @@
 >
 > When the code and this file disagree, raise it with ALAN. Fix one or the other; don't let them drift.
 
-Last updated: 2026-11-13
+Last updated: 2026-11-22
 
 ---
 
@@ -16,7 +16,7 @@ Last updated: 2026-11-13
 
 | Decision | Choice |
 |---|---|
-| Colour split (60-30-10) | **Snow 60 · Cobalt 30 · Lime 10** |
+| Colour split (60-30-10) | **Dominant 60 · Secondary 30 · Accent 10**. Current preset: Snow · Cobalt · Lime (change it in §2.6) |
 | Style | **Soft and friendly**: rounded corners, soft shadows, generous spacing, warm and approachable for restaurant staff |
 | Theme modes | **Light only**, on every surface including the kitchen display |
 | Typeface | **Plus Jakarta Sans** (designed in Indonesia), one family for headings and UI |
@@ -32,14 +32,14 @@ Last updated: 2026-11-13
 UI is the visual and interactive layer: colour, type, buttons, layout.
 
 **1. Visual hierarchy**: guide the eye to the most important thing first, using size, weight, contrast and spacing.
-- Each screen has **one** primary goal and **one** spotlight (lime) action (§2.5). Secondary actions step down to cobalt, soft, outline or ghost buttons (§6.1).
+- Each screen has **one** primary goal and **one** spotlight (accent) action (§2.5). Less important actions step down to primary, soft, outline or ghost buttons (§6.1).
 - Hierarchy comes from the type scale (§3), not from colour. Page title `h1`, sections `h2`, cards `h3`. Never skip more than one step.
 - The most important number is the biggest: the cart total on POS, the timer on a KDS ticket, the amount due on a bill.
 - Group related things with spacing first (§4.3), borders second, and colour last.
 
 **2. Consistency**: the same thing always looks and behaves the same, on every surface.
 - Build every screen from `components/ui/` (§6). One button style per variant, one status badge per status (§6.4), one icon set (Lucide, §5).
-- Colours carry fixed meanings: cobalt means action or selection, lime means "look here first", and status colours mean state. These meanings never swap.
+- Colours carry fixed meanings: secondary means action or selection, accent means "look here first", and status colours mean state. These meanings never swap.
 - Positions are fixed: the primary action is the last button bottom-right in dialogs; navigation lives in the sidebar; page actions sit top-right of the page header; destructive actions are never the default.
 - The same word for the same thing everywhere ("bill", not sometimes "check" or "invoice").
 
@@ -96,17 +96,26 @@ UX is the whole experience: flows, problem-solving and how smoothly someone reac
 
 ### 2.1 The 60-30-10 split
 
-| Share | Colour | Role | Where it shows up |
+| Share | Role | Current preset | Where it shows up |
 |---|---|---|---|
-| **60%** | **Snow** (cool white + neutral greys) | The canvas | Page backgrounds, cards, tables, inputs, POS item grid, KDS board |
-| **30%** | **Cobalt blue** | Brand and action | Sidebar, primary buttons, links, selected tabs and rows, headers, focus rings, charts |
-| **10%** | **Acid lime** | Spotlight | The single most important action on a screen, active-nav indicator, "new" markers, progress highlights, marketing accents |
+| **60%** | **Dominant** (`dominant-*`) | Snow: cool white and neutral greys | The canvas: page backgrounds, cards, tables, inputs, POS item grid, KDS board |
+| **30%** | **Secondary** (`secondary-*`) | Cobalt blue | Brand and structure: sidebar, headers, buttons, links, selected tabs and rows, soft panels, focus rings, charts |
+| **10%** | **Accent** (`accent-*`) | Acid lime | Spotlight: the most important action on a screen, active-nav indicator, "new" markers, progress highlights |
 
-The split is measured by visual area on a typical screen, not by how many components use each colour. A dashboard page is mostly snow, with a cobalt sidebar and buttons and a small spark of lime.
+How to apply the split:
+- The shares are targets for visual area on a typical screen, not a count of components.
+- Every shade of a role counts toward that role, so a soft `secondary-50` panel is part of the 30.
+- 10 is a ceiling for accent. Give any space it doesn't use back to dominant; never add accent to fill a quota.
+- Status colours, photos and print are outside the split. The super admin's dark sidebar counts toward the 30.
+- On the customer site, the restaurant's brand colours take the 30 and the 10.
 
-> **Why a cool snow?** Classic "snow" (#FFFAFA) is faintly pink and looks dirty next to cobalt. Restomate's snow is tinted very slightly blue so the whole palette stays in one temperature.
+> **`primary` is not the 60.** The 60 is `dominant`. The `primary` token means "main action" and takes its colour from `secondary` (the 30).
 
-### 2.2 Palette
+> **Why a cool snow in the current preset?** Classic "snow" (#FFFAFA) is faintly pink and looks dirty next to cobalt. Restomate's snow is tinted very slightly blue so the whole palette stays in one temperature.
+
+### 2.2 Palette (current preset)
+
+These are the raw colours. Only the theme map (§2.6) refers to them by name; everything else uses roles or semantic tokens.
 
 **Cobalt** (brand anchor: `cobalt-600` = `#0047AB`)
 
@@ -160,25 +169,25 @@ The split is measured by visual area on a typical screen, not by how many compon
 
 ### 2.3 Semantic tokens
 
-Components use **semantic tokens**, never palette shades directly. If we ever add a dark mode or re-tune a colour, only this table changes.
+Components use **semantic tokens**. They point at theme roles, never at a named colour, so this table stays the same when the theme changes.
 
 | Token | Value | Meaning |
 |---|---|---|
-| `bg` | `snow-50` | Page background |
-| `surface` | `snow-0` | Cards, inputs, modals |
-| `surface-muted` | `snow-100` | Table headers, quiet panels, skeletons |
-| `border` | `snow-200` | Card and divider borders |
-| `border-control` | `snow-400` | Inputs, checkboxes, selects |
-| `text` | `ink` | Default text |
-| `text-secondary` | `snow-600` | Supporting text |
-| `text-muted` | `snow-500` | Hints, placeholders, timestamps |
-| `primary` / `primary-hover` / `primary-pressed` | `cobalt-600` / `700` / `800` | Main actions |
-| `primary-soft` | `cobalt-50` | Selected, soft buttons, info |
-| `on-primary` | `#FFFFFF` | Text and icons on cobalt |
-| `accent` / `accent-hover` / `accent-pressed` | `lime-400` / `lime-300` / `lime-500` | Spotlight action |
-| `on-accent` | `ink` | Text and icons on lime (**never white**) |
-| `focus` | `cobalt-600` (on light) · `lime-400` (on cobalt) | Focus rings |
-| `nav-bg` / `nav-text` / `nav-muted` / `nav-active` | `cobalt-800` / `#FFFFFF` / `cobalt-200` / `lime-400` | Restaurant admin sidebar |
+| `bg` | `dominant-50` | Page background |
+| `surface` | `dominant-0` | Cards, inputs, modals |
+| `surface-muted` | `dominant-100` | Table headers, quiet panels, skeletons |
+| `border` | `dominant-200` | Card and divider borders |
+| `border-control` | `dominant-400` | Inputs, checkboxes, selects |
+| `text` | `dominant-900` | Default text |
+| `text-secondary` | `dominant-600` | Supporting text |
+| `text-muted` | `dominant-500` | Hints, placeholders, timestamps |
+| `primary` / `primary-hover` / `primary-pressed` | `secondary-600` / `700` / `800` | Main actions |
+| `primary-soft` | `secondary-50` | Selected, soft buttons, info |
+| `on-primary` | `on-secondary` | Text and icons on secondary |
+| `accent` / `accent-hover` / `accent-pressed` | `accent-400` / `accent-300` / `accent-500` | Spotlight action |
+| `on-accent` | `on-accent-fill` | Text and icons on accent (**never white**) |
+| `focus` / `focus-inverse` | `secondary-600` / `accent-400` | Focus rings on light / on secondary |
+| `nav-bg` / `nav-text` / `nav-muted` / `nav-active` | `secondary-800` / `on-secondary` / `secondary-200` / `accent-400` | Restaurant admin sidebar |
 
 ### 2.4 Contrast (verified, WCAG 2.1 AA)
 
@@ -186,31 +195,31 @@ Text needs ≥ 4.5:1, or ≥ 3:1 for large text (18.66 px bold / 24 px regular a
 
 | Pair | Ratio | Result |
 |---|---|---|
-| `ink` on `snow-50` / `snow-0` | 16.1 / 16.9 | ✅ AAA |
-| `snow-600` on `snow-50` | 6.3 | ✅ |
-| `snow-500` on `snow-0` / `snow-50` / `snow-100` | 5.1 / 4.9 / 4.6 | ✅ |
-| White on `cobalt-600` (primary button) | 8.4 | ✅ AAA |
-| `cobalt-600` link on `snow-50` | 8.1 | ✅ |
-| `cobalt-700` on `cobalt-50` | 9.5 | ✅ |
-| `ink` on `lime-400` (spotlight button) | 12.7 | ✅ AAA |
-| `lime-400` on `cobalt-800` (sidebar indicator, text) | 9.5 | ✅ |
-| White / `cobalt-200` on `cobalt-800` (sidebar text) | 12.7 / 8.0 | ✅ |
-| `lime-700` on `lime-100` | 5.7 | ✅ |
+| `dominant-900` on `dominant-50` / `dominant-0` | 16.1 / 16.9 | ✅ AAA |
+| `dominant-600` on `dominant-50` | 6.3 | ✅ |
+| `dominant-500` on `dominant-0` / `dominant-50` / `dominant-100` | 5.1 / 4.9 / 4.6 | ✅ |
+| `on-secondary` on `secondary-600` (primary button) | 8.4 | ✅ AAA |
+| `secondary-600` link on `dominant-50` | 8.1 | ✅ |
+| `secondary-700` on `secondary-50` | 9.5 | ✅ |
+| `dominant-900` on `accent-400` (spotlight button) | 12.7 | ✅ AAA |
+| `accent-400` on `secondary-800` (sidebar indicator, text) | 9.5 | ✅ |
+| `on-secondary` / `secondary-200` on `secondary-800` (sidebar text) | 12.7 / 8.0 | ✅ |
+| `accent-700` on `accent-100` | 5.7 | ✅ |
 | Status badges (`*-700` on `*-50`) | 5.1–6.8 | ✅ |
 | White on `danger-600` / `success-600` | 5.6 / 5.0 | ✅ |
-| `snow-400` input border on white | 3.4 | ✅ (3:1) |
-| **`lime-400` on white** | **1.3** | ❌ **Never use lime as text, icon, border or a lone indicator on a light background** |
+| `dominant-400` input border on white | 3.4 | ✅ (3:1) |
+| **`accent-400` on white** | **1.3** | ❌ **Never use accent as text, icon, border or a lone indicator on a light background** |
 
-### 2.5 Lime rules (the 10%)
+### 2.5 Accent rules (the 10%)
 
-Lime is powerful because it is rare. Follow these rules strictly:
-- **At most one spotlight (lime) button per screen.** Every other action is cobalt, soft or ghost.
-- Text and icons on lime are always `ink`.
-- On light backgrounds, lime appears only as a **filled shape with ink content** (button, chip, progress fill, highlighter). It is never a thin line, text, icon or border by itself.
-- On cobalt backgrounds, lime can be text, an icon or an indicator.
-- Lime is **never a status colour.** It does not mean success, paid or ready. Those use `success`.
+Accent is powerful because it is rare. Follow these rules strictly:
+- **At most one spotlight (accent) button per screen.** Every other action is primary, soft or ghost.
+- Text and icons on accent are always `on-accent`.
+- On light backgrounds, accent appears only as a **filled shape with `on-accent` content** (button, chip, progress fill, highlighter). It is never a thin line, text, icon or border by itself.
+- On secondary backgrounds, accent can be text, an icon or an indicator.
+- Accent is **never a status colour.** It does not mean success, paid or ready. Those use `success`.
 
-**Where lime goes**
+**Where accent goes**
 
 | Surface | Spotlight |
 |---|---|
@@ -221,6 +230,31 @@ Lime is powerful because it is rare. Follow these rules strictly:
 | KDS | "NEW" label on a ticket during its first 60 seconds |
 | Super admin | The "PLATFORM ADMIN" label in the sidebar |
 | Customer site | Only when the restaurant has no branding of its own (default theme) |
+
+### 2.6 Changing the theme
+
+Colours flow one way:
+
+`palette (§2.2) → theme map → semantic tokens (§2.3) → components`
+
+The theme map is the block marked `THEME MAP` in §10.1. **It is the only place that assigns a colour to the 60, the 30 or the 10.**
+
+| Role | Tokens to set | Current preset |
+|---|---|---|
+| Dominant, 60 | `dominant-0`, `50`–`700`, `900` (text) | `snow-*`, with `ink` as `900` |
+| Secondary, 30 | `secondary-50`–`900`, `on-secondary` | `cobalt-*`, with white on it |
+| Accent, 10 | `accent-100`–`500`, `700`, `on-accent-fill` | `lime-*`, with `ink` on it |
+
+To change a colour:
+1. Add the new palette to §2.2 and to the palette block in §10.1 (for example `--color-teal-50` to `--color-teal-900`).
+2. Point that role's lines in the theme map at it (for example `--color-secondary-600: var(--color-teal-600);`). Don't rename role or semantic tokens.
+3. Keep the lightness order: low numbers are light, high numbers are dark.
+4. Recheck every pair in §2.4 and update the ratios. They are only valid for the current preset.
+5. Keep accent clearly different from the success, warning and danger colours.
+6. Update what can't read CSS variables by hand: email templates and any fallback hex values in `lib/theme.ts`.
+7. ALAN approves the change and DAVIN checks each surface in §7.
+
+The 60-30-10 shares are layout rules (§2.1), not CSS values. To change the ratio, edit §2.1 and review each surface's layout.
 
 ---
 
@@ -269,14 +303,14 @@ Nested corners: an inner element's radius is the outer radius minus the padding 
 
 ### 4.2 Shadows
 
-Soft, low and tinted with ink, never grey-black.
+Soft, low and tinted with dominant-900, never grey-black.
 
 | Token | Value | Use |
 |---|---|---|
-| `shadow-xs` | `0 1px 2px rgb(15 27 61 / 0.06)` | Inputs, buttons at rest |
-| `shadow-sm` | `0 1px 3px rgb(15 27 61 / 0.06), 0 2px 8px rgb(15 27 61 / 0.05)` | Cards |
-| `shadow-md` | `0 4px 12px rgb(15 27 61 / 0.08), 0 2px 4px rgb(15 27 61 / 0.04)` | Dropdowns, hovered cards, KDS tickets |
-| `shadow-lg` | `0 12px 32px rgb(15 27 61 / 0.12), 0 4px 8px rgb(15 27 61 / 0.04)` | Modals, sheets, toasts |
+| `shadow-xs` | `0 1px 2px color-mix(in srgb, var(--color-dominant-900) 6%, transparent)` | Inputs, buttons at rest |
+| `shadow-sm` | `0 1px 3px color-mix(in srgb, var(--color-dominant-900) 6%, transparent), 0 2px 8px color-mix(in srgb, var(--color-dominant-900) 5%, transparent)` | Cards |
+| `shadow-md` | `0 4px 12px color-mix(in srgb, var(--color-dominant-900) 8%, transparent), 0 2px 4px color-mix(in srgb, var(--color-dominant-900) 4%, transparent)` | Dropdowns, hovered cards, KDS tickets |
+| `shadow-lg` | `0 12px 32px color-mix(in srgb, var(--color-dominant-900) 12%, transparent), 0 4px 8px color-mix(in srgb, var(--color-dominant-900) 4%, transparent)` | Modals, sheets, toasts |
 
 Cards use a 1 px `border` plus `shadow-sm`. Don't stack heavy shadows; elevation should feel like paper lifting slightly, not floating.
 
@@ -300,7 +334,7 @@ A **4 px grid**: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96.
 
 Calm and quick: **150 ms** for hovers and presses, **200–250 ms** for menus, modals and toasts, `ease-out` entering and `ease-in` leaving. Gentle, not bouncy.
 - Buttons press down slightly (`scale(0.98)`).
-- A new KDS ticket slides in and holds a lime "NEW" label for 60 seconds. No flashing.
+- A new KDS ticket slides in and holds an accent "NEW" label for 60 seconds. No flashing.
 - With `prefers-reduced-motion`, remove movement and keep only opacity fades.
 - Skeleton shimmer stops with reduced motion.
 
@@ -309,8 +343,8 @@ Calm and quick: **150 ms** for hovers and presses, **200–250 ms** for menus, m
 ## 5. Iconography and illustration
 
 - **Icons:** [Lucide](https://lucide.dev) (rounded line icons, matching the soft style). 20 px in admin UI, 24 px on POS/KDS, stroke 1.75–2. Icons inherit text colour. An icon-only button always has an `aria-label` and a tooltip.
-- **Illustrations:** simple friendly spot illustrations for empty states, onboarding and marketing. Line art in `ink` with cobalt fills and a lime highlight. One style everywhere, no stock photos of people in the product UI.
-- **Photography:** only menu item photos (restaurant-supplied) and marketing. Menu photos use a 4:3 crop with `radius-md` corners and a `snow-100` placeholder with a dish icon when missing.
+- **Illustrations:** simple friendly spot illustrations for empty states, onboarding and marketing. Line art in `dominant-900` with secondary fills and an accent highlight. One style everywhere, no stock photos of people in the product UI.
+- **Photography:** only menu item photos (restaurant-supplied) and marketing. Menu photos use a 4:3 crop with `radius-md` corners and a `dominant-100` placeholder with a dish icon when missing.
 
 ---
 
@@ -322,27 +356,27 @@ The base components live in `apps/web/components/ui/`. Every surface uses them. 
 
 | Variant | Look | Use |
 |---|---|---|
-| **Primary** | Cobalt-600 fill, white text, `shadow-xs` | The main action in a section ("Save", "Invite staff") |
-| **Spotlight** | Lime-400 fill, ink text, `shadow-sm` | The one most important action on the screen (see §2.5) |
-| **Soft** | Cobalt-50 fill, cobalt-700 text | Secondary actions ("Add variant", "Filter") |
-| **Outline** | White fill, `border-control`, ink text | Neutral actions ("Cancel", "Export") |
-| **Ghost** | No fill, cobalt-700 text, cobalt-50 on hover | Toolbar and inline actions |
+| **Primary** | Secondary-600 fill, `on-secondary` text, `shadow-xs` | The main action in a section ("Save", "Invite staff") |
+| **Spotlight** | Accent-400 fill, `on-accent` text, `shadow-sm` | The one most important action on the screen (see §2.5) |
+| **Soft** | Secondary-50 fill, secondary-700 text | Secondary actions ("Add variant", "Filter") |
+| **Outline** | White fill, `border-control`, dominant-900 text | Neutral actions ("Cancel", "Export") |
+| **Ghost** | No fill, secondary-700 text, secondary-50 on hover | Toolbar and inline actions |
 | **Danger** | Danger-600 fill, white text | Destructive confirmations only ("Void order"), inside a confirm dialog |
 
-Sizes: `sm` 36 px, `md` 40 px (admin default), `lg` 48 px (POS, KDS, onboarding, marketing). Radius `radius-md`, label weight 600. Loading state keeps the button width and shows a spinner plus the label. Disabled: `snow-100` fill, `snow-500` text, no shadow.
+Sizes: `sm` 36 px, `md` 40 px (admin default), `lg` 48 px (POS, KDS, onboarding, marketing). Radius `radius-md`, label weight 600. Loading state keeps the button width and shows a spinner plus the label. Disabled: `dominant-100` fill, `dominant-500` text, no shadow.
 
 ### 6.2 Form controls
 
 - Inputs, selects and textareas: white fill, 1 px `border-control`, `radius-md`, 40 px tall (48 px on touch surfaces), 12 px horizontal padding.
-- Focus: 2 px `focus` ring with 2 px offset; the border turns cobalt-600.
+- Focus: 2 px `focus` ring with 2 px offset; the border turns secondary-600.
 - Error: border danger-600, a danger-700 message below with an alert icon. Never colour alone.
 - Labels sit above inputs (weight 500, 14 px). Helper text is `body-sm` `text-muted`.
 - Money inputs show the `Rp` prefix inside the field and use tabular numbers.
-- Toggles: pill switch, cobalt-600 when on. Checkboxes and radios: cobalt-600 when checked.
+- Toggles: pill switch, secondary-600 when on. Checkboxes and radios: secondary-600 when checked.
 
 ### 6.3 Cards and surfaces
 
-White `surface`, 1 px `border`, `radius-lg`, `shadow-sm`, 20 px padding. Clickable cards gain `shadow-md` and a cobalt-200 border on hover. Selected cards get a 2 px cobalt-600 border and a cobalt-50 tint.
+White `surface`, 1 px `border`, `radius-lg`, `shadow-sm`, 20 px padding. Clickable cards gain `shadow-md` and a secondary-200 border on hover. Selected cards get a 2 px secondary-600 border and a secondary-50 tint.
 
 ### 6.4 Badges and status
 
@@ -352,11 +386,11 @@ Pill shape (`radius-full`), `caption` text, a leading icon or dot, the soft `*-5
 
 | Status | Colour | Icon |
 |---|---|---|
-| Placed | Info (cobalt-50) | `receipt` |
-| Accepted | Info (cobalt-50) | `check` |
+| Placed | Info (secondary-50) | `receipt` |
+| Accepted | Info (secondary-50) | `check` |
 | Preparing | Warning | `chef-hat` |
 | Ready | Success | `bell-ring` |
-| Served | Neutral (snow-100) | `utensils` |
+| Served | Neutral (dominant-100) | `utensils` |
 | Completed | Neutral, muted text | `circle-check` |
 | Cancelled | Danger | `x-circle` |
 
@@ -365,8 +399,8 @@ Pill shape (`radius-full`), `caption` text, a leading icon or dot, the soft `*-5
 | Status | Colour | Icon |
 |---|---|---|
 | Available | Success soft | `circle` |
-| Reserved | Cobalt soft, dashed border | `calendar-clock` |
-| Occupied | Cobalt-600 fill, white text | `users` |
+| Reserved | Secondary soft, dashed border | `calendar-clock` |
+| Occupied | Secondary-600 fill, `on-secondary` text | `users` |
 | Needs cleaning | Warning soft | `sparkles` |
 
 **Payment status**: Unpaid (neutral), Partially paid (warning), Paid (success), Refunded / partially refunded (neutral with `undo-2` icon).
@@ -375,18 +409,18 @@ Pill shape (`radius-full`), `caption` text, a leading icon or dot, the soft `*-5
 
 ### 6.5 Navigation
 
-- **Restaurant admin sidebar:** `nav-bg` cobalt-800, 256 px wide, collapsible to a 72 px icon rail. White labels, `nav-muted` section titles. The active item has a lime-400 pill indicator on the left and a cobalt-700 background. Restaurant name and location switcher sit at the top.
-- **Super admin sidebar:** `ink` background (not cobalt) with a lime "PLATFORM ADMIN" label, so nobody confuses the platform console with a restaurant's dashboard.
+- **Restaurant admin sidebar:** `nav-bg` secondary-800, 256 px wide, collapsible to a 72 px icon rail. `nav-text` labels, `nav-muted` section titles. The active item has an accent-400 pill indicator on the left and a secondary-700 background. Restaurant name and location switcher sit at the top.
+- **Super admin sidebar:** `dominant-900` background (not secondary) with an accent "PLATFORM ADMIN" label, so nobody confuses the platform console with a restaurant's dashboard.
 - **Top bar:** white, 64 px tall, bottom `border`. Holds the page title, search and the user menu.
-- **Tabs:** underline style. The active tab has cobalt-600 text and a 3 px cobalt-600 underline with rounded ends.
+- **Tabs:** underline style. The active tab has secondary-600 text and a 3 px secondary-600 underline with rounded ends.
 
 ### 6.6 Tables and lists
 
-White surface in a card. Header row `surface-muted`, `caption` uppercase labels. Rows 52 px (compact 44 px) with a `border` divider. Hover `snow-50`, selected `cobalt-50`. Numeric columns are right-aligned and tabular. On phones, tables become stacked cards.
+White surface in a card. Header row `surface-muted`, `caption` uppercase labels. Rows 52 px (compact 44 px) with a `border` divider. Hover `dominant-50`, selected `secondary-50`. Numeric columns are right-aligned and tabular. On phones, tables become stacked cards.
 
 ### 6.7 Overlays
 
-- **Modal:** `radius-xl`, `shadow-lg`, max width 560 px (wide 800 px), ink overlay at 40% opacity. The title is `h2`, the actions sit bottom-right with the primary action last.
+- **Modal:** `radius-xl`, `shadow-lg`, max width 560 px (wide 800 px), dominant-900 overlay at 40% opacity. The title is `h2`, the actions sit bottom-right with the primary action last.
 - **Sheet:** slides in from the right on desktop and from the bottom on phones and POS. Used for item modifiers on POS and for editing records.
 - **Toast:** bottom-right (bottom-centre on phones and POS), white, `radius-lg`, `shadow-lg`, with a coloured leading icon. Auto-hides after 5 seconds; errors stay until dismissed.
 - **Confirm dialogs** for destructive actions name the thing ("Void 2 × Nasi Goreng?") and put the danger button last.
@@ -407,14 +441,14 @@ Every screen designs all four states.
 ## 7. Surfaces
 
 ### 7.1 Restaurant admin
-- Snow canvas, cobalt sidebar, white cards. Content max width 1280 px on a 12-column grid.
-- The dashboard home shows the setup checklist (lime progress bar) until it is complete.
+- Dominant canvas, secondary sidebar, white cards. Content max width 1280 px on a 12-column grid.
+- The dashboard home shows the setup checklist (accent progress bar) until it is complete.
 - Locked features (not in the package) show a soft card with a `lock` icon, one line about the feature and an "Upgrade" soft button. Never a hidden or broken page.
 
 ### 7.2 POS (10" tablet landscape and up, minimum 1024 × 768)
 - Layout: category rail on the left (120 px), item grid in the centre (3–5 columns of tiles), cart on the right (360 px).
 - Item tiles: white, `radius-md`, name `h4`, price 18 / 700 tabular, optional photo strip. A sold-out tile is greyed with a "Sold out" neutral badge and cannot be tapped.
-- Selected category: cobalt-600 fill with white text.
+- Selected category: secondary-600 fill with `on-secondary` text.
 - The cart footer holds the totals (tabular, right-aligned) and **one** spotlight button: "Send to kitchen" or "Charge Rp 125.000".
 - Modifiers open in a bottom sheet with large choice chips. Required groups are marked "Required" and the "Add" button stays disabled until they are satisfied.
 - No hover-only interactions. Every action works by tap.
@@ -427,30 +461,30 @@ Every screen designs all four states.
 - A large "Bump" button (48 px) at the bottom of each ticket.
 
 ### 7.4 Super admin
-- The same components as the restaurant admin, with the **ink sidebar** and "PLATFORM ADMIN" label.
+- The same components as the restaurant admin, with the **dominant-900 sidebar** and "PLATFORM ADMIN" label.
 - Dangerous actions (suspend a tenant, archive a package) always use a confirm dialog with a typed reason.
 
 ### 7.5 Customer site (storefront)
-- **The restaurant's brand leads.** Components use brand tokens (`brand-primary`, `brand-accent`, `on-brand-primary`) that come from `org_branding` as CSS variables in the storefront layout. Restomate's cobalt and lime are only the **fallback** when a restaurant hasn't set colours.
-- Neutrals, typography, radius, spacing and components stay Restomate's (snow canvas, Plus Jakarta Sans unless the tenant chooses another font in M6).
-- `theme.ts` picks `on-brand-*` (white or ink) by contrast, and the branding settings warn when a colour choice fails 4.5:1 (PROJECT.md 4.16).
+- **The restaurant's brand leads.** Components use brand tokens (`brand-primary`, `brand-accent`, `on-brand-primary`) that come from `org_branding` as CSS variables in the storefront layout. Restomate's secondary and accent are only the **fallback** when a restaurant hasn't set colours.
+- Neutrals, typography, radius, spacing and components stay Restomate's (dominant canvas, Plus Jakarta Sans unless the tenant chooses another font in M6).
+- `theme.ts` picks `on-brand-*` (white or dominant-900) by contrast, and the branding settings warn when a colour choice fails 4.5:1 (PROJECT.md 4.16).
 - Mobile-first (375 px design width), sticky cart button at the bottom, item photos prominent, Lighthouse mobile ≥ 90.
 - A small "Powered by Restomate" link in the footer, in `text-muted`.
 
 ### 7.6 Frontend (marketing and signup)
 - The most expressive surface, while still keeping the 60-30-10 split across the whole page.
-- Snow page with one cobalt hero or feature band. Lime appears on the "Start free trial" spotlight button and as a highlighter (`lime-200`) behind one or two headline words.
+- Dominant page with one secondary hero or feature band. Accent appears on the "Start free trial" spotlight button and as a highlighter (`accent-200`) behind one or two headline words.
 - `display` type, friendly illustrations, product screenshots in `radius-xl` frames with `shadow-lg`.
-- Onboarding is a calm, centred card (max 560 px) with a step indicator in cobalt and the final step's button in lime.
+- Onboarding is a calm, centred card (max 560 px) with a step indicator in secondary and the final step's button in accent.
 
 ### 7.7 Email
-- **Restomate emails** (auth, staff invites, subscription invoices): snow-50 background, a white card with `radius-lg` corners, a 4 px lime bar at the top of the card, the Restomate wordmark, and a cobalt-600 button with white text.
+- **Restomate emails** (auth, staff invites, subscription invoices): dominant-50 background, a white card with `radius-lg` corners, a 4 px accent bar at the top of the card, the Restomate wordmark, and a secondary-600 button with `on-secondary` text.
 - **Guest emails** (receipts, reservations): the restaurant's logo and `brand-primary` button, with the same layout.
 - Use system font fallbacks in email (`'Plus Jakarta Sans', Arial, sans-serif`); web fonts are not reliable in email clients.
-- **Change needed:** the current Supabase auth templates (`supabase/templates/*.html`) use orange `#c2410c` buttons. Switch them to cobalt (see §10).
+- **Change needed:** the current Supabase auth templates (`supabase/templates/*.html`) use orange `#c2410c` buttons. Switch them to secondary (see §10).
 
 ### 7.8 Print (bills and kitchen tickets)
-- Black on white only. No colour, no lime, no shadows: thermal printers can't print them.
+- Black on white only. No colour, no accent, no shadows: thermal printers can't print them.
 - The logo prints in greyscale. Use bold weight and size for hierarchy, and dashed rules between sections.
 - Plus Jakarta Sans on A4; on thermal paper use the printer's built-in font through the print CSS where the browser allows it.
 
@@ -482,17 +516,19 @@ Every screen designs all four states.
 
 ### 10.1 Tokens in `apps/web/app/globals.css`
 
-Reset Tailwind's default colours so only Restomate's palette exists (no stray `bg-blue-500`), then define the palette and semantic tokens:
+Reset Tailwind's default colours so only Restomate's palette exists (no stray `bg-blue-500`), then define the palette, the theme map and the semantic tokens:
 
 ```css
 @import "tailwindcss";
 
-@theme {
+/* static: emit every token, so a theme can also be overridden on :root. */
+@theme static {
   --color-*: initial;                 /* remove Tailwind's default palette */
   --color-white: #FFFFFF;
   --color-black: #000000;
 
-  /* Cobalt — 30% */
+  /* PALETTE: raw colours. Referenced only by the theme map. */
+  /* Cobalt */
   --color-cobalt-50:  #EEF3FC;
   --color-cobalt-100: #DCE7F9;
   --color-cobalt-200: #B9CEF2;
@@ -504,7 +540,7 @@ Reset Tailwind's default colours so only Restomate's palette exists (no stray `b
   --color-cobalt-800: #002F73;
   --color-cobalt-900: #06265A;
 
-  /* Snow — 60% */
+  /* Snow */
   --color-snow-0:   #FFFFFF;
   --color-snow-50:  #F8FAFD;
   --color-snow-100: #F0F3F9;
@@ -516,7 +552,7 @@ Reset Tailwind's default colours so only Restomate's palette exists (no stray `b
   --color-snow-700: #3A4459;
   --color-ink:      #0F1B3D;
 
-  /* Lime — 10% */
+  /* Lime */
   --color-lime-100: #F2FDD0;
   --color-lime-200: #E4FB9E;
   --color-lime-300: #D2F766;
@@ -529,26 +565,66 @@ Reset Tailwind's default colours so only Restomate's palette exists (no stray `b
   --color-warning-50: #FEF6E7; --color-warning-500: #E89B0C; --color-warning-700: #9A5B00;
   --color-danger-50:  #FDECEC; --color-danger-600:  #C62828; --color-danger-700:  #A11D1D;
 
+  /* ===== THEME MAP: edit here to re-theme ===== */
+  /* Dominant: 60% */
+  --color-dominant-0: var(--color-snow-0);
+  --color-dominant-50: var(--color-snow-50);
+  --color-dominant-100: var(--color-snow-100);
+  --color-dominant-200: var(--color-snow-200);
+  --color-dominant-300: var(--color-snow-300);
+  --color-dominant-400: var(--color-snow-400);
+  --color-dominant-500: var(--color-snow-500);
+  --color-dominant-600: var(--color-snow-600);
+  --color-dominant-700: var(--color-snow-700);
+  --color-dominant-900: var(--color-ink);
+
+  /* Secondary: 30% */
+  --color-secondary-50: var(--color-cobalt-50);
+  --color-secondary-100: var(--color-cobalt-100);
+  --color-secondary-200: var(--color-cobalt-200);
+  --color-secondary-300: var(--color-cobalt-300);
+  --color-secondary-400: var(--color-cobalt-400);
+  --color-secondary-500: var(--color-cobalt-500);
+  --color-secondary-600: var(--color-cobalt-600);
+  --color-secondary-700: var(--color-cobalt-700);
+  --color-secondary-800: var(--color-cobalt-800);
+  --color-secondary-900: var(--color-cobalt-900);
+  --color-on-secondary: var(--color-white);
+
+  /* Accent: 10% */
+  --color-accent-100: var(--color-lime-100);
+  --color-accent-200: var(--color-lime-200);
+  --color-accent-300: var(--color-lime-300);
+  --color-accent-400: var(--color-lime-400);
+  --color-accent-500: var(--color-lime-500);
+  --color-accent-700: var(--color-lime-700);
+  --color-on-accent-fill: var(--color-ink);
+  /* ===== END THEME MAP ===== */
+
   /* Semantic */
-  --color-bg: var(--color-snow-50);
-  --color-surface: var(--color-snow-0);
-  --color-surface-muted: var(--color-snow-100);
-  --color-border: var(--color-snow-200);
-  --color-border-control: var(--color-snow-400);
-  --color-text: var(--color-ink);
-  --color-text-secondary: var(--color-snow-600);
-  --color-text-muted: var(--color-snow-500);
-  --color-primary: var(--color-cobalt-600);
-  --color-primary-hover: var(--color-cobalt-700);
-  --color-primary-pressed: var(--color-cobalt-800);
-  --color-primary-soft: var(--color-cobalt-50);
-  --color-on-primary: var(--color-white);
-  --color-accent: var(--color-lime-400);
-  --color-accent-hover: var(--color-lime-300);
-  --color-accent-pressed: var(--color-lime-500);
-  --color-on-accent: var(--color-ink);
-  --color-nav-bg: var(--color-cobalt-800);
-  --color-nav-muted: var(--color-cobalt-200);
+  --color-bg: var(--color-dominant-50);
+  --color-surface: var(--color-dominant-0);
+  --color-surface-muted: var(--color-dominant-100);
+  --color-border: var(--color-dominant-200);
+  --color-border-control: var(--color-dominant-400);
+  --color-text: var(--color-dominant-900);
+  --color-text-secondary: var(--color-dominant-600);
+  --color-text-muted: var(--color-dominant-500);
+  --color-primary: var(--color-secondary-600);
+  --color-primary-hover: var(--color-secondary-700);
+  --color-primary-pressed: var(--color-secondary-800);
+  --color-primary-soft: var(--color-secondary-50);
+  --color-on-primary: var(--color-on-secondary);
+  --color-accent: var(--color-accent-400);
+  --color-accent-hover: var(--color-accent-300);
+  --color-accent-pressed: var(--color-accent-500);
+  --color-on-accent: var(--color-on-accent-fill);
+  --color-nav-bg: var(--color-secondary-800);
+  --color-nav-text: var(--color-on-secondary);
+  --color-nav-active: var(--color-accent-400);
+  --color-focus: var(--color-secondary-600);
+  --color-focus-inverse: var(--color-accent-400);
+  --color-nav-muted: var(--color-secondary-200);
 
   /* Type, shape, depth */
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
@@ -556,18 +632,18 @@ Reset Tailwind's default colours so only Restomate's palette exists (no stray `b
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
-  --shadow-xs: 0 1px 2px rgb(15 27 61 / 0.06);
-  --shadow-sm: 0 1px 3px rgb(15 27 61 / 0.06), 0 2px 8px rgb(15 27 61 / 0.05);
-  --shadow-md: 0 4px 12px rgb(15 27 61 / 0.08), 0 2px 4px rgb(15 27 61 / 0.04);
-  --shadow-lg: 0 12px 32px rgb(15 27 61 / 0.12), 0 4px 8px rgb(15 27 61 / 0.04);
+  --shadow-xs: 0 1px 2px color-mix(in srgb, var(--color-dominant-900) 6%, transparent);
+  --shadow-sm: 0 1px 3px color-mix(in srgb, var(--color-dominant-900) 6%, transparent), 0 2px 8px color-mix(in srgb, var(--color-dominant-900) 5%, transparent);
+  --shadow-md: 0 4px 12px color-mix(in srgb, var(--color-dominant-900) 8%, transparent), 0 2px 4px color-mix(in srgb, var(--color-dominant-900) 4%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, var(--color-dominant-900) 12%, transparent), 0 4px 8px color-mix(in srgb, var(--color-dominant-900) 4%, transparent);
 }
 
 /* Storefront brand tokens: org_branding sets --brand-* on the storefront layout. */
 @theme inline {
-  --color-brand-primary: var(--brand-primary, var(--color-cobalt-600));
-  --color-on-brand-primary: var(--brand-on-primary, var(--color-white));
-  --color-brand-accent: var(--brand-accent, var(--color-lime-400));
-  --color-on-brand-accent: var(--brand-on-accent, var(--color-ink));
+  --color-brand-primary: var(--brand-primary, var(--color-secondary-600));
+  --color-on-brand-primary: var(--brand-on-primary, var(--color-on-secondary));
+  --color-brand-accent: var(--brand-accent, var(--color-accent-400));
+  --color-on-brand-accent: var(--brand-on-accent, var(--color-on-accent-fill));
 }
 
 body {
@@ -578,8 +654,8 @@ body {
 ```
 
 ### 10.2 Usage rules for code
-- Components use **semantic** classes (`bg-surface`, `text-text-secondary`, `bg-primary`, `text-on-accent`, `border-border-control`). Palette classes (`bg-cobalt-50`) are allowed only inside `components/ui/` and for illustrations.
+- Components use **semantic** classes (`bg-surface`, `text-text-secondary`, `bg-primary`, `text-on-accent`, `border-border-control`). Role classes (`bg-secondary-50`) are allowed only inside `components/ui/` and for illustrations. Named palette classes (`bg-cobalt-50`) are not allowed anywhere, because they ignore theme changes.
 - **No raw hex values or inline colour styles** outside `globals.css`, `lib/theme.ts` and email templates.
-- Storefront components use only `brand-*` tokens for brand colour, never `cobalt`/`lime` directly.
+- Storefront components use only `brand-*` tokens for brand colour, never `secondary-*`/`accent-*` directly.
 - Prices and timers: `tabular-nums` always.
 - Before building a new component, check `components/ui/`. Before adding a token, update this file.
