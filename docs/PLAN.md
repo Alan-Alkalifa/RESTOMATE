@@ -117,8 +117,8 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 ### 4.2 Backend — ADIT
 
 **Project setup**
-- [ ] **M0-BE-01 Monorepo.** pnpm and Turborepo, Next.js 16 in `apps/web`, TypeScript 5.x, ESLint, Prettier, scripts `dev`, `build`, `lint`, `typecheck`, `test`, `db:*`. *Done when:* all scripts run on a clean clone and §2 is confirmed.
-- [ ] **M0-BE-02 CI.** GitHub Actions: install, lint, typecheck, unit, build, database reset and pgTAP, plus an e2e job ready for DAVIN's suite. *Done when:* a draft PR gets a result from each job.
+- [x] **M0-BE-01 Monorepo.** pnpm and Turborepo, Next.js 16 in `apps/web`, TypeScript 5.x, ESLint, Prettier, scripts `dev`, `build`, `lint`, `typecheck`, `test`, `db:*`. *Done when:* all scripts run on a clean clone and §2 is confirmed.
+- [x] **M0-BE-02 CI.** GitHub Actions: install, lint, typecheck, unit, build, database reset and pgTAP, plus an e2e job ready for DAVIN's suite. *Done when:* a draft PR gets a result from each job.
 - [ ] **M0-BE-03 Supabase.** Local config, auth settings, Mailpit, Resend SMTP block. *Done when:* `supabase start` and `db reset` work from zero.
 - [ ] **M0-BE-04 Environment.** `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
 
@@ -724,6 +724,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | M0-LD-01: earlier code is reset (the repo holds none). Vercel project `restomate-staging` is kept. The staging Supabase project is kept and its schema is built only by forward-only migrations after merge. Nothing is deleted. `STAGING.md` names ref `hnpcfaecrdilwongitbg`, but the connected Supabase account lists only `Restomate-Dev` (`byexuyfafpnrcfedubtb`): ADIT confirms the target ref before the first staging deploy (M0-BE-24) | ALAN, under the owner's "restart from zero" |
 | 2026-11-22 | Staging Supabase is `Restomate-Dev`, ref `byexuyfafpnrcfedubtb`, ap-southeast-1; `STAGING.md` updated. Owner will provide the `SUPABASE_STAGING_DB_URL` secret and service keys (M0-LD-03) | Project owner |
 | 2026-11-22 | M0-LD-04: board `MF` holds `MF-T01` to `MF-T40` in PLAN order. Tasks are assigned at each step handoff, never earlier | ALAN |
+| 2026-11-22 | M0-BE-01 (PR #3) and M0-BE-02 (PR #4) merged. Notes carried forward: BE-15/22 (4.9.6) must not rely on `'use cache: private'` for "signed out everywhere", because it can stay in the browser's router cache for 5 minutes and every action re-checks; `updateTag` works only in Server Actions, so route handlers such as the DOKU webhook use `revalidateTag`; BE-24's deploy gate must not wait for a CI run on a docs-only tip of main (CI skips `docs/**` and `*.md`); QA-01 Playwright files under `apps/web` cannot be `*.spec.ts`, or Vitest collects them; CI is run locally with `pnpm run ci` (plain `pnpm ci` is a pnpm built-in that checks nothing). Follow-ups: lint should use `--max-warnings 0`; branch protection on main is an owner decision before launch | ALAN, from ADIT and DAVIN reports |
 
 ### Open
 
