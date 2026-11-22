@@ -37,6 +37,15 @@ const BUNDLE_FILE =
   /(?:^|\/)((?:\.next\/(?:dev\/)?server|_next\/static)\/(?:[\w.~[\]-]+\/)*[\w.~[\]-]+\.js)(?:\?.*)?$/;
 
 const MAX_FRAMES = 30;
+// A message can echo user input, and this all runs on the event loop. Over a limit there are no
+// frames, and the error is still reported.
+const MAX_MESSAGE = 8192;
+const MAX_STACK = 32_768;
+// The indent is never `\s`: that matches line terminators, so with the `m` flag a run of them
+// takes quadratic time.
+const V8_FRAME = /^[ \t]+at /;
+const V8_FRAME_ANYWHERE = /^[ \t]+at /m;
+const V8_HEADER = /^[\w$.[\] ]+(?:: |\n|$)/;
 const REMOVED = "Message removed";
 
 type Frame = {
@@ -101,7 +110,9 @@ function cleanFrame(file: unknown, line: unknown, column: unknown): Frame | unde
  * can't be cut off the front with certainty there are no frames at all.
  */
 function frameLines(stack: string, message: string): string[] {
-  if (!/^\s+at /m.test(stack)) {
+  if (!V8_FRAME_ANYWHERE.test(stack)) {
+    // A V8 header without V8 frames holds only message text, whatever it looks like.
+    if (V8_HEADER.test(stack)) return [];
     // Firefox and Safari stacks have no message, only `function@file:line:column`.
     return message && stack.includes(message) ? [] : stack.split("\n");
   }
@@ -120,7 +131,7 @@ function frameLines(stack: string, message: string): string[] {
   if (!rest.startsWith("\n")) return [];
 
   const lines = rest.slice(1).split("\n");
-  const end = lines.findIndex((line) => !/^\s+at /.test(line));
+  const end = lines.findIndex((line) => !V8_FRAME.test(line));
   return end < 0 ? lines : lines.slice(0, end);
 }
 
@@ -128,12 +139,13 @@ function parseFrames(error: unknown): Frame[] {
   const stack = read(error, "stack");
   const message = read(error, "message");
   if (typeof stack !== "string" || typeof message !== "string") return [];
+  if (stack.length > MAX_STACK || message.length > MAX_MESSAGE) return [];
 
   const frames: Frame[] = [];
   for (const line of frameLines(stack, message).slice(0, MAX_FRAMES)) {
     const position = /:(\d+):(\d+)\)?$/.exec(line);
     if (!position) continue;
-    const file = line.slice(0, position.index).replace(/^.*[(@]|^\s+at /, "");
+    const file = line.slice(0, position.index).replace(/^.*[(@]|^[ \t]+at /, "");
     const frame = cleanFrame(file, Number(position[1]), Number(position[2]));
     if (frame) frames.push(frame);
   }
@@ -177,8 +189,15 @@ export function errorDigest(error: unknown): string | undefined {
   return cleanDigest(read(error, "digest"));
 }
 
+const CONTROL_FLOW = new Set([
+  "DYNAMIC_SERVER_USAGE",
+  "BAILOUT_TO_CLIENT_SIDE_RENDERING",
+  "HANGING_PROMISE_REJECTION",
+]);
+
 /** redirect(), notFound() and the like are thrown, but aren't errors. */
 export function isControlFlow(error: unknown): boolean {
   const digest = read(error, "digest");
-  return typeof digest === "string" && /^NEXT_|^DYNAMIC_SERVER_USAGE$/.test(digest);
+  if (typeof digest !== "string") return false;
+  return digest.startsWith("NEXT_") || CONTROL_FLOW.has(digest);
 }
