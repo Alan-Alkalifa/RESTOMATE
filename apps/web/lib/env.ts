@@ -286,7 +286,10 @@ export function assertVercelBuildEnv(source: EnvSource = process.env): void {
     throw new EnvError("[env] Vercel build blocked. Invalid environment", result.issues);
 }
 
-/** Production instance start: refuse to boot on a bad environment. */
+/**
+ * Fails a production instance's startup on a bad environment (names only, never values).
+ * Next does not exit: the process stays up and answers 500, except for static files.
+ */
 export function assertBootEnv(source: EnvSource = process.env): void {
   if (source.NODE_ENV !== "production") return;
   const result = validateEnv(source, { production: true });

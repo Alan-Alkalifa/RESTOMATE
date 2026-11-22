@@ -1,4 +1,10 @@
-import { describe, expect, it } from "vitest";
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+  PHASE_PRODUCTION_SERVER,
+} from "next/constants";
+import { describe, expect, it, vi } from "vitest";
+import nextConfig from "../next.config";
 import {
   assertBootEnv,
   assertVercelBuildEnv,
@@ -114,6 +120,33 @@ describe("build and boot checks", () => {
     expect(() => assertBootEnv({ NODE_ENV: "production" })).toThrow(/Boot blocked/);
     expect(() => assertBootEnv({ NODE_ENV: "development" })).not.toThrow();
     expect(() => assertBootEnv(good as EnvSource & { NODE_ENV: string })).not.toThrow();
+  });
+});
+
+describe("next.config", () => {
+  const load = (phase: string, command: string, vercelEnv = "preview") => {
+    const { argv } = process;
+    try {
+      for (const name of Object.keys(good)) vi.stubEnv(name, "");
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("VERCEL_ENV", vercelEnv);
+      process.argv = ["node", "next", command];
+      return nextConfig(phase);
+    } finally {
+      process.argv = argv;
+      vi.unstubAllEnvs();
+    }
+  };
+
+  it.each(["preview", "production"])("blocks a %s build by name", (vercelEnv) => {
+    expect(() => load(PHASE_PRODUCTION_BUILD, "build", vercelEnv)).toThrow(/ARCJET_KEY/);
+  });
+  it.each([
+    ["dev", PHASE_DEVELOPMENT_SERVER],
+    ["typegen", PHASE_PRODUCTION_BUILD],
+    ["start", PHASE_PRODUCTION_SERVER],
+  ])("does not run the build check for next %s", (command, phase) => {
+    expect(load(phase, command).cacheComponents).toBe(true);
   });
 });
 
