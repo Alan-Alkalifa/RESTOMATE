@@ -1,0 +1,131 @@
+# Local Supabase stack (`pnpm db:start`) and CI.
+# Reference: https://supabase.com/docs/guides/local-development/cli/config
+#
+# NEVER run `supabase config push` with this file. It holds local URLs and relaxed rate limits.
+# Hosted Auth is set in the dashboard: see docs/STAGING.md and "Email (Resend)" in CLAUDE.md.
+
+project_id = "restomate"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"] # never expose `private`
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+# As on hosted projects since 2026-10-30: a new table, view or sequence is unreachable through the
+# Data API until its migration grants access. RLS still decides which rows are visible.
+# Functions are NOT covered: Postgres lets PUBLIC execute a new function, so anon can call one in
+# `public` until its migration runs `revoke execute ... from public`.
+auto_expose_new_tables = false
+
+[db]
+port = 54322
+shadow_port = 54320
+health_timeout = "2m"
+major_version = 17 # must match staging and production
+
+[db.pooler]
+enabled = false
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = true
+# Local only. seed-staging.sql is applied by its own workflow and must never be listed here.
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+# Mailpit catches all local Auth mail: http://127.0.0.1:54324
+[local_smtp]
+enabled = true
+port = 54324
+admin_email = "no-reply@mail.restomate.app"
+sender_name = "Restomate"
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[storage.s3_protocol]
+enabled = false
+
+[storage.vector]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+# The root and app hosts. Customer subdomains have no Auth redirects.
+# Auth also accepts any path and port on the Site URL's own host, whatever this list says, so the
+# app must still validate `next` itself.
+additional_redirect_urls = [
+  "http://localhost:3000/**",
+  "http://app.localhost:3000/**",
+  "http://127.0.0.1:3000/**",
+]
+# An access token outlives sign-out by up to this long, so server and RLS checks must not rely on
+# the token alone to shut out a deactivated member.
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+minimum_password_length = 8
+password_requirements = ""
+
+[auth.rate_limit]
+# Per IP per 5 minutes. Raised locally because every test user shares one IP (hosted default: 30).
+sign_in_sign_ups = 300
+token_verifications = 300
+token_refresh = 150
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+# A session older than 24 hours must reauthenticate to change the password.
+secure_password_change = true
+max_frequency = "1s" # local only (hosted default: 1m)
+otp_length = 6
+otp_expiry = 3600
+
+# Resend SMTP, as set in the dashboard on hosted projects. Keep it disabled here: enabling it sends
+# real email from local and CI instead of delivering to Mailpit.
+[auth.email.smtp]
+enabled = false
+host = "smtp.resend.com"
+port = 465
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "no-reply@mail.restomate.app"
+sender_name = "Restomate"
+
+# Templates are added with the files in supabase/templates/ (M0-FE-10). A content_path to a file
+# that doesn't exist yet stops `supabase start`.
+
+[auth.sms]
+enable_signup = false
+
+[auth.mfa.totp]
+enroll_enabled = false
+verify_enabled = false
+
+[auth.mfa.phone]
+enroll_enabled = false
+verify_enabled = false
+
+# Not used: the server logic lives in the Next.js app.
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false
