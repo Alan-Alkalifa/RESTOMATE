@@ -1,3 +1,5 @@
+import type { Instrumentation } from "next";
+
 import { assertBootEnv } from "./lib/env";
 
 /**
@@ -10,3 +12,15 @@ export function register() {
   if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== "nodejs") return;
   assertBootEnv();
 }
+
+/** Reports server errors. `request` is not read: its path and headers carry tokens. */
+export const onRequestError: Instrumentation.onRequestError = async (error, _request, context) => {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    try {
+      const { captureServerError } = await import("./lib/analytics/server");
+      captureServerError(error, { source: context.routeType, route: context.routePath });
+    } catch {
+      // Error tracking never adds an error of its own.
+    }
+  }
+};
