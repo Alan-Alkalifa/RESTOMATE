@@ -481,7 +481,7 @@ Every screen designs all four states.
 - **Restomate emails** (auth, staff invites, subscription invoices): dominant-50 background, a white card with `radius-lg` corners, a 4 px accent bar at the top of the card, the Restomate wordmark, and a secondary-600 button with `on-secondary` text.
 - **Guest emails** (receipts, reservations): the restaurant's logo and `brand-primary` button, with the same layout.
 - Use system font fallbacks in email (`'Plus Jakarta Sans', Arial, sans-serif`); web fonts are not reliable in email clients.
-- **Change needed:** the current Supabase auth templates (`supabase/templates/*.html`) use orange `#c2410c` buttons. Switch them to secondary (see §10).
+- Supabase auth templates (`supabase/templates/*.html`) use the same secondary button (see §10). They are built in M0-FE-10.
 
 ### 7.8 Print (bills and kitchen tickets)
 - Black on white only. No colour, no accent, no shadows: thermal printers can't print them.

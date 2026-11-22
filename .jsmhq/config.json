@@ -34,7 +34,9 @@
           "docs.arcjet.com",
           "decide.arcjet.com",
           "docs.doku.com",
-          "nextjs.org"
+          "nextjs.org",
+          "http-intake.logs.us5.datadoghq.com:443",
+          "mcp.supabase.com"
         ],
         "deny": []
       },
@@ -69,7 +71,11 @@
           "docs.arcjet.com",
           "decide.arcjet.com",
           "docs.doku.com",
-          "nextjs.org"
+          "nextjs.org",
+          "http-intake.logs.us5.datadoghq.com:443",
+          "mcp.supabase.com",
+          "mcp.supabase.com:443",
+          "api.supabase.com:443"
         ],
         "deny": []
       },
@@ -107,7 +113,12 @@
           "docs.arcjet.com",
           "decide.arcjet.com",
           "docs.doku.com",
-          "nextjs.org"
+          "nextjs.org",
+          "http-intake.logs.us5.datadoghq.com:443",
+          "mcp.supabase.com",
+          "mcp.supabase.com:443",
+          "api.supabase.com:443",
+          "api.supabase.com"
         ],
         "deny": []
       },
@@ -145,7 +156,11 @@
           "docs.arcjet.com",
           "decide.arcjet.com",
           "docs.doku.com",
-          "nextjs.org"
+          "nextjs.org",
+          "http-intake.logs.us5.datadoghq.com:443",
+          "mcp.supabase.com",
+          "mcp.supabase.com:443",
+          "api.supabase.com:443"
         ],
         "deny": []
       },

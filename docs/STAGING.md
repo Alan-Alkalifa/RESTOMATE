@@ -106,11 +106,11 @@ If staging data is hopeless, the owner can reset the project in the Supabase das
 
 - Production staging URL only for tenant/custom hosts: any host that is not the app/root domain 404s in production.
 
-## Preview deployments (B1-T23)
+## Preview deployments (M0-BE-14)
 
 `proxy.ts` treats unknown hosts as unknown tenants (404). On a Vercel **preview** deployment (`VERCEL_ENV=preview` only) the deployment's own hosts, `VERCEL_URL` and `VERCEL_BRANCH_URL`, are served as the app host, so PR preview URLs work (e.g. `/login`). Hosts come from Vercel system env vars, never a request header, and only exact `*.vercel.app` hostnames are accepted. Production is unchanged.
 
 - Vercel project, Settings, Environment Variables: **"Automatically expose System Environment Variables" must be ON** (provides `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`).
 - `turbo.json` needs no change: the proxy reads these at runtime.
 - Supabase Auth redirect URLs must include the preview pattern above, or sign-in on a preview will bounce.
-- A direct call to Supabase Auth's `/signup` with the public key can create an account while sign-ups are switched off in platform settings; such an account still cannot create an organization (follow-up B1-T18).
+- A direct call to Supabase Auth's `/signup` with the public key can create an account while sign-ups are switched off in platform settings; such an account still cannot create an organization (closed by M1-BE-08).
