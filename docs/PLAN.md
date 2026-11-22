@@ -131,7 +131,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [x] **M0-BE-02 CI.** _(ADIT)_ GitHub Actions: install, lint, typecheck, unit, build, database reset and pgTAP, plus an e2e job ready for DAVIN's suite. *Done when:* a draft PR gets a result from each job.
 - [ ] **M0-BE-03 Supabase.** _(ADIT)_ Local config, auth settings, Mailpit, Resend SMTP block. *Done when:* `supabase start` and `db reset` work from zero.
 - [x] **M0-BE-26 Turbo build env.** _(ADIT)_ `turbo.json` declares the server variables on the build task. Merges before M0-BE-04. *Done when:* with M0-BE-04 applied, a root build with `VERCEL=1` passes on valid values and fails by name when one is missing.
-- [ ] **M0-BE-27 Turbo dev env.** _(ADIT)_ `turbo.json` passes the 9 server variables through to the dev task. *Done when:* `pnpm dev` sees them from the shell and undeclared names stay hidden.
+- [x] **M0-BE-27 Turbo dev env.** _(ADIT)_ `turbo.json` passes the 9 server variables through to the dev task. *Done when:* `pnpm dev` sees them from the shell and undeclared names stay hidden.
 - [x] **M0-BE-28 core-js build decision.** _(ADIT)_ `core-js: false` under `allowBuilds`. Merges before M0-BE-17. *Done when:* a frozen install passes with `posthog-js` added.
 - [x] **M0-BE-04 Environment.** _(CARLO)_ `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
 
@@ -151,7 +151,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M0-BE-14 Clients and proxy.** _(CARLO)_ Supabase server, browser, proxy and server-only admin clients. `proxy.ts` resolves hosts, refreshes sessions, skips the DOKU webhook and serves Vercel preview hosts. *Done when:* an unknown host returns 404 and preview URLs open.
 - [ ] **M0-BE-15 Auth access layer.** _(CARLO)_ `getCurrentUser`, `requireUser`, `getMembership`, `getOrgContext`, `requirePermission`, `requirePlatformAdmin`, `hasFeature`. *Done when:* all server code has one way to check access.
 - [ ] **M0-BE-16 Abuse protection.** _(CARLO)_ Arcjet shield, bot detection, rate limits and a signup preset. *Done when:* repeated auth attempts are limited.
-- [ ] **M0-BE-17 Analytics and errors.** _(CARLO)_ PostHog capture, typed events, org grouping, error tracking, allow-listed query parameters, masked tokens, autocapture and recording off. *Done when:* no token or personal field leaves the app.
+- [x] **M0-BE-17 Analytics and errors.** _(CARLO)_ PostHog capture, typed events, org grouping, error tracking, allow-listed query parameters, masked tokens, autocapture and recording off. *Done when:* no token or personal field leaves the app.
 - [ ] **M0-BE-18 Email sender.** _(CARLO)_ Resend wrapper with one recipient, idempotency key, log mode locally, failures logged and retryable. *Done when:* a failed send can be retried without a duplicate.
 - [x] **M0-BE-19 Money.** _(CARLO)_ Formatting (`Rp 25.000`), tax and service-charge calculation. *Done when:* rounding has unit tests.
 
@@ -793,6 +793,8 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | Auth's redirect check accepts loopback IPs, and any port on a loopback Site URL, whatever the allow list says. The M0-BE-03 gate expects that. M0-BE-20 validates `next` itself, and M0-FE-10's `token_hash` links are built on the Site URL, never on a caller's redirect host | ALAN, from ADIT's gate and the GoTrue v2.198.0 source |
 | 2026-11-22 | Correction to the M0-BE-03 gate row: CLI 3.2.0's `db reset` never waits for the health of the services it restarts, so they must be healthy within 60 seconds after it returns (`start` is unchanged: healthy at return). Scripts and tests that use Auth, Storage or Realtime straight after a reset wait for health first (M0-QA-01) | ALAN, from ADIT's evidence and the CLI source |
 | 2026-11-22 | Final M0-BE-03 health rule, replacing the two rows on it above: CLI 3.2.0's `start` gates Postgres on a connection, not on Docker's health label. For `start` and `reset` alike: exit 0, a real query answers within 5 seconds at return, and every service is healthy within 60 seconds. Crashes, out-of-memory kills, unexplained restarts and timeouts fail. Run 4 stays red under the old rule. A red under this rule is a defect or an environment limit, and the rule is not loosened again | ALAN, from run 4 and the CLI source |
+| 2026-11-22 | M0-BE-17 merged after QA (PR #21). Error messages are never sent; event values, route words and query values are allow-lists (a new static route or event is added in `lib/analytics` first); no host means analytics is off. Accepted S4: a stack frame's file name under `_next/static` is sent as it is, as real ones are build hashes. Not proven: real PostHog ingestion and delivery on Vercel, Firefox and Safari. REYKI mounts it in `apps/web/instrumentation-client.ts` and measures the bundle (about 35 KB gzip) | ALAN, from CARLO's PR and DAVIN's QA |
+| 2026-11-22 | The Supabase stack needs about 6 GB of sandbox memory: it passed there and failed on 2 GB. M0-BE-03 merges only after DAVIN's full repeat. M0-BE-29 is stacked on it meanwhile and merges after it | ALAN, from ADIT's and DAVIN's runs |
 
 ### Open
 
@@ -806,6 +808,9 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | DOKU merchant onboarding | M5-LD-01 |
 | Email only or WhatsApp at launch | M6-LD-01 |
 | E-Faktur for subscription invoices | M6-LD-01 |
+| PostHog project setting that discards client IPs is on (project owner) | Before M0's Frontend step mounts analytics |
+| Consent for analytics (legal, project owner) | Before public launch |
+| Storefront analytics: a tenant's subdomain reaches PostHog in the `Origin` header (reverse proxy, or none on storefronts) | M4 Plan |
 
 ### `instant = false` opt-outs
 
