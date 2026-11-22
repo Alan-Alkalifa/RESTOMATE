@@ -774,6 +774,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | Correction to the row above: at 17:24 UTC the owner added `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN` and `APP_ENCRYPTION_KEY` for Production. Still open at 17:57 UTC: those three for Preview, `SUPABASE_SERVICE_ROLE_KEY` for both, the Auth URLs and the GitHub secret | ALAN, from the Vercel activity log and read-only checks |
 | 2026-11-22 | M0-BE-03 pins the Supabase CLI to exactly 3.2.0 (PR #9, merges after its gate and QA), because 2.122.1 has a `db reset` race (supabase/cli 7380). M0-BE-24 must use v3's explicit `--remote` target, and `--yes` only on the apply step | ALAN |
 | 2026-11-22 | M0-BE-04 boot check: failing closed with 500 is accepted in place of exiting the process, because Next keeps the process up | ALAN, from CARLO's evidence |
+| 2026-11-22 | Staging setup from the rows above is complete as of 18:13 UTC: the four Vercel variables are set for Production and Preview, the Auth Site and Redirect URLs work, and the `SUPABASE_STAGING_DB_URL` secret exists. Values are not verified: formats are tested by the first build with M0-BE-26 and M0-BE-04, the secret by M0-BE-24's dry run, the Supabase ref behind `NEXT_PUBLIC_SUPABASE_URL` in M0-CL-02 | ALAN, from the Vercel log, build logs and read-only checks |
 
 ### Open
 
