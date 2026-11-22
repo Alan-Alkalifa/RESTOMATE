@@ -14,7 +14,7 @@ Last updated: 2026-11-22. **The project restarts from zero: nothing below is don
 
 | Phase | State | Active step | QA verdict | Closed on |
 |---|---|---|---|---|
-| M0 Foundation | Not started (first up) | — | — | — |
+| M0 Foundation | Active | 2. Backend (ADIT) | — | — |
 | M1 Signup and super admin | Not started | — | — | — |
 | M2 Venue and menu | Not started | — | — | — |
 | M3 Service core (MVP) | Not started | — | — | — |
@@ -109,10 +109,10 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 
 ### 4.1 Plan — ALAN
 
-- [ ] **M0-LD-01 Starting point.** Confirm with the project owner what happens to any earlier code, branches, Vercel project and staging database. *Done when:* each is marked keep, reset or replace in §14, and nothing was deleted without approval.
-- [ ] **M0-LD-02 Engineering rules.** Write `CLAUDE.md`: stack, layout tree, §2 rules, surfaces and routing, environment variables, email. *Done when:* every `CLAUDE.md` reference in the docs resolves.
+- [x] **M0-LD-01 Starting point.** Confirm with the project owner what happens to any earlier code, branches, Vercel project and staging database. *Done when:* each is marked keep, reset or replace in §14, and nothing was deleted without approval.
+- [x] **M0-LD-02 Engineering rules.** Write `CLAUDE.md`: stack, layout tree, §2 rules, surfaces and routing, environment variables, email. *Done when:* every `CLAUDE.md` reference in the docs resolves.
 - [ ] **M0-LD-03 Access.** Arrange repository, Vercel, Supabase, Resend, Arcjet, PostHog and DOKU sandbox access. *Done when:* each service is reachable and no secret is in a file.
-- [ ] **M0-LD-04 Board.** Copy the M0 tasks to the HQ board with their IDs, owners and order. *Done when:* every task has one owner.
+- [x] **M0-LD-04 Board.** Copy the M0 tasks to the HQ board with their IDs, owners and order. *Done when:* every task has one owner.
 
 ### 4.2 Backend — ADIT
 
@@ -721,12 +721,13 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | Work is focused per phase, with no overlapping phases | Project owner |
 | Carried over | DOKU for guest payments and SaaS billing, Resend for email | `PROJECT.md` §11 |
 | Carried over | Indonesia and IDR at launch, tax configurable per location | `PROJECT.md` §11 |
+| 2026-11-22 | M0-LD-01: earlier code is reset (the repo holds none). Vercel project `restomate-staging` is kept. The staging Supabase project is kept and its schema is built only by forward-only migrations after merge. Nothing is deleted. `STAGING.md` names ref `hnpcfaecrdilwongitbg`, but the connected Supabase account lists only `Restomate-Dev` (`byexuyfafpnrcfedubtb`): ADIT confirms the target ref before the first staging deploy (M0-BE-24) | ALAN, under the owner's "restart from zero" |
+| 2026-11-22 | M0-LD-04: board `MF` holds `MF-T01` to `MF-T40` in PLAN order. Tasks are assigned at each step handoff, never earlier | ALAN |
 
 ### Open
 
 | Decision | Settle in |
 |---|---|
-| What to keep or reset from earlier code and staging | M0-LD-01 |
 | Plan pricing and yearly discount | M1-LD-01, final in M6-LD-01 |
 | POS printers and cash drawers | M3-LD-02 |
 | Tipping at launch | M3-LD-02 |
