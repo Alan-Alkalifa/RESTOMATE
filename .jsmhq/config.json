@@ -178,7 +178,8 @@
           "d3fo0g5hm7lbuv.cloudfront.net.hq-restomate-adit.docker.internal:443",
           "playwright.download.prss.microsoft.com:443",
           "playwright.download.prss.microsoft.com.hq-restomate-adit.docker.internal:443",
-          "supabase_db_restomate.hq-restomate-adit.docker.internal:443"
+          "supabase_db_restomate.hq-restomate-adit.docker.internal:443",
+          "supabase_db_restomate:443"
         ],
         "deny": []
       },
