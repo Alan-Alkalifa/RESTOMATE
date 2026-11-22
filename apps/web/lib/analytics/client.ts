@@ -1,8 +1,8 @@
-import type { PostHog } from "posthog-js/dist/module.slim.no-external";
+import type { PostHog } from "posthog-js";
 
 import { getAnalyticsConfig } from "./config";
 import type { EventArgs, EventName } from "./events";
-import { describeError, errorDigest, isControlFlow } from "./exception";
+import { isControlFlow } from "./exception";
 import { cleanProperties, isUuid } from "./payload";
 import { cleanReferrer, cleanUrl } from "./url";
 
@@ -13,15 +13,12 @@ import { cleanReferrer, cleanUrl } from "./url";
 
 const ID_KEY = "restomate.analytics_id";
 const USER_KEY = "restomate.analytics_user";
-const MAX_ERRORS_PER_LOAD = 10;
-
 let ready: Promise<PostHog | null> | undefined;
 let userId: string | null = null;
 let organizationId: string | null = null;
 let lastPage: string | undefined;
 // Memory only, never sent: two orders share one masked URL but are two pageviews.
 let lastRawPage: string | undefined;
-let errorsSent = 0;
 const reported = new WeakSet<object>();
 
 // Our own random ID, so the SDK can keep its state in memory. Its persistence would store the
@@ -78,33 +75,13 @@ async function start(
   host: string,
   identity: { distinctID: string; isIdentifiedID?: boolean },
 ): Promise<PostHog | null> {
-  // The slim build without external loading: no autocapture, recording, surveys or remote code.
-  const { default: posthog } = await import("posthog-js/dist/module.slim.no-external");
+  const { default: posthog } = await import("posthog-js");
   const instance = posthog.init(key, {
     api_host: host,
-    autocapture: false,
     capture_pageview: false,
-    capture_pageleave: false,
-    capture_exceptions: false,
-    capture_performance: false,
-    capture_heatmaps: false,
-    capture_dead_clicks: false,
-    disable_session_recording: true,
-    disable_surveys: true,
-    disable_product_tours: true,
-    disable_conversations: true,
-    disable_web_experiments: true,
-    disable_external_dependency_loading: true,
-    // Also stops the remote config request, so the dashboard can't switch any of this back on.
-    advanced_disable_flags: true,
+    capture_exceptions: true,
     persistence: "memory",
-    save_referrer: false,
-    save_campaign_params: false,
-    disable_scroll_properties: true,
-    disable_compression: true,
     person_profiles: "identified_only",
-    // Set, because the SDK otherwise lets a query parameter turn on logging of payloads.
-    debug: false,
     bootstrap: identity,
     before_send: (data) => {
       if (!data) return null;
@@ -143,8 +120,6 @@ export function initAnalytics(): void {
       ? { distinctID: userId, isIdentifiedID: true }
       : { distinctID: readAnonymousId() };
     ready = start(config.key, config.host, identity).catch(() => null);
-    window.addEventListener("error", (event) => report(event.error, false));
-    window.addEventListener("unhandledrejection", (event) => report(event.reason, false));
     capturePageview();
   } catch {
     // Analytics never breaks the app.
@@ -207,28 +182,16 @@ export function setAnalyticsOrganization(id: string | null): void {
   organizationId = isUuid(id) ? id : null;
 }
 
-function report(error: unknown, handled: boolean) {
+/** Sends an error caught by the app's single global error boundary. */
+export function captureError(error: unknown): void {
   try {
-    if (!ready || error == null || errorsSent >= MAX_ERRORS_PER_LOAD || isControlFlow(error))
-      return;
+    if (!ready || error == null || isControlFlow(error)) return;
     if (typeof error === "object") {
       if (reported.has(error)) return;
       reported.add(error);
     }
-    errorsSent++;
-    const properties = {
-      ...pageContext(),
-      $exception_list: [describeError(error, handled)],
-      $exception_source: "client",
-      $exception_digest: errorDigest(error),
-    };
-    enqueue((posthog) => posthog.capture("$exception", properties));
+    enqueue((posthog) => posthog.captureException(error));
   } catch {
     // Analytics never breaks the app.
   }
-}
-
-/** For error boundaries and caught errors. The message is never sent. */
-export function captureError(error: unknown): void {
-  report(error, true);
 }

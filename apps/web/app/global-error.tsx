@@ -1,0 +1,33 @@
+"use client";
+
+import { useEffect } from "react";
+
+import { captureError, initAnalytics } from "../lib/analytics/client";
+
+export default function GlobalError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    // Root-layout failures can render before client instrumentation has loaded.
+    initAnalytics();
+    captureError(error);
+  }, [error]);
+
+  return (
+    <html lang="en">
+      <body>
+        <main>
+          <h1>Something went wrong</h1>
+          <p>Please try again.</p>
+          <button type="button" onClick={reset}>
+            Try again
+          </button>
+        </main>
+      </body>
+    </html>
+  );
+}

@@ -87,7 +87,7 @@ const shape = {
   DOKU_SECRET_KEY: text,
   APP_ENCRYPTION_KEY: encryptionKey,
   NEXT_PUBLIC_POSTHOG_KEY: text,
-  NEXT_PUBLIC_POSTHOG_HOST: url,
+  NEXT_PUBLIC_POSTHOG_HOST: text,
 } as const;
 
 const schema = z.object(shape);
@@ -112,7 +112,6 @@ const REQUIRED_IN_PRODUCTION = [
 const KEY_REASONS: Partial<Record<string, string>> = {
   NEXT_PUBLIC_APP_URL: "must be an http(s) URL",
   NEXT_PUBLIC_SUPABASE_URL: "must be an http(s) URL",
-  NEXT_PUBLIC_POSTHOG_HOST: "must be an http(s) URL",
   NEXT_PUBLIC_ROOT_DOMAIN: "must be a bare hostname, no scheme or path",
   EMAIL_DELIVERY: 'must be "log" or "resend"',
   DOKU_ENV: 'must be "sandbox"',
