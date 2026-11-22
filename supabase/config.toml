@@ -12,10 +12,9 @@ port = 54321
 schemas = ["public"] # never expose `private`
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
-# As on hosted projects since 2026-10-30: a new table, view or sequence is unreachable through the
-# Data API until its migration grants access. RLS still decides which rows are visible.
-# Functions are NOT covered: Postgres lets PUBLIC execute a new function, so anon can call one in
-# `public` until its migration runs `revoke execute ... from public`.
+# Turns off the CLI's automatic Data API grants on new tables. It is a local setting and not a
+# privilege baseline, so never rely on it: every migration grants only what each role needs
+# (baseline: M0-BE-29).
 auto_expose_new_tables = false
 
 [db]
@@ -64,8 +63,8 @@ enabled = false
 enabled = true
 site_url = "http://localhost:3000"
 # The root and app hosts. Customer subdomains have no Auth redirects.
-# Auth also accepts any path and port on the Site URL's own host, whatever this list says, so the
-# app must still validate `next` itself.
+# Whatever this list says, Auth also accepts loopback IPs and any path on the Site URL's own scheme,
+# host and port (any port if that host is loopback). The app must still validate `next` itself.
 additional_redirect_urls = [
   "http://localhost:3000/**",
   "http://app.localhost:3000/**",
