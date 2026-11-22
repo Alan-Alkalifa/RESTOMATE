@@ -33,7 +33,7 @@ docs/                     PROJECT, PLAN, DESIGN, STAGING, contracts/, qa/
 - `proxy.ts` is for host routing, session refresh and Arcjet only. **Never authorization.**
 - Authorization happens on the server on every action (`requirePermission`) and in the database (RLS). Never trust the client.
 - Cache Components on. No `cookies()`/`headers()` outside `<Suspense>`. Session lookups `'use cache: private'`; derived data `'use cache'` keyed by user or org ID with `cacheTag`, refreshed with `updateTag`. `instant = false` is a last resort, logged in PLAN §14.
-- Database: text + `check` instead of enums; `created_at`/`updated_at`; RLS on every table; `(select auth.uid())` in policies; helpers in `private` schema; security-definer functions use `search_path = ''`. Migrations are forward-only and compatible with the previous app version.
+- Database: text + `check` instead of enums; `created_at`/`updated_at`; RLS on every table; `(select auth.uid())` in policies; helpers in `private` schema; security-definer functions use `search_path = ''`. Migrations are forward-only and compatible with the previous app version. No API role (`anon`, `authenticated`, `service_role`) gets privileges by default: each migration grants only what each role needs (baseline: M0-BE-29).
 - Money: integers in the smallest unit (IDR exponent 0), rates in basis points, totals computed on the server by `lib/money`.
 - Orders and bills snapshot names, prices and rates.
 - Realtime channels are per location and authorized; refetch after reconnect.

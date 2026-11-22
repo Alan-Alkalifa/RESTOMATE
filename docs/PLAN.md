@@ -57,6 +57,7 @@ One phase is active at a time, and one step inside it.
 
 - **Order:** each person does their tasks top to bottom. A task may rely on any task above it, never on one below it.
 - **One task = one branch = one draft PR.** ALAN marks it ready only after DAVIN's PASS and ALAN's own review, then squash-merges one at a time in stack order. Retarget stacked PRs to `main` before deleting a branch. Markdown-only PRs skip QA.
+- **Second task:** ALAN may give ADIT or CARLO one more task while their current one is blocked, parked, or pushed and waiting for QA or merge. They work on one at a time, on separate branches and files, with the same QA and review before each merge.
 - **Failed QA:** DAVIN files the bug and ALAN reopens step 2 or 3. The fix passes through the remaining steps again.
 - **Bug in a closed phase:** S1 or S2 pauses the current step until it is fixed and verified. S3 and S4 go into the next Plan step.
 - **Severity:** S1 data leak, money error or outage. S2 a main flow is broken. S3 broken with a workaround. S4 cosmetic.
@@ -84,7 +85,7 @@ Confirm these against the installed Next.js docs (`node_modules/next/dist/docs/`
   - Session lookups use `'use cache: private'`. Derived data uses `'use cache'` keyed by user or org ID with `cacheTag`, refreshed with `updateTag`.
   - `export const instant = false` is a last resort. Record each use in §14.
 - **`AGENTS.md` in `apps/web` stays committed.** TypeScript stays on 5.x.
-- **Database:** text columns with `check` constraints instead of enums, `created_at` and `updated_at`, RLS on every table, `(select auth.uid())` in policies, internal helpers in a `private` schema, security-definer functions with `search_path = ''`.
+- **Database:** text columns with `check` constraints instead of enums, `created_at` and `updated_at`, RLS on every table, `(select auth.uid())` in policies, internal helpers in a `private` schema, security-definer functions with `search_path = ''`. No API role (`anon`, `authenticated`, `service_role`) gets privileges by default: each migration grants only what each role needs (baseline: M0-BE-29).
 - **Migrations are forward-only** and work with the previous app version.
 - **Money:** integers in the currency's smallest unit (IDR exponent 0), rates in basis points, totals calculated on the server by `lib/money`.
 - **History is a snapshot:** orders and bills store names, prices and rates as they were.
@@ -129,10 +130,13 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [x] **M0-BE-01 Monorepo.** _(ADIT)_ pnpm and Turborepo, Next.js 16 in `apps/web`, TypeScript 5.x, ESLint, Prettier, scripts `dev`, `build`, `lint`, `typecheck`, `test`, `db:*`. *Done when:* all scripts run on a clean clone and §2 is confirmed.
 - [x] **M0-BE-02 CI.** _(ADIT)_ GitHub Actions: install, lint, typecheck, unit, build, database reset and pgTAP, plus an e2e job ready for DAVIN's suite. *Done when:* a draft PR gets a result from each job.
 - [ ] **M0-BE-03 Supabase.** _(ADIT)_ Local config, auth settings, Mailpit, Resend SMTP block. *Done when:* `supabase start` and `db reset` work from zero.
-- [ ] **M0-BE-26 Turbo build env.** _(ADIT)_ `turbo.json` declares the server variables on the build task. Merges before M0-BE-04. *Done when:* with M0-BE-04 applied, a root build with `VERCEL=1` passes on valid values and fails by name when one is missing.
-- [ ] **M0-BE-04 Environment.** _(CARLO)_ `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
+- [x] **M0-BE-26 Turbo build env.** _(ADIT)_ `turbo.json` declares the server variables on the build task. Merges before M0-BE-04. *Done when:* with M0-BE-04 applied, a root build with `VERCEL=1` passes on valid values and fails by name when one is missing.
+- [ ] **M0-BE-27 Turbo dev env.** _(ADIT)_ `turbo.json` passes the 9 server variables through to the dev task. *Done when:* `pnpm dev` sees them from the shell and undeclared names stay hidden.
+- [ ] **M0-BE-28 core-js build decision.** _(ADIT)_ `core-js: false` under `allowBuilds`. Merges before M0-BE-17. *Done when:* a frozen install passes with `posthog-js` added.
+- [x] **M0-BE-04 Environment.** _(CARLO)_ `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
 
 **Database**
+- [ ] **M0-BE-29 Privilege baseline.** _(ADIT)_ First migration: no default privileges for API roles or `PUBLIC` on new objects in `public`. Merges before M0-BE-05. *Done when:* a new table, view, sequence and function are unreachable until granted, from local and hosted starting defaults.
 - [ ] **M0-BE-05 Identity tables.** _(ADIT)_ `profiles` (synced from `auth.users`), `platform_admins` (service role only), `platform_settings` (deny by default), `audit_logs`. *Done when:* a client can't write admin, settings or audit rows.
 - [ ] **M0-BE-06 Tenancy tables.** _(ADIT)_ `organizations` (unique slug of 3–40 characters, status, currency, timezone), `reserved_slugs`, `locations` (address, timezone, currency, tax and service-charge bps, tax-on-service flag), `org_branding` (https-only logo URL). *Done when:* constraints and RLS are in place.
 - [ ] **M0-BE-07 Packages.** _(ADIT)_ `packages` (prices, trial days, limits, features, active, public, default) and `subscriptions`. *Done when:* one default package gives a new restaurant a trial.
@@ -149,7 +153,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M0-BE-16 Abuse protection.** _(CARLO)_ Arcjet shield, bot detection, rate limits and a signup preset. *Done when:* repeated auth attempts are limited.
 - [ ] **M0-BE-17 Analytics and errors.** _(CARLO)_ PostHog capture, typed events, org grouping, error tracking, allow-listed query parameters, masked tokens, autocapture and recording off. *Done when:* no token or personal field leaves the app.
 - [ ] **M0-BE-18 Email sender.** _(CARLO)_ Resend wrapper with one recipient, idempotency key, log mode locally, failures logged and retryable. *Done when:* a failed send can be retried without a duplicate.
-- [ ] **M0-BE-19 Money.** _(CARLO)_ Formatting (`Rp 25.000`), tax and service-charge calculation. *Done when:* rounding has unit tests.
+- [x] **M0-BE-19 Money.** _(CARLO)_ Formatting (`Rp 25.000`), tax and service-charge calculation. *Done when:* rounding has unit tests.
 
 **Features**
 - [ ] **M0-BE-20 Auth actions.** _(CARLO)_ Login, signup, confirm by token hash, forgot and reset password, sign out, safe `next` redirect. *Done when:* all return one `ActionResult` shape and signed-in users skip the auth pages.
@@ -175,7 +179,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 
 | Task | Needs |
 |---|---|
-| M0-BE-05 | 03 |
+| M0-BE-05 | 03, 29 |
 | M0-BE-06 | 05 |
 | M0-BE-07 | 06 |
 | M0-BE-08 | 06 |
@@ -187,7 +191,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 | M0-BE-14 | 03, 04 |
 | M0-BE-15 | 13, 14 |
 | M0-BE-16 | 14 |
-| M0-BE-17 | 04 |
+| M0-BE-17 | 04, 28 |
 | M0-BE-18 | 04 |
 | M0-BE-19 | 01 |
 | M0-BE-20 | 15, 16, 18 |
@@ -197,6 +201,9 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 | M0-BE-24 | 04, 13 |
 | M0-BE-25 | 20, 21, 22, 23 |
 | M0-BE-26 | 01 |
+| M0-BE-27 | 26 |
+| M0-BE-28 | 01 |
+| M0-BE-29 | 03 |
 
 ### 4.3 Frontend — REYKI
 
@@ -771,6 +778,19 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | CARLO joins as a second backend developer. Each backend task and file has one owner (§1.1) | Project owner |
 | 2026-11-22 | Staging is Vercel project `restomate` (`restomate-nine.vercel.app`). This replaces `restomate-staging` from M0-LD-01, which is no longer used and is not deleted. Its Vercel "Production" target is staging, not the product's production | Project owner chose the project as the answer to "pick the staging project". ALAN's reading: staging, not production |
 | 2026-11-22 | Staging setup still open when the project was chosen: four Vercel variables (`NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_ENCRYPTION_KEY`), the Supabase Auth Site and Redirect URLs (Site URL was `localhost:3000`), and the `SUPABASE_STAGING_DB_URL` GitHub secret. M0-BE-04 merges only after a green Vercel build, M0-BE-24 needs the secret, M0-CL-02 needs the Auth URLs. A new encryption key is safe: the staging database had no tables | ALAN, from read-only checks |
+| 2026-11-22 | Correction to the row above: at 17:24 UTC the owner added `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN` and `APP_ENCRYPTION_KEY` for Production. Still open at 17:57 UTC: those three for Preview, `SUPABASE_SERVICE_ROLE_KEY` for both, the Auth URLs and the GitHub secret | ALAN, from the Vercel activity log and read-only checks |
+| 2026-11-22 | M0-BE-03 pins the Supabase CLI to exactly 3.2.0 (PR #9, merges after its gate and QA), because 2.122.1 has a `db reset` race (supabase/cli 7380). M0-BE-24 must use v3's explicit `--remote` target, and `--yes` only on the apply step | ALAN |
+| 2026-11-22 | M0-BE-04 boot check: failing closed with 500 is accepted in place of exiting the process, because Next keeps the process up | ALAN, from CARLO's evidence |
+| 2026-11-22 | Staging setup from the rows above is complete as of 18:13 UTC: the four Vercel variables are set for Production and Preview, the Auth Site and Redirect URLs work, and the `SUPABASE_STAGING_DB_URL` secret exists. Values are not verified: formats are tested by the first build with M0-BE-26 and M0-BE-04, the secret by M0-BE-24's dry run, the Supabase ref behind `NEXT_PUBLIC_SUPABASE_URL` in M0-CL-02 | ALAN, from the Vercel log, build logs and read-only checks |
+| 2026-11-22 | ADIT and CARLO may hold a second task while the first is blocked, parked, or waiting for QA or merge (§1.2). This is the exception to assigning only to agents HQ shows as free | Project owner, marked the yes/no request done at 18:25 UTC. ALAN read that as yes |
+| 2026-11-22 | M0-BE-19 default, as the spec has no rounding rule: half up to the smallest unit, separately for service charge and for tax. Tax applies to the subtotal, plus the service charge when the location's flag is on. Reconfirm in M3 Plan | ALAN, default. The project owner can change it |
+| 2026-11-22 | M0-BE-19 details: tax on service uses the rounded service charge the bill shows; `formatMoney` writes a plain space after `Rp` and rejects negatives (signed refund and discount display is decided in M3 Plan); `lib/money` sets no upper rate limit, so M0-BE-06 constraints and the settings schemas do | ALAN, from CARLO's PR #14. The project owner can change them |
+| 2026-11-22 | M0-BE-26 merged (PR #13). `turbo run dev` hides the same server variables when they come from the shell, so M0-BE-27 fixes that separately | ALAN, from ADIT's and DAVIN's reports |
+| 2026-11-22 | M0-BE-03 gate: a service that is briefly unhealthy while `start` or `db reset` boots it is not a failure if it is healthy when the command returns. Crashes, unexpected restarts, timeouts and unhealthy states outside those commands are | ALAN, from ADIT's evidence |
+| 2026-11-22 | M0-BE-04 (PR #7) and M0-BE-19 (PR #14) merged after QA. The real Preview and staging values pass the build's presence and format checks. Not proven: that the credentials work, and the boot check on Vercel, because every route is static so far (retest with the first dynamic route, M0-BE-14). M0-BE-17 exports the PostHog client init, and REYKI mounts it in the Frontend step | ALAN, from DAVIN's QA and the Vercel builds |
+| 2026-11-22 | M0-BE-28: `core-js` install script blocked (`false`). It only prints a banner, and pnpm 12 fails an install with an undecided script | ALAN, from CARLO's report |
+| 2026-11-22 | M0-BE-29: an explicit-grant baseline is the first migration, before any table. Every later migration grants what it needs. DAVIN pins it in pgTAP in the QA step | ALAN, from ADIT's report |
+| 2026-11-22 | Auth's redirect check accepts loopback IPs, and any port on a loopback Site URL, whatever the allow list says. The M0-BE-03 gate expects that. M0-BE-20 validates `next` itself, and M0-FE-10's `token_hash` links are built on the Site URL, never on a caller's redirect host | ALAN, from ADIT's gate and the GoTrue v2.198.0 source |
 
 ### Open
 
@@ -780,6 +800,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | POS printers and cash drawers | M3-LD-02 |
 | Tipping at launch | M3-LD-02 |
 | Configurable or fixed KDS thresholds | M3-LD-03 |
+| Confirm the rounding default for tax and service charge, and how refunds and discounts show a minus sign | M3 Plan, before M3-BE-09 |
 | DOKU merchant onboarding | M5-LD-01 |
 | Email only or WhatsApp at launch | M6-LD-01 |
 | E-Faktur for subscription invoices | M6-LD-01 |

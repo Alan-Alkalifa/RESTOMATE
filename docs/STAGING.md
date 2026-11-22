@@ -62,8 +62,8 @@ Mark every variable without the `NEXT_PUBLIC_` prefix as **Sensitive** in Vercel
 
 ## Build and boot checks
 
-- **Build (Vercel only):** when `VERCEL=1`, `next build` validates the whole server environment (`next.config.ts` -> `assertVercelBuildEnv`). A bad or missing variable fails the build with `[env] Vercel build blocked. Invalid environment: NAME (reason), ...`. Variable names and reasons only, never values. CI and local builds are unaffected.
-- **Boot:** `instrumentation.ts` validates the same environment when a production instance starts, and the instance refuses to start if it is invalid.
+- **Build (Vercel only):** when `VERCEL=1`, `next build` (not `next dev` or `next typegen`) validates the whole server environment (`next.config.ts` -> `assertVercelBuildEnv`). A bad or missing variable fails the build with `[env] Vercel build blocked. Invalid environment: NAME (reason), ...`. Variable names and reasons only, never values. CI and local builds are unaffected unless `VERCEL=1` is set: `vercel env pull` can write it into `.env.local`, and a local `next build` (so also `pnpm run ci`) then runs this check. Remove that line to build locally.
+- **Boot:** `instrumentation.ts` validates the same environment when a production instance starts. If it is invalid the instance fails closed: it logs the names and answers 500. The process does not exit, and static files (`public/`, `/_next/static`) are still served.
 - At runtime each module reads only its own slice (email, DOKU, encryption, ...), so one bad slice cannot take down an unrelated path.
 
 ## Seed data (optional, manual)
