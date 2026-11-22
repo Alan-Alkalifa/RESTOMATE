@@ -792,6 +792,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | M0-BE-29: an explicit-grant baseline is the first migration, before any table. Every later migration grants what it needs. DAVIN pins it in pgTAP in the QA step | ALAN, from ADIT's report |
 | 2026-11-22 | Auth's redirect check accepts loopback IPs, and any port on a loopback Site URL, whatever the allow list says. The M0-BE-03 gate expects that. M0-BE-20 validates `next` itself, and M0-FE-10's `token_hash` links are built on the Site URL, never on a caller's redirect host | ALAN, from ADIT's gate and the GoTrue v2.198.0 source |
 | 2026-11-22 | Correction to the M0-BE-03 gate row: CLI 3.2.0's `db reset` never waits for the health of the services it restarts, so they must be healthy within 60 seconds after it returns (`start` is unchanged: healthy at return). Scripts and tests that use Auth, Storage or Realtime straight after a reset wait for health first (M0-QA-01) | ALAN, from ADIT's evidence and the CLI source |
+| 2026-11-22 | Final M0-BE-03 health rule, replacing the two rows on it above: CLI 3.2.0's `start` gates Postgres on a connection, not on Docker's health label. For `start` and `reset` alike: exit 0, a real query answers within 5 seconds at return, and every service is healthy within 60 seconds. Crashes, out-of-memory kills, unexplained restarts and timeouts fail. Run 4 stays red under the old rule. A red under this rule is a defect or an environment limit, and the rule is not loosened again | ALAN, from run 4 and the CLI source |
 
 ### Open
 
