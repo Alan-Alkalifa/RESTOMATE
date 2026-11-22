@@ -129,6 +129,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [x] **M0-BE-01 Monorepo.** _(ADIT)_ pnpm and Turborepo, Next.js 16 in `apps/web`, TypeScript 5.x, ESLint, Prettier, scripts `dev`, `build`, `lint`, `typecheck`, `test`, `db:*`. *Done when:* all scripts run on a clean clone and §2 is confirmed.
 - [x] **M0-BE-02 CI.** _(ADIT)_ GitHub Actions: install, lint, typecheck, unit, build, database reset and pgTAP, plus an e2e job ready for DAVIN's suite. *Done when:* a draft PR gets a result from each job.
 - [ ] **M0-BE-03 Supabase.** _(ADIT)_ Local config, auth settings, Mailpit, Resend SMTP block. *Done when:* `supabase start` and `db reset` work from zero.
+- [ ] **M0-BE-26 Turbo build env.** _(ADIT)_ `turbo.json` declares the server variables on the build task. Merges before M0-BE-04. *Done when:* with M0-BE-04 applied, a root build with `VERCEL=1` passes on valid values and fails by name when one is missing.
 - [ ] **M0-BE-04 Environment.** _(CARLO)_ `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
 
 **Database**
@@ -155,7 +156,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M0-BE-21 Create restaurant.** _(CARLO)_ Slug check and create action on the RPC. *Done when:* the user lands in their organization as Owner.
 - [ ] **M0-BE-22 Staff actions.** _(CARLO)_ Invite, resend, revoke, accept, change role, set locations, deactivate with sign-out everywhere. *Done when:* every action is permission-checked and audited.
 - [ ] **M0-BE-23 Custom roles.** _(CARLO)_ Create, edit and delete roles from the permission list, gated by package. *Done when:* nobody can grant a permission they lack.
-- [ ] **M0-BE-24 Staging delivery.** _(ADIT)_ Vercel build and the database deploy workflow described in `STAGING.md`. *Done when:* the workflow's dry run passes. It applies only after merge.
+- [ ] **M0-BE-24 Staging delivery.** _(ADIT)_ The database deploy workflow described in `STAGING.md`. *Done when:* the workflow's dry run passes. It applies only after merge.
 - [ ] **M0-BE-25 Contracts.** _(CARLO)_ Auth, organization, staff, roles. *Done when:* each lists inputs, outputs, errors and permissions.
 
 #### 4.2.1 Permission catalog
@@ -195,6 +196,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 | M0-BE-23 | 15 |
 | M0-BE-24 | 04, 13 |
 | M0-BE-25 | 20, 21, 22, 23 |
+| M0-BE-26 | 01 |
 
 ### 4.3 Frontend — REYKI
 
@@ -767,6 +769,8 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | M0-LD-04: board `MF` holds `MF-T01` to `MF-T40` in PLAN order. Tasks are assigned at each step handoff, never earlier | ALAN |
 | 2026-11-22 | M0-BE-01 (PR #3) and M0-BE-02 (PR #4) merged. Notes carried forward: BE-15/22 (4.9.6) must not rely on `'use cache: private'` for "signed out everywhere", because it can stay in the browser's router cache for 5 minutes and every action re-checks; `updateTag` works only in Server Actions, so route handlers such as the DOKU webhook use `revalidateTag`; BE-24's deploy gate must not wait for a CI run on a docs-only tip of main (CI skips `docs/**` and `*.md`); QA-01 Playwright files under `apps/web` cannot be `*.spec.ts`, or Vitest collects them; CI is run locally with `pnpm run ci` (plain `pnpm ci` is a pnpm built-in that checks nothing). Follow-ups: lint should use `--max-warnings 0`; branch protection on main is an owner decision before launch | ALAN, from ADIT and DAVIN reports |
 | 2026-11-22 | CARLO joins as a second backend developer. Each backend task and file has one owner (§1.1) | Project owner |
+| 2026-11-22 | Staging is Vercel project `restomate` (`restomate-nine.vercel.app`). This replaces `restomate-staging` from M0-LD-01, which is no longer used and is not deleted. Its Vercel "Production" target is staging, not the product's production | Project owner chose the project as the answer to "pick the staging project". ALAN's reading: staging, not production |
+| 2026-11-22 | Staging setup still open when the project was chosen: four Vercel variables (`NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_ENCRYPTION_KEY`), the Supabase Auth Site and Redirect URLs (Site URL was `localhost:3000`), and the `SUPABASE_STAGING_DB_URL` GitHub secret. M0-BE-04 merges only after a green Vercel build, M0-BE-24 needs the secret, M0-CL-02 needs the Auth URLs. A new encryption key is safe: the staging database had no tables | ALAN, from read-only checks |
 
 ### Open
 

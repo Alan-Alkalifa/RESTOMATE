@@ -4,10 +4,12 @@ Real services on a staging environment, before any production work. **Nothing he
 
 | Piece | Staging |
 |---|---|
-| App | Vercel Hobby, `https://restomate-staging.vercel.app` (no custom domain yet) |
-| Database + Auth | Supabase project `restomate-staging`, ref `byexuyfafpnrcfedubtb` (project name `Restomate-Dev`), region ap-southeast-1 (Singapore), created through the Vercel Marketplace |
+| App | Vercel Hobby, project `restomate` (linked to this repo, root directory `apps/web`), `https://restomate-nine.vercel.app` (no custom domain yet) |
+| Database + Auth | Supabase project `Restomate-Dev`, ref `byexuyfafpnrcfedubtb`, region ap-southeast-1 (Singapore), created through the Vercel Marketplace |
 | Payments | DOKU **sandbox** only (`DOKU_ENV=sandbox`) |
 | Email | Resend, `EMAIL_DELIVERY=resend` (production rules apply: `log` is rejected) |
+
+In this Vercel project the **Production** target is staging: a merge to `main` updates staging. It is not the product's production environment, which gets its own project and the project owner's approval. The older Vercel project `restomate-staging` is not staging: don't deploy to it or copy its URLs.
 
 ## How a change reaches staging
 
@@ -25,12 +27,12 @@ The app and the database deploy independently. A migration that the new code nee
 |---|---|
 | `SUPABASE_STAGING_DB_URL` | The staging project's **Session pooler** connection string, password included |
 
-Where to copy it: Supabase dashboard -> the `restomate-staging` project -> **Connect** -> **Session pooler** (not "Direct connection": that host is IPv6 only and GitHub runners are IPv4). It looks like `postgresql://postgres.byexuyfafpnrcfedubtb:<password>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres`. Replace the `[YOUR-PASSWORD]` placeholder with the database password, URL-encoded if it contains special characters (`@` -> `%40`, `#` -> `%23`, `/` -> `%2F`). Paste the finished string into the secret; never into chat, an issue or a file.
+Where to copy it: Supabase dashboard -> the `Restomate-Dev` project -> **Connect** -> **Session pooler** (not "Direct connection": that host is IPv6 only and GitHub runners are IPv4). It looks like `postgresql://postgres.byexuyfafpnrcfedubtb:<password>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres`. Replace the `[YOUR-PASSWORD]` placeholder with the database password, URL-encoded if it contains special characters (`@` -> `%40`, `#` -> `%23`, `/` -> `%2F`). Paste the finished string into the secret; never into chat, an issue or a file.
 
 **Why only this one (least privilege):** there is deliberately **no** Supabase personal access token. A token is account-wide, so a leaked CI secret would expose every other project in the account. The connection string reaches this one database and nothing else. The workflow stops with an error naming the secret if it is missing, masks the string (and its password on its own) in the logs, and never prints it.
 
 **Supabase Auth on the staging project** (Authentication):
-- **URL Configuration:** Site URL `https://restomate-staging.vercel.app`; Redirect URLs `https://restomate-staging.vercel.app/**` and, for deployment, branch and PR preview URLs, `https://*-alan-alkalifas-projects.vercel.app/**` (scope slug `alan-alkalifas-projects`).
+- **URL Configuration:** Site URL `https://restomate-nine.vercel.app`; Redirect URLs `https://restomate-nine.vercel.app/**` and, for deployment, branch and PR preview URLs, `https://*-alan-alkalifas-projects.vercel.app/**` (scope slug `alan-alkalifas-projects`).
 - **Email templates:** the hosted project does **not** read `supabase/templates/*.html`. Paste `confirmation.html` into *Confirm sign up* and `recovery.html` into *Reset password*. Without them the confirmation and password-reset links do not work (the app's `/auth/confirm` needs the `token_hash` link they contain).
 - **SMTP:** the Resend SMTP settings from CLAUDE.md ("Email (Resend)"). The built-in mailer is rate limited to a handful of mails per hour.
 
@@ -40,12 +42,12 @@ Names only. Set them in the Vercel project (Settings -> Environment Variables). 
 
 | Variable | Production | Preview | Development | Notes |
 |---|---|---|---|---|
-| `NEXT_PUBLIC_APP_URL` | required | required | optional | `https://restomate-staging.vercel.app` on Production |
-| `NEXT_PUBLIC_ROOT_DOMAIN` | required | required | optional | bare hostname, no scheme: `restomate-staging.vercel.app` |
-| `NEXT_PUBLIC_SUPABASE_URL` | required | required | optional | injected by the Supabase integration |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | required | required | optional | injected by the integration. Accepted as the fallback for `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
+| `NEXT_PUBLIC_APP_URL` | required | required | optional | `https://restomate-nine.vercel.app` on Production and Preview |
+| `NEXT_PUBLIC_ROOT_DOMAIN` | required | required | optional | same on Production and Preview, bare hostname, no scheme: `restomate-nine.vercel.app` |
+| `NEXT_PUBLIC_SUPABASE_URL` | required | required | optional | set by the Supabase integration or by hand; must be ref `byexuyfafpnrcfedubtb` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | required | required | optional | set by the integration or by hand. Accepted as the fallback for `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | optional | optional | optional | preferred over `ANON_KEY` when both are set |
-| `SUPABASE_SERVICE_ROLE_KEY` | required | required | optional | injected by the integration. Server only |
+| `SUPABASE_SERVICE_ROLE_KEY` | required | required | optional | set by the integration or by hand, from `Restomate-Dev`. Server only |
 | `ARCJET_KEY` | required | required | optional | |
 | `RESEND_API_KEY` | required | required | optional | |
 | `EMAIL_FROM` | required | required | optional | `Restomate <no-reply@mail.restomate.app>`-style sender on a verified Resend domain |
