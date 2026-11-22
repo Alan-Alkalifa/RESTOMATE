@@ -132,7 +132,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M0-BE-03 Supabase.** _(ADIT)_ Local config, auth settings, Mailpit, Resend SMTP block. *Done when:* `supabase start` and `db reset` work from zero.
 - [x] **M0-BE-26 Turbo build env.** _(ADIT)_ `turbo.json` declares the server variables on the build task. Merges before M0-BE-04. *Done when:* with M0-BE-04 applied, a root build with `VERCEL=1` passes on valid values and fails by name when one is missing.
 - [ ] **M0-BE-27 Turbo dev env.** _(ADIT)_ `turbo.json` passes the 9 server variables through to the dev task. *Done when:* `pnpm dev` sees them from the shell and undeclared names stay hidden.
-- [ ] **M0-BE-04 Environment.** _(CARLO)_ `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
+- [x] **M0-BE-04 Environment.** _(CARLO)_ `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
 
 **Database**
 - [ ] **M0-BE-05 Identity tables.** _(ADIT)_ `profiles` (synced from `auth.users`), `platform_admins` (service role only), `platform_settings` (deny by default), `audit_logs`. *Done when:* a client can't write admin, settings or audit rows.
@@ -151,7 +151,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M0-BE-16 Abuse protection.** _(CARLO)_ Arcjet shield, bot detection, rate limits and a signup preset. *Done when:* repeated auth attempts are limited.
 - [ ] **M0-BE-17 Analytics and errors.** _(CARLO)_ PostHog capture, typed events, org grouping, error tracking, allow-listed query parameters, masked tokens, autocapture and recording off. *Done when:* no token or personal field leaves the app.
 - [ ] **M0-BE-18 Email sender.** _(CARLO)_ Resend wrapper with one recipient, idempotency key, log mode locally, failures logged and retryable. *Done when:* a failed send can be retried without a duplicate.
-- [ ] **M0-BE-19 Money.** _(CARLO)_ Formatting (`Rp 25.000`), tax and service-charge calculation. *Done when:* rounding has unit tests.
+- [x] **M0-BE-19 Money.** _(CARLO)_ Formatting (`Rp 25.000`), tax and service-charge calculation. *Done when:* rounding has unit tests.
 
 **Features**
 - [ ] **M0-BE-20 Auth actions.** _(CARLO)_ Login, signup, confirm by token hash, forgot and reset password, sign out, safe `next` redirect. *Done when:* all return one `ActionResult` shape and signed-in users skip the auth pages.
@@ -783,6 +783,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | M0-BE-19 details: tax on service uses the rounded service charge the bill shows; `formatMoney` writes a plain space after `Rp` and rejects negatives (signed refund and discount display is decided in M3 Plan); `lib/money` sets no upper rate limit, so M0-BE-06 constraints and the settings schemas do | ALAN, from CARLO's PR #14. The project owner can change them |
 | 2026-11-22 | M0-BE-26 merged (PR #13). `turbo run dev` hides the same server variables when they come from the shell, so M0-BE-27 fixes that separately | ALAN, from ADIT's and DAVIN's reports |
 | 2026-11-22 | M0-BE-03 gate: a service that is briefly unhealthy while `start` or `db reset` boots it is not a failure if it is healthy when the command returns. Crashes, unexpected restarts, timeouts and unhealthy states outside those commands are | ALAN, from ADIT's evidence |
+| 2026-11-22 | M0-BE-04 (PR #7) and M0-BE-19 (PR #14) merged after QA. The real Preview and staging values pass the build's presence and format checks. Not proven: that the credentials work, and the boot check on Vercel, because every route is static so far (retest with the first dynamic route, M0-BE-14). M0-BE-17 exports the PostHog client init, and REYKI mounts it in the Frontend step | ALAN, from DAVIN's QA and the Vercel builds |
 
 ### Open
 
