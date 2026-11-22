@@ -85,7 +85,7 @@ Confirm these against the installed Next.js docs (`node_modules/next/dist/docs/`
   - Session lookups use `'use cache: private'`. Derived data uses `'use cache'` keyed by user or org ID with `cacheTag`, refreshed with `updateTag`.
   - `export const instant = false` is a last resort. Record each use in §14.
 - **`AGENTS.md` in `apps/web` stays committed.** TypeScript stays on 5.x.
-- **Database:** text columns with `check` constraints instead of enums, `created_at` and `updated_at`, RLS on every table, `(select auth.uid())` in policies, internal helpers in a `private` schema, security-definer functions with `search_path = ''`.
+- **Database:** text columns with `check` constraints instead of enums, `created_at` and `updated_at`, RLS on every table, `(select auth.uid())` in policies, internal helpers in a `private` schema, security-definer functions with `search_path = ''`. No API role (`anon`, `authenticated`, `service_role`) gets privileges by default: each migration grants only what each role needs (baseline: M0-BE-29).
 - **Migrations are forward-only** and work with the previous app version.
 - **Money:** integers in the currency's smallest unit (IDR exponent 0), rates in basis points, totals calculated on the server by `lib/money`.
 - **History is a snapshot:** orders and bills store names, prices and rates as they were.
@@ -132,9 +132,11 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [ ] **M0-BE-03 Supabase.** _(ADIT)_ Local config, auth settings, Mailpit, Resend SMTP block. *Done when:* `supabase start` and `db reset` work from zero.
 - [x] **M0-BE-26 Turbo build env.** _(ADIT)_ `turbo.json` declares the server variables on the build task. Merges before M0-BE-04. *Done when:* with M0-BE-04 applied, a root build with `VERCEL=1` passes on valid values and fails by name when one is missing.
 - [ ] **M0-BE-27 Turbo dev env.** _(ADIT)_ `turbo.json` passes the 9 server variables through to the dev task. *Done when:* `pnpm dev` sees them from the shell and undeclared names stay hidden.
+- [ ] **M0-BE-28 core-js build decision.** _(ADIT)_ `core-js: false` under `allowBuilds`. Merges before M0-BE-17. *Done when:* a frozen install passes with `posthog-js` added.
 - [x] **M0-BE-04 Environment.** _(CARLO)_ `lib/env.ts` with Zod, `.env.example`, publishable key with anon-key fallback, `EMAIL_DELIVERY=resend` required in production, build and boot checks. *Done when:* a bad variable fails with its name and never its value.
 
 **Database**
+- [ ] **M0-BE-29 Privilege baseline.** _(ADIT)_ First migration: no default privileges for API roles or `PUBLIC` on new objects in `public`. Merges before M0-BE-05. *Done when:* a new table, view, sequence and function are unreachable until granted, from local and hosted starting defaults.
 - [ ] **M0-BE-05 Identity tables.** _(ADIT)_ `profiles` (synced from `auth.users`), `platform_admins` (service role only), `platform_settings` (deny by default), `audit_logs`. *Done when:* a client can't write admin, settings or audit rows.
 - [ ] **M0-BE-06 Tenancy tables.** _(ADIT)_ `organizations` (unique slug of 3–40 characters, status, currency, timezone), `reserved_slugs`, `locations` (address, timezone, currency, tax and service-charge bps, tax-on-service flag), `org_branding` (https-only logo URL). *Done when:* constraints and RLS are in place.
 - [ ] **M0-BE-07 Packages.** _(ADIT)_ `packages` (prices, trial days, limits, features, active, public, default) and `subscriptions`. *Done when:* one default package gives a new restaurant a trial.
@@ -177,7 +179,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 
 | Task | Needs |
 |---|---|
-| M0-BE-05 | 03 |
+| M0-BE-05 | 03, 29 |
 | M0-BE-06 | 05 |
 | M0-BE-07 | 06 |
 | M0-BE-08 | 06 |
@@ -189,7 +191,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 | M0-BE-14 | 03, 04 |
 | M0-BE-15 | 13, 14 |
 | M0-BE-16 | 14 |
-| M0-BE-17 | 04 |
+| M0-BE-17 | 04, 28 |
 | M0-BE-18 | 04 |
 | M0-BE-19 | 01 |
 | M0-BE-20 | 15, 16, 18 |
@@ -200,6 +202,8 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 | M0-BE-25 | 20, 21, 22, 23 |
 | M0-BE-26 | 01 |
 | M0-BE-27 | 26 |
+| M0-BE-28 | 01 |
+| M0-BE-29 | 03 |
 
 ### 4.3 Frontend — REYKI
 
@@ -784,6 +788,9 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | M0-BE-26 merged (PR #13). `turbo run dev` hides the same server variables when they come from the shell, so M0-BE-27 fixes that separately | ALAN, from ADIT's and DAVIN's reports |
 | 2026-11-22 | M0-BE-03 gate: a service that is briefly unhealthy while `start` or `db reset` boots it is not a failure if it is healthy when the command returns. Crashes, unexpected restarts, timeouts and unhealthy states outside those commands are | ALAN, from ADIT's evidence |
 | 2026-11-22 | M0-BE-04 (PR #7) and M0-BE-19 (PR #14) merged after QA. The real Preview and staging values pass the build's presence and format checks. Not proven: that the credentials work, and the boot check on Vercel, because every route is static so far (retest with the first dynamic route, M0-BE-14). M0-BE-17 exports the PostHog client init, and REYKI mounts it in the Frontend step | ALAN, from DAVIN's QA and the Vercel builds |
+| 2026-11-22 | M0-BE-28: `core-js` install script blocked (`false`). It only prints a banner, and pnpm 12 fails an install with an undecided script | ALAN, from CARLO's report |
+| 2026-11-22 | M0-BE-29: an explicit-grant baseline is the first migration, before any table. Every later migration grants what it needs. DAVIN pins it in pgTAP in the QA step | ALAN, from ADIT's report |
+| 2026-11-22 | Auth's redirect check accepts loopback IPs, and any port on a loopback Site URL, whatever the allow list says. The M0-BE-03 gate expects that. M0-BE-20 validates `next` itself, and M0-FE-10's `token_hash` links are built on the Site URL, never on a caller's redirect host | ALAN, from ADIT's gate and the GoTrue v2.198.0 source |
 
 ### Open
 
