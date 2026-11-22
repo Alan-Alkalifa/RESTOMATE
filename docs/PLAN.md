@@ -771,6 +771,9 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | CARLO joins as a second backend developer. Each backend task and file has one owner (§1.1) | Project owner |
 | 2026-11-22 | Staging is Vercel project `restomate` (`restomate-nine.vercel.app`). This replaces `restomate-staging` from M0-LD-01, which is no longer used and is not deleted. Its Vercel "Production" target is staging, not the product's production | Project owner chose the project as the answer to "pick the staging project". ALAN's reading: staging, not production |
 | 2026-11-22 | Staging setup still open when the project was chosen: four Vercel variables (`NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_ENCRYPTION_KEY`), the Supabase Auth Site and Redirect URLs (Site URL was `localhost:3000`), and the `SUPABASE_STAGING_DB_URL` GitHub secret. M0-BE-04 merges only after a green Vercel build, M0-BE-24 needs the secret, M0-CL-02 needs the Auth URLs. A new encryption key is safe: the staging database had no tables | ALAN, from read-only checks |
+| 2026-11-22 | Correction to the row above: at 17:24 UTC the owner added `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN` and `APP_ENCRYPTION_KEY` for Production. Still open at 17:57 UTC: those three for Preview, `SUPABASE_SERVICE_ROLE_KEY` for both, the Auth URLs and the GitHub secret | ALAN, from the Vercel activity log and read-only checks |
+| 2026-11-22 | M0-BE-03 pins the Supabase CLI to exactly 3.2.0 (PR #9, merges after its gate and QA), because 2.122.1 has a `db reset` race (supabase/cli 7380). M0-BE-24 must use v3's explicit `--remote` target, and `--yes` only on the apply step | ALAN |
+| 2026-11-22 | M0-BE-04 boot check: failing closed with 500 is accepted in place of exiting the process, because Next keeps the process up | ALAN, from CARLO's evidence |
 
 ### Open
 
