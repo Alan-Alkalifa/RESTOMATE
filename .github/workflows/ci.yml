@@ -61,7 +61,7 @@ jobs:
 
           # An unknown base counts as changed.
           changed=true
-          if [ -n "$base" ] && git diff --quiet "$base" HEAD -- supabase apps packages; then
+          if [ -n "$base" ] && git diff --quiet "$base" HEAD -- supabase apps packages .github package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json; then
             changed=false
           fi
 
