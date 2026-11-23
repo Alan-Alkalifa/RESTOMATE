@@ -362,119 +362,18 @@ isOneToOne: false
                 }
           }
           Views: {
-            "pg_all_foreign_keys": {
-                  Row: {
-                    "fk_columns": (unknown)[] | null,"fk_constraint_name": unknown,"fk_schema_name": unknown,"fk_table_name": unknown,"fk_table_oid": unknown,"is_deferrable": boolean | null,"is_deferred": boolean | null,"match_type": string | null,"on_delete": string | null,"on_update": string | null,"pk_columns": (unknown)[] | null,"pk_constraint_name": unknown,"pk_index_name": unknown,"pk_schema_name": unknown,"pk_table_name": unknown,"pk_table_oid": unknown
-                  }
-                  ComputedFields: never
-                  Relationships: [
-                    
-                  ]
-                },"tap_funky": {
-                  Row: {
-                    "args": string | null,"is_definer": boolean | null,"is_strict": boolean | null,"is_visible": boolean | null,"kind": unknown,"langoid": unknown,"name": unknown,"oid": unknown,"owner": unknown,"returns": string | null,"returns_set": boolean | null,"schema": unknown,"volatility": string | null
-                  }
-                  ComputedFields: never
-                  Relationships: [
-                    
-                  ]
-                }
+            [_ in never]: never
           }
           Functions: {
-            "_cleanup":
-{ Args: Record<PropertyKey, never>; Returns: boolean
-                           },
-"_contract_on":
-{ Args: { "": string }; Returns: unknown
-                           },
-"_currtest":
-{ Args: Record<PropertyKey, never>; Returns: number
-                           },
-"_db_privs":
-{ Args: Record<PropertyKey, never>; Returns: (unknown)[]
-                           },
-"_extensions":
-{ Args: Record<PropertyKey, never>; Returns: unknown[]
-                           },
-"_get":
-{ Args: { "": string }; Returns: number
-                           },
-"_get_latest":
-{ Args: { "": string }; Returns: (number)[]
-                           },
-"_get_note":
-{ Args: { "": string }; Returns: string
-                           },
-"_is_verbose":
-{ Args: Record<PropertyKey, never>; Returns: boolean
-                           },
-"_prokind":
-{ Args: { "p_oid": unknown }; Returns: unknown
-                           },
-"_query":
-{ Args: { "": string }; Returns: string
-                           },
-"_refine_vol":
-{ Args: { "": string }; Returns: string
-                           },
-"_retval":
-{ Args: { "": string }; Returns: string
-                           },
-"_table_privs":
-{ Args: Record<PropertyKey, never>; Returns: (unknown)[]
-                           },
-"_temptypes":
-{ Args: { "": string }; Returns: string
-                           },
-"_todo":
-{ Args: Record<PropertyKey, never>; Returns: string
-                           },
-"accept_invitation":
+            "accept_invitation":
 { Args: { "p_token": string }; Returns: {
               "joined_member_id": string,"joined_org_id": string,"joined_org_slug": string
             }[]
-                           },
-"col_is_null":
-{ Args: { "column_name": unknown,"description"?: string,"schema_name": unknown,"table_name": unknown }; Returns: string
-                           } |
-{ Args: { "column_name": unknown,"description"?: string,"table_name": unknown }; Returns: string
-                           },
-"col_not_null":
-{ Args: { "column_name": unknown,"description"?: string,"schema_name": unknown,"table_name": unknown }; Returns: string
-                           } |
-{ Args: { "column_name": unknown,"description"?: string,"table_name": unknown }; Returns: string
                            },
 "create_organization":
 { Args: { "p_address"?: string,"p_location_name"?: string,"p_name": string,"p_service_charge_bps"?: number,"p_slug": string,"p_tax_bps"?: number,"p_tax_on_service"?: boolean,"p_timezone"?: string }; Returns: {
               "new_org_id": string,"new_org_slug": string
             }[]
-                           },
-"diag":
-{ Args: { "msg": unknown }; Returns: { error: true } & "Could not choose the best candidate function between: public.diag(msg => text), public.diag(msg => anyelement). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
-                           } |
-{ Args: { "msg": string }; Returns: { error: true } & "Could not choose the best candidate function between: public.diag(msg => text), public.diag(msg => anyelement). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
-                           },
-"diag_test_name":
-{ Args: { "": string }; Returns: string
-                           },
-"do_tap":
-{ Args: Record<PropertyKey, never>; Returns: string[]
-                           } |
-{ Args: { "": string }; Returns: string[]
-                           },
-"fail":
-{ Args: Record<PropertyKey, never>; Returns: string
-                           } |
-{ Args: { "": string }; Returns: string
-                           },
-"findfuncs":
-{ Args: { "": string }; Returns: (string)[]
-                           },
-"finish":
-{ Args: { "exception_on_failure"?: boolean }; Returns: string[]
-                           },
-"format_type_string":
-{ Args: { "": string }; Returns: string
                            },
 "get_org_package":
 { Args: { "p_org_id": string }; Returns: {
@@ -484,25 +383,10 @@ isOneToOne: false
 "get_storefront":
 { Args: { "p_slug": string }; Returns: Json
                            },
-"has_unique":
-{ Args: { "": string }; Returns: string
-                           },
-"in_todo":
-{ Args: Record<PropertyKey, never>; Returns: boolean
-                           },
-"is_empty":
-{ Args: { "": string }; Returns: string
-                           },
 "is_slug_available":
 { Args: { "p_slug": string }; Returns: {
               "available": boolean,"reason": string
             }[]
-                           },
-"isnt_empty":
-{ Args: { "": string }; Returns: string
-                           },
-"lives_ok":
-{ Args: { "": string }; Returns: string
                            },
 "my_org_membership":
 { Args: { "p_org_id"?: string }; Returns: {
@@ -512,70 +396,15 @@ isOneToOne: false
 "my_permissions":
 { Args: { "p_org_id": string }; Returns: string[]
                            },
-"no_plan":
-{ Args: Record<PropertyKey, never>; Returns: boolean[]
-                           },
-"num_failed":
-{ Args: Record<PropertyKey, never>; Returns: number
-                           },
-"os_name":
-{ Args: Record<PropertyKey, never>; Returns: string
-                           },
-"pass":
-{ Args: Record<PropertyKey, never>; Returns: string
-                           } |
-{ Args: { "": string }; Returns: string
-                           },
-"pg_version":
-{ Args: Record<PropertyKey, never>; Returns: string
-                           },
-"pg_version_num":
-{ Args: Record<PropertyKey, never>; Returns: number
-                           },
-"pgtap_version":
-{ Args: Record<PropertyKey, never>; Returns: number
-                           },
-"runtests":
-{ Args: Record<PropertyKey, never>; Returns: string[]
-                           } |
-{ Args: { "": string }; Returns: string[]
-                           },
 "set_member_locations":
 { Args: { "p_location_ids": (string)[],"p_member_id": string }; Returns: undefined
-                           },
-"skip":
-{ Args: { "": string }; Returns: string
-                           } |
-{ Args: { "how_many": number,"why": string }; Returns: string
-                           },
-"throws_ok":
-{ Args: { "": string }; Returns: string
-                           },
-"todo":
-{ Args: { "how_many": number }; Returns: boolean[]
-                           } |
-{ Args: { "how_many": number,"why": string }; Returns: boolean[]
-                           } |
-{ Args: { "why": string }; Returns: boolean[]
-                           } |
-{ Args: { "how_many": number,"why": string }; Returns: boolean[]
-                           },
-"todo_end":
-{ Args: Record<PropertyKey, never>; Returns: boolean[]
-                           },
-"todo_start":
-{ Args: Record<PropertyKey, never>; Returns: boolean[]
-                           } |
-{ Args: { "": string }; Returns: boolean[]
                            }
           }
           Enums: {
             [_ in never]: never
           }
           CompositeTypes: {
-            "_time_trial_type": {
-                        "a_time": number | null
-                      }
+            [_ in never]: never
           }
         }
 }
