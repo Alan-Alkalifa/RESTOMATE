@@ -6,12 +6,12 @@ see. Result and code conventions are in [README.md](./README.md).
 
 ## Pages the frontend owns
 
-| Path | Shows | Query | Notes |
-|---|---|---|---|
-| `/login` | Login form | `next` (a path), `error` (`invalid_link` \| `unavailable`) | Signed-in users skip it (see "Pages for signed-out users"). |
-| `/signup` | Sign-up form (root domain) | `next` | Same skip. The sign-up page name is the frontend's; only `/login`, `/forgot-password` and `/reset-password` are fixed by the server. |
-| `/forgot-password` | Request a reset email | `error` (`invalid_link` \| `unavailable`) | Same skip. |
-| `/reset-password` | Choose a new password | none | Needs the session the recovery link created. Without one, send to `/forgot-password`. |
+| Path               | Shows                      | Query                                                      | Notes                                                                                                                                |
+| ------------------ | -------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `/login`           | Login form                 | `next` (a path), `error` (`invalid_link` \| `unavailable`) | Signed-in users skip it (see "Pages for signed-out users").                                                                          |
+| `/signup`          | Sign-up form (root domain) | `next`                                                     | Same skip. The sign-up page name is the frontend's; only `/login`, `/forgot-password` and `/reset-password` are fixed by the server. |
+| `/forgot-password` | Request a reset email      | `error` (`invalid_link` \| `unavailable`)                  | Same skip.                                                                                                                           |
+| `/reset-password`  | Choose a new password      | none                                                       | Needs the session the recovery link created. Without one, send to `/forgot-password`.                                                |
 
 `next` is user input. Pass it through to the action as given; the server reduces it to a safe
 same-site path (see "`next`"). Never build a redirect from it yourself.
@@ -27,11 +27,11 @@ anything else is asked, and returns one `ActionResult` (or redirects).
 
 ### `login(input)`
 
-| Field | Type | Rules |
-|---|---|---|
-| `email` | string | Trimmed, lower-cased, a valid address, at most 254 characters. Blank: `auth.field.required`. |
-| `password` | string | Required, at most 1024 characters. The password policy is **not** applied here. |
-| `next` | string, optional | Reduced to a safe path; anything unsafe becomes `/app`. |
+| Field      | Type             | Rules                                                                                        |
+| ---------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| `email`    | string           | Trimmed, lower-cased, a valid address, at most 254 characters. Blank: `auth.field.required`. |
+| `password` | string           | Required, at most 1024 characters. The password policy is **not** applied here.              |
+| `next`     | string, optional | Reduced to a safe path; anything unsafe becomes `/app`.                                      |
 
 - **Success:** redirects to the safe `next` (default `/app`). No `ok` result.
 - **Already signed in:** redirects the same way, without signing in again.
@@ -42,13 +42,13 @@ anything else is asked, and returns one `ActionResult` (or redirects).
 
 ### `signup(input)`
 
-| Field | Type | Rules |
-|---|---|---|
-| `email` | string | As login. A disposable or invalid address is refused: `validation`, `email: ["auth.email.rejected"]`. |
-| `password` | string | 8 to 72 **bytes**: `auth.password.too_short`, `auth.password.too_long`. A password Auth finds weak: `auth.password.weak`. |
-| `fullName` | string, optional | Trimmed, at most 120 characters (`auth.full_name.too_long`). Blank means no name. Stored on the profile. |
-| `locale` | `"en"` \| `"id"`, optional | Anything else is ignored (default `en`). Stored on the profile. |
-| `next` | string, optional | As login. |
+| Field      | Type                       | Rules                                                                                                                     |
+| ---------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `email`    | string                     | As login. A disposable or invalid address is refused: `validation`, `email: ["auth.email.rejected"]`.                     |
+| `password` | string                     | 8 to 72 **bytes**: `auth.password.too_short`, `auth.password.too_long`. A password Auth finds weak: `auth.password.weak`. |
+| `fullName` | string, optional           | Trimmed, at most 120 characters (`auth.full_name.too_long`). Blank means no name. Stored on the profile.                  |
+| `locale`   | `"en"` \| `"id"`, optional | Anything else is ignored (default `en`). Stored on the profile.                                                           |
+| `next`     | string, optional           | As login.                                                                                                                 |
 
 - **Success:** `ok({ status: "confirmation_sent" })`: show "check your email". If the project has email
   confirmation switched off, the user is signed in and it redirects instead (like login).
@@ -60,8 +60,8 @@ anything else is asked, and returns one `ActionResult` (or redirects).
 
 ### `requestPasswordReset(input)`
 
-| Field | Type | Rules |
-|---|---|---|
+| Field   | Type   | Rules     |
+| ------- | ------ | --------- |
 | `email` | string | As login. |
 
 - **Success:** `ok()`: always show "if that address has an account, we sent a link". Also for an
@@ -73,9 +73,9 @@ anything else is asked, and returns one `ActionResult` (or redirects).
 
 ### `resetPassword(input)`
 
-| Field | Type | Rules |
-|---|---|---|
-| `password` | string | As signup. |
+| Field             | Type   | Rules                                                                 |
+| ----------------- | ------ | --------------------------------------------------------------------- |
+| `password`        | string | As signup.                                                            |
 | `confirmPassword` | string | Must equal `password`: `confirmPassword: ["auth.password.mismatch"]`. |
 
 - Needs the session the recovery link created (see `/auth/confirm`).
@@ -97,11 +97,11 @@ Auth can't be reached, and redirects to `/login`.
 
 The target of the links in the emails. It verifies the link, which signs the user in, and sends them on.
 
-| Query | Rules |
-|---|---|
-| `token_hash` | Required, 8 to 512 characters. |
-| `type` | `signup` \| `email` \| `recovery` \| `email_change`. |
-| `next` | Optional path; reduced to a safe same-site path. |
+| Query        | Rules                                                |
+| ------------ | ---------------------------------------------------- |
+| `token_hash` | Required, 8 to 512 characters.                       |
+| `type`       | `signup` \| `email` \| `recovery` \| `email_change`. |
+| `next`       | Optional path; reduced to a safe same-site path.     |
 
 - **Success:** `303` to `/reset-password` for `type=recovery` (whatever `next` says); otherwise to
   the safe `next`, default `/app`.
@@ -118,11 +118,11 @@ The target of the links in the emails. It verifies the link, which signs the use
 The Supabase Auth templates use the **Site URL** and the token hash. They never use a redirect host
 from a caller, and never `{{ .ConfirmationURL }}` (that is the PKCE link, which these flows don't use).
 
-| Email | Link |
-|---|---|
-| Confirm sign up | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup` |
-| Reset password | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery` |
-| Change email | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change` |
+| Email           | Link                                                                        |
+| --------------- | --------------------------------------------------------------------------- |
+| Confirm sign up | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup`       |
+| Reset password  | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`     |
+| Change email    | `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change` |
 
 Add `&next=/some/path` where a template needs to land somewhere other than `/app`. A staff
 invitation is **not** a Supabase Auth email: see [staff.md](./staff.md) for its link. The hosted
@@ -141,15 +141,15 @@ Pages, actions and route handlers decide access with these and nothing else. `pr
 authorizes. All of them read cookies, so call them **inside `<Suspense>`** (Cache Components); a
 page that does not wait for the user has no business showing user data.
 
-| Function | Returns | Use |
-|---|---|---|
-| `getCurrentUser()` | `{ id, email } \| null \| "unavailable"` | `null` = no valid session. `"unavailable"` = Auth could not be reached in time: **not** signed out. |
-| `requireUser({ next? })` | the user | Redirects to `loginUrl(next)` when signed out. **Throws `AuthUnavailableError`** during an outage (show the error screen; do not redirect to a login that cannot work). |
-| `getOrgContext({ orgId } \| { slug })` | `{ ok: true, ctx }` or `{ ok: false, reason }` | One call per page or action in an org. |
-| `requirePermission(ctx, key)` | `ActionResult` | `forbidden` when the member lacks the permission. |
-| `hasPermission(ctx, key)` | boolean | Show or hide a control. Never the only check. |
-| `requireFeature(ctx, key)` / `hasFeature(ctx, key)` | `ActionResult` / boolean | The org's package. No package, no feature. |
-| `requirePlatformAdmin()` | `ActionResult<{ userId }>` | `/admin`. Never cached, never redirects. |
+| Function                                            | Returns                                        | Use                                                                                                                                                                     |
+| --------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getCurrentUser()`                                  | `{ id, email } \| null \| "unavailable"`       | `null` = no valid session. `"unavailable"` = Auth could not be reached in time: **not** signed out.                                                                     |
+| `requireUser({ next? })`                            | the user                                       | Redirects to `loginUrl(next)` when signed out. **Throws `AuthUnavailableError`** during an outage (show the error screen; do not redirect to a login that cannot work). |
+| `getOrgContext({ orgId } \| { slug })`              | `{ ok: true, ctx }` or `{ ok: false, reason }` | One call per page or action in an org.                                                                                                                                  |
+| `requirePermission(ctx, key)`                       | `ActionResult`                                 | `forbidden` when the member lacks the permission.                                                                                                                       |
+| `hasPermission(ctx, key)`                           | boolean                                        | Show or hide a control. Never the only check.                                                                                                                           |
+| `requireFeature(ctx, key)` / `hasFeature(ctx, key)` | `ActionResult` / boolean                       | The org's package. No package, no feature.                                                                                                                              |
+| `requirePlatformAdmin()`                            | `ActionResult<{ userId }>`                     | `/admin`. Never cached, never redirects.                                                                                                                                |
 
 `ctx` is `{ user, org: { id, slug, name }, member: { id, roleId, roleKey, roleName }, permissions: ReadonlySet<string>, package: OrgPackage | null }`.
 The Owner holds every permission. `OrgPackage.features` is a map of feature key to boolean; limits
@@ -157,13 +157,13 @@ The Owner holds every permission. `OrgPackage.features` is a map of feature key 
 
 ### What a page shows for each answer
 
-| `getOrgContext` reason | Page |
-|---|---|
-| `unauthenticated` | Redirect to `loginUrl(<this path>)`. |
-| `no_membership` | 404 (the same for an unknown org, another tenant's org and a non-member). |
-| `org_suspended` | The suspended notice. No org data. |
-| `member_deactivated` | The access-removed notice. |
-| `unavailable` | The error screen with retry. Never a login redirect. |
+| `getOrgContext` reason | Page                                                                      |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `unauthenticated`      | Redirect to `loginUrl(<this path>)`.                                      |
+| `no_membership`        | 404 (the same for an unknown org, another tenant's org and a non-member). |
+| `org_suspended`        | The suspended notice. No org data.                                        |
+| `member_deactivated`   | The access-removed notice.                                                |
+| `unavailable`          | The error screen with retry. Never a login redirect.                      |
 
 For `requirePlatformAdmin`: `unauthenticated` → login, `not_platform_admin` → 404, `unavailable` →
 the error screen.

@@ -34,13 +34,13 @@ holds a staff slot of the package while it is open. There is at most one open in
 
 ### `inviteStaff(input)`
 
-| Field | Type | Rules |
-|---|---|---|
-| `orgId` | uuid | `staff.org.invalid`. |
-| `email` | string | Trimmed, lower-cased, a valid address of at most 254 characters, local part at most 64: `staff.email.invalid`, `staff.field.required`. |
-| `roleId` | uuid | A role of this org: `staff.role.invalid`. |
-| `allLocations` | boolean | Checkbox `"on"` or boolean. Default false. |
-| `locationIds` | uuid[] | Repeat the field in `FormData`, or send an array. At most 200. **Needs at least one unless `allLocations`**: `locationIds: ["staff.locations.required"]`. Sending both is `staff.locations.invalid`. |
+| Field          | Type    | Rules                                                                                                                                                                                                |
+| -------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orgId`        | uuid    | `staff.org.invalid`.                                                                                                                                                                                 |
+| `email`        | string  | Trimmed, lower-cased, a valid address of at most 254 characters, local part at most 64: `staff.email.invalid`, `staff.field.required`.                                                               |
+| `roleId`       | uuid    | A role of this org: `staff.role.invalid`.                                                                                                                                                            |
+| `allLocations` | boolean | Checkbox `"on"` or boolean. Default false.                                                                                                                                                           |
+| `locationIds`  | uuid[]  | Repeat the field in `FormData`, or send an array. At most 200. **Needs at least one unless `allLocations`**: `locationIds: ["staff.locations.required"]`. Sending both is `staff.locations.invalid`. |
 
 **Output:** `ok({ invitationId: string, emailSent: boolean })`
 
@@ -50,16 +50,16 @@ holds a staff slot of the package while it is open. There is at most one open in
 
 **Errors**
 
-| Code | `fieldErrors` | When |
-|---|---|---|
-| `validation` | the keys above | An input rule. |
-| `validation` | `email: ["staff.email.invalid"]` / `roleId: ["staff.role.invalid"]` / `locationIds: ["staff.locations.invalid"]` | The database refused it (a role outside the org, a location outside the org or out of the caller's reach). |
-| `forbidden` | none | No `staff.manage`, or an id that isn't one of this org's. |
-| `forbidden` | `form: ["staff.escalation_denied"]` | **Escalation**: a role or permission the caller lacks (for example giving Owner as a non-Owner). Say "you can't give a role with permissions you don't have". |
-| `feature_unavailable` | `form: ["staff.plan_limit.staff"]` | The package's staff limit is full (open invitations count). |
-| `conflict` | `email: ["staff.invitation.exists"]` | An open invitation for this email exists. Offer Resend or Revoke. |
-| `conflict` | `form: ["staff.invitation.already_member"]` | The email belongs to an active member. |
-| `unauthenticated`, `no_membership`, `org_suspended`, `member_deactivated`, `unavailable`, `unknown` | none | As in [README.md](./README.md). |
+| Code                                                                                                | `fieldErrors`                                                                                                    | When                                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `validation`                                                                                        | the keys above                                                                                                   | An input rule.                                                                                                                                                |
+| `validation`                                                                                        | `email: ["staff.email.invalid"]` / `roleId: ["staff.role.invalid"]` / `locationIds: ["staff.locations.invalid"]` | The database refused it (a role outside the org, a location outside the org or out of the caller's reach).                                                    |
+| `forbidden`                                                                                         | none                                                                                                             | No `staff.manage`, or an id that isn't one of this org's.                                                                                                     |
+| `forbidden`                                                                                         | `form: ["staff.escalation_denied"]`                                                                              | **Escalation**: a role or permission the caller lacks (for example giving Owner as a non-Owner). Say "you can't give a role with permissions you don't have". |
+| `feature_unavailable`                                                                               | `form: ["staff.plan_limit.staff"]`                                                                               | The package's staff limit is full (open invitations count).                                                                                                   |
+| `conflict`                                                                                          | `email: ["staff.invitation.exists"]`                                                                             | An open invitation for this email exists. Offer Resend or Revoke.                                                                                             |
+| `conflict`                                                                                          | `form: ["staff.invitation.already_member"]`                                                                      | The email belongs to an active member.                                                                                                                        |
+| `unauthenticated`, `no_membership`, `org_suspended`, `member_deactivated`, `unavailable`, `unknown` | none                                                                                                             | As in [README.md](./README.md).                                                                                                                               |
 
 ### `resendInvitation({ orgId, invitationId })`
 
@@ -85,8 +85,8 @@ Closes an open invitation; its link stops working.
 For the **invitee**, from the email link. Needs a signed-in user whose **confirmed** email equals the
 invitation's. No `staff.manage` (the invitee isn't a member yet).
 
-| Field | Rules |
-|---|---|
+| Field   | Rules                                                                                                            |
+| ------- | ---------------------------------------------------------------------------------------------------------------- |
 | `token` | The 43 characters of the link (`A-Z a-z 0-9 _ -`). Anything else is `invalid_token` without asking the database. |
 
 **Output:** `ok({ orgId: string, slug: string })`: redirect into the org. The new member is active,
@@ -94,13 +94,13 @@ with the invitation's role and locations.
 
 **Errors**
 
-| Code | When |
-|---|---|
-| `invalid_token` | Unknown, used, revoked or expired link, an unconfirmed account, or a suspended org. **One code for all of them** (nothing says which). Offer "ask your manager to send a new invitation". |
-| `forbidden` + `form: ["staff.invitation.email_mismatch"]` | Signed in with a different address than the invitation's. Offer to sign out and use the invited address. |
-| `conflict` + `form: ["staff.invitation.already_member"]` | Already an active member of the org. Go to the org. |
-| `unauthenticated` | Not signed in. Send to `/login?next=/invite/accept?token=...` (encode `next`), or to sign-up with the invited address. |
-| `unavailable`, `unknown` | As in [README.md](./README.md). |
+| Code                                                      | When                                                                                                                                                                                      |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `invalid_token`                                           | Unknown, used, revoked or expired link, an unconfirmed account, or a suspended org. **One code for all of them** (nothing says which). Offer "ask your manager to send a new invitation". |
+| `forbidden` + `form: ["staff.invitation.email_mismatch"]` | Signed in with a different address than the invitation's. Offer to sign out and use the invited address.                                                                                  |
+| `conflict` + `form: ["staff.invitation.already_member"]`  | Already an active member of the org. Go to the org.                                                                                                                                       |
+| `unauthenticated`                                         | Not signed in. Send to `/login?next=/invite/accept?token=...` (encode `next`), or to sign-up with the invited address.                                                                    |
+| `unavailable`, `unknown`                                  | As in [README.md](./README.md).                                                                                                                                                           |
 
 ### The invitation email link
 
@@ -122,10 +122,10 @@ and returns `{ subject, html, text }`.
 (`form: ["staff.member.last_owner"]`), plus the access errors, and three different `forbidden`
 answers the screen can tell apart:
 
-| `forbidden` with | Means |
-|---|---|
-| no `fieldErrors` | No `staff.manage`, or a member that isn't one of this org's. |
-| `form: ["staff.member.self"]` | It's your own row. Nobody changes their own role or status. |
+| `forbidden` with                    | Means                                                                                                            |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| no `fieldErrors`                    | No `staff.manage`, or a member that isn't one of this org's.                                                     |
+| `form: ["staff.member.self"]`       | It's your own row. Nobody changes their own role or status.                                                      |
 | `form: ["staff.escalation_denied"]` | A member whose role holds permissions you lack, or a role you can't give (an Owner is changed only by an Owner). |
 
 ### `deactivateMember({ orgId, memberId })`
@@ -149,8 +149,8 @@ Takes a staff slot again. Not on your own row.
 
 Replaces the member's locations. The Owner and Manager reach every location regardless.
 
-| Field | Rules |
-|---|---|
+| Field         | Rules                                                                       |
+| ------------- | --------------------------------------------------------------------------- |
 | `locationIds` | uuid[] (may be empty, at most 200). `staff.locations.invalid` for a bad ID. |
 
 **Output:** `ok()`. **Errors:** `validation` (`locationIds: ["staff.locations.invalid"]` also when a
@@ -175,9 +175,9 @@ plus the access errors.
 
 The org's invitations, for the staff screen's pending list.
 
-| Field | Type | Rules |
-|---|---|---|
-| `orgId` | uuid | `staff.org.invalid`. |
+| Field   | Type              | Rules                                                                                                |
+| ------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
+| `orgId` | uuid              | `staff.org.invalid`.                                                                                 |
 | `limit` | integer, optional | 1 to 200, default 100. Out of range is `validation` (`limit: ["staff.field.invalid"]`), not clamped. |
 
 **Output:** `ok({ invitations: InvitationRow[] })`. Import the type from `@/lib/actions/staff/actions`.
@@ -186,11 +186,11 @@ The org's invitations, for the staff screen's pending list.
 type InvitationRow = {
   id: string;
   email: string;
-  roleId: string | null;       // null: a closed invitation whose role was deleted afterwards
-  roleName: string | null;     // null together with roleId; show "role deleted"
+  roleId: string | null; // null: a closed invitation whose role was deleted afterwards
+  roleName: string | null; // null together with roleId; show "role deleted"
   allLocations: boolean;
-  locationIds: string[];       // empty when allLocations is true
-  createdAt: string;           // ISO 8601
+  locationIds: string[]; // empty when allLocations is true
+  createdAt: string; // ISO 8601
   expiresAt: string;
   acceptedAt: string | null;
   revokedAt: string | null;
