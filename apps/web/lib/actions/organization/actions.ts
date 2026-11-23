@@ -5,7 +5,9 @@ import {
   UNAVAILABLE,
   fail,
   getCurrentUser,
+  getOrgContext,
   ok,
+  readMembershipRows,
   refreshMemberAccess,
 } from "../../auth";
 import { protectOrg } from "../../arcjet/organization";
@@ -16,7 +18,10 @@ import {
   SLUG_REASONS,
   createOrganizationSchema,
   fieldErrorsOf,
+  LOCATIONS_LIMIT,
+  MAX_OWNED_ORGS,
   isValidSlug,
+  listLocationsSchema,
   normalizeSlug,
   readInput,
 } from "./schemas";
@@ -111,4 +116,96 @@ export async function createOrganization(
   // The caller is now an Owner there: drop their cached memberships so the org shows at once.
   refreshMemberAccess(row.new_org_id, auth.userId);
   return ok({ orgId: row.new_org_id, slug: row.new_org_slug });
+}
+
+export type MyOrganization = {
+  orgId: string;
+  slug: string;
+  name: string;
+  orgStatus: "active" | "suspended";
+  memberStatus: "active" | "deactivated";
+  roleId: string;
+  /** Null for a custom role. */
+  roleKey: string | null;
+  roleName: string;
+};
+
+/**
+ * Every organization the signed-in user belongs to, **including** suspended orgs and deactivated
+ * memberships, so the page can show the right notice. Own data only (the database answers for
+ * `auth.uid()`): ids, names, statuses and the user's role, nothing about other members. For `/app`
+ * (none: create; one: go in; several: pick), the shell's switcher and the create page's cap check.
+ *
+ * `atCap` is true when the user already owns the most restaurants allowed (active Owner
+ * memberships), so the create page can say so before the form. The database stays the authority.
+ */
+export async function listMyOrganizations(): Promise<
+  ActionResult<{
+    user: { email: string | null; fullName: string | null };
+    organizations: MyOrganization[];
+    atCap: boolean;
+  }>
+> {
+  const user = await getCurrentUser();
+  if (user === UNAVAILABLE) return fail("unavailable");
+  if (!user) return fail("unauthenticated");
+
+  const supabase = await createClient();
+  const [memberships, profile] = await Promise.all([
+    supabase.rpc("my_org_membership", {}),
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+  ]);
+  if (memberships.error || profile.error) return fail("unavailable");
+
+  let rows;
+  try {
+    rows = readMembershipRows(memberships.data);
+  } catch {
+    return fail("unavailable"); // an unknown status is never shown as a known one
+  }
+  const organizations = rows.map((r): MyOrganization => ({
+    orgId: r.org_id,
+    slug: r.org_slug,
+    name: r.org_name,
+    orgStatus: r.org_status,
+    memberStatus: r.member_status,
+    roleId: r.role_id,
+    roleKey: r.role_key,
+    roleName: r.role_name,
+  }));
+  const owned = organizations.filter((o) => o.memberStatus === "active" && o.roleKey === "owner");
+  return ok({
+    user: { email: user.email, fullName: profile.data?.full_name ?? null },
+    organizations,
+    atCap: owned.length >= MAX_OWNED_ORGS,
+  });
+}
+
+export type MyLocation = { id: string; name: string; timezone: string };
+
+/**
+ * The locations the caller can reach in an org, for the pickers in invite and set-locations. Any
+ * active member may call it; the database decides which rows they see (Owner and Manager every
+ * location, others only where they work), so nothing is filtered here.
+ */
+export async function listLocations(
+  input: unknown,
+): Promise<ActionResult<{ locations: MyLocation[] }>> {
+  const parsed = listLocationsSchema.safeParse(readInput(input));
+  if (!parsed.success) return fail("validation", fieldErrorsOf(parsed.error));
+
+  const context = await getOrgContext({ orgId: parsed.data.orgId });
+  if (!context.ok) return fail(context.reason);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("locations")
+    .select("id, name, timezone")
+    .eq("org_id", context.ctx.org.id) // the verified org, never the caller's value
+    .order("name", { ascending: true })
+    .limit(LOCATIONS_LIMIT);
+  if (error) return fail("unavailable");
+  return ok({
+    locations: (data ?? []).map((l) => ({ id: l.id, name: l.name, timezone: l.timezone })),
+  });
 }

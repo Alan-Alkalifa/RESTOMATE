@@ -57,6 +57,7 @@ const fakeAuth = (client: string) => ({
   auth: {
     signUp: authCall("signUp", client),
     resetPasswordForEmail: authCall("resetPasswordForEmail", client),
+    resend: authCall("resend", client),
   },
 });
 vi.mock("../../supabase/stateless", () => ({
@@ -77,7 +78,14 @@ vi.mock("../../supabase/server", () => ({
 }));
 
 import { UNAVAILABLE } from "../../auth";
-import { login, requestPasswordReset, resetPassword, signOut, signup } from "./actions";
+import {
+  login,
+  requestPasswordReset,
+  resendConfirmation,
+  resetPassword,
+  signOut,
+  signup,
+} from "./actions";
 
 const redirected = async (p: Promise<unknown>) =>
   p.then(
@@ -392,4 +400,138 @@ describe("signOut", () => {
       expect(world.deleted).toEqual(["sb-ref-auth-token", "sb-ref-auth-token.0"]);
     },
   );
+});
+
+describe("signup stores a safe `next` for the confirmation email", () => {
+  const base = { email: "new@example.com", password: "longenough1" };
+  const metadata = () =>
+    (
+      world.calls.find((c) => c.name === "signUp")!.args as {
+        options: { data: Record<string, unknown> };
+      }
+    ).options.data;
+
+  it("keeps a safe same-site path as `next` in the user metadata", async () => {
+    await signup({ ...base, next: "/invite/accept?token=abc_DEF-123" });
+    expect(metadata().next).toBe("/invite/accept?token=abc_DEF-123");
+  });
+
+  it.each([
+    "https://evil.example/x",
+    "//evil.example",
+    "/\\evil.example",
+    "javascript:alert(1)",
+    "/%2F%2Fevil.example",
+    "app/no-leading-slash",
+    "/has\ttab",
+    `/${"a".repeat(600)}`,
+    42,
+    { a: 1 },
+    "",
+  ])("never stores an unsafe `next`: %j", async (next) => {
+    await signup({ ...base, next });
+    expect("next" in metadata()).toBe(false);
+  });
+
+  it("stores nothing when there is no `next`, and the answer is the same either way", async () => {
+    const without = await signup(base);
+    expect("next" in metadata()).toBe(false);
+    const withNext = await signup({ ...base, next: "/app/menu" });
+    expect(withNext).toEqual(without);
+  });
+});
+
+describe("resendConfirmation", () => {
+  it("validates first, is rate-limited before Supabase, and asks for a signup resend", async () => {
+    expect(await resendConfirmation({ email: "  " })).toMatchObject({
+      error: { code: "validation" },
+    });
+    expect(world.protectArgs).toEqual([]);
+    expect(await resendConfirmation({ email: "New@Example.com " })).toEqual({
+      ok: true,
+      data: undefined,
+    });
+    expect(world.protectArgs).toEqual([
+      { preset: "resendConfirmation", input: { email: "new@example.com" } },
+    ]);
+    expect(world.calls).toEqual([
+      { name: "resend", args: { type: "signup", email: "new@example.com" } },
+    ]);
+    expect(world.order.indexOf("protect")).toBeLessThan(world.order.indexOf("supabase:resend"));
+    expect(world.clients).toEqual(["resend:stateless"]);
+  });
+
+  it("answers the same for an unknown, an unconfirmed and a confirmed address", async () => {
+    const answers = [];
+    for (const error of [
+      null,
+      authError("user_not_found", 404),
+      authError("email_exists", 422),
+      authError("user_already_exists", 422),
+    ]) {
+      world.auth.resend = () => (error ? error : { data: {}, error: null });
+      answers.push(JSON.stringify(await resendConfirmation({ email: "a@b.co" })));
+    }
+    expect(new Set(answers).size).toBe(1);
+  });
+
+  it("reports only a rate limit or an outage", async () => {
+    world.auth.resend = () => authError("over_email_send_rate_limit", 429);
+    expect(await resendConfirmation({ email: "a@b.co" })).toEqual({
+      ok: false,
+      error: { code: "rate_limited" },
+    });
+    world.auth.resend = () => ({
+      data: {},
+      error: { name: "AuthRetryableFetchError", status: 503 },
+    });
+    expect(await resendConfirmation({ email: "a@b.co" })).toEqual({
+      ok: false,
+      error: { code: "unavailable" },
+    });
+  });
+
+  it("maps Arcjet's refusals and skips signed-in users", async () => {
+    world.protect = { allowed: false, reason: "rate_limited" };
+    expect(await resendConfirmation({ email: "a@b.co" })).toEqual({
+      ok: false,
+      error: { code: "rate_limited" },
+    });
+    expect(world.calls).toEqual([]);
+    world.protect = { allowed: true };
+    world.signedIn = { id: "u1", email: null };
+    await expect(redirected(resendConfirmation({ email: "a@b.co" }))).resolves.toBe("/app");
+    expect(world.calls).toEqual([]);
+  });
+});
+
+describe("signOut with a safe next", () => {
+  it("goes to /login?next=<path> for a safe same-site path, and signs out first", async () => {
+    await expect(redirected(signOut({ next: "/invite/accept?token=abc" }))).resolves.toBe(
+      "/login?next=%2Finvite%2Faccept%3Ftoken%3Dabc",
+    );
+    expect(world.calls).toEqual([{ name: "signOut", args: { scope: "local" } }]);
+    expect(world.deleted).toHaveLength(2);
+  });
+
+  it("reads a FormData too", async () => {
+    const fd = new FormData();
+    fd.set("next", "/invite/accept");
+    await expect(redirected(signOut(fd))).resolves.toBe("/login?next=%2Finvite%2Faccept");
+  });
+
+  it.each(["https://evil.example", "//evil.example", "/\\evil", "javascript:x", 5, undefined, ""])(
+    "ignores an unsafe or missing next (%j): plain /login",
+    async (next) => {
+      await expect(redirected(signOut({ next }))).resolves.toBe("/login");
+    },
+  );
+
+  it("is still never refused, even when Arcjet would deny", async () => {
+    world.protect = { allowed: false, reason: "rate_limited" };
+    await expect(redirected(signOut({ next: "/invite/accept" }))).resolves.toBe(
+      "/login?next=%2Finvite%2Faccept",
+    );
+    expect(world.protectArgs).toEqual([]);
+  });
 });

@@ -66,6 +66,9 @@ export const inviteSchema = z
     error: "staff.locations.invalid",
   });
 
+/** `listMembers` takes the same input as `listInvitations`. */
+export const listMembersSchema = listInvitationsSchema;
+
 export const invitationRefSchema = z.object({
   orgId: orgIdSchema,
   invitationId: id("staff.invitation.invalid"),
