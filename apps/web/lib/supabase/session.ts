@@ -39,7 +39,7 @@ export async function updateSession(
   const passThrough = () => NextResponse.next({ request: { headers: requestHeaders } });
   if (!hasSupabaseCookie(request)) return passThrough();
 
-  const guard = createDeadlineGuard(SESSION_REFRESH_DEADLINE_MS);
+  const guard = createDeadlineGuard({ authMs: SESSION_REFRESH_DEADLINE_MS });
   let closed = false; // After the deadline, nothing from the refresh may touch the request.
   const buffered: CookieToSet[] = [];
   let cacheHeaders: Record<string, string> = {};
