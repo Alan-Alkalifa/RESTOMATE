@@ -123,12 +123,20 @@ describe("request", () => {
 describe("retry without a duplicate", () => {
   it.each([
     ["timeout", "timeout", () => new Promise<Response>(() => undefined)],
-    ["network error", "network_error", () => Promise.reject(new TypeError(`fetch failed ${SEEDS.to}`))],
+    [
+      "network error",
+      "network_error",
+      () => Promise.reject(new TypeError(`fetch failed ${SEEDS.to}`)),
+    ],
     ["429", "rate_limited", error(429, "rate_limit_exceeded")],
     ["quota 429", "rate_limited", error(429, "daily_quota_exceeded")],
     ["500", "provider_error", error(500, "application_error")],
     ["503", "provider_error", error(503, "service_unavailable")],
-    ["502 without JSON", "provider_error", () => Promise.resolve(new Response("<html>", { status: 502 }))],
+    [
+      "502 without JSON",
+      "provider_error",
+      () => Promise.resolve(new Response("<html>", { status: 502 })),
+    ],
     ["409 key in progress", "key_in_progress", error(409, "concurrent_idempotent_requests")],
     ["unknown 409", "provider_error", error(409, "resource_locked")],
   ] as const)("%s: retryable, same key and payload", async (_, code, first) => {
