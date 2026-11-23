@@ -7,7 +7,7 @@
 -- reserved_slugs
 -- ---------------------------------------------------------------------------------------------
 create table public.reserved_slugs (
-  slug text primary key check (slug ~ '^[a-z0-9]([a-z0-9-]{1,38})[a-z0-9]$'),
+  slug text primary key check (slug ~ '^[a-z0-9]([a-z0-9-]{1,38})[a-z0-9]$' and slug !~ '--'),
   created_at timestamptz not null default now()
 );
 
@@ -32,8 +32,16 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  -- Raises invalid_parameter_value (22023) for an unknown zone.
-  perform now() at time zone new.timezone;
+  -- IANA names only (Area/City, or UTC). `at time zone` alone also takes abbreviations ('EST') and
+  -- POSIX strings ('UTC+7' reads as UTC-7), and pg_timezone_names lists legacy names such as 'EST5EDT'
+  -- and the sign-inverted 'Etc/GMT-7' on some builds, so those are refused too.
+  if not exists (
+    select 1 from pg_catalog.pg_timezone_names z
+    where z.name = new.timezone
+      and (z.name = 'UTC' or (z.name like '%/%' and z.name not like 'Etc/%'))
+  ) then
+    raise exception 'invalid timezone' using errcode = '22023';
+  end if;
   return new;
 end;
 $$;
@@ -61,6 +69,8 @@ create table public.organizations (
   slug text not null
     constraint organizations_slug_format check (
       char_length(slug) between 3 and 40 and slug ~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])$'
+      -- no '--': punycode ('xn--') and other RFC 5891 labels must never become subdomains
+      and slug !~ '--'
     ),
   status text not null default 'active' check (status in ('active', 'suspended')),
   currency text not null default 'IDR' check (currency ~ '^[A-Z]{3}$'),

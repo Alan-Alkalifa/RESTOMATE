@@ -1,6 +1,6 @@
 -- M0-BE-06: tenancy constraints, and no client access until membership exists.
 begin;
-select plan(41);
+select plan(52);
 
 select has_table('public'::name, t::name) from unnest(array['organizations','reserved_slugs','locations','org_branding']) t;
 select ok((select bool_and(relrowsecurity) from pg_class where oid in ('public.organizations'::regclass,'public.reserved_slugs'::regclass,'public.locations'::regclass,'public.org_branding'::regclass)), 'RLS on every tenancy table');
@@ -24,6 +24,17 @@ select throws_ok($$insert into public.organizations (name, slug, status) values 
 select throws_ok($$insert into public.organizations (name, slug, currency) values ('x','abce','idr')$$, '23514', null, 'currency check');
 select throws_ok($$insert into public.organizations (name, slug, timezone) values ('x','abcf','Mars/Base')$$, '22023', null, 'unknown timezone refused');
 
+select throws_ok($$insert into public.organizations (name, slug) values ('x','xn--abc')$$, '23514', null, 'punycode slug refused');
+select throws_ok($$insert into public.organizations (name, slug) values ('x','a--b')$$, '23514', null, 'double hyphen refused');
+select throws_ok($$insert into public.reserved_slugs (slug) values ('x--y')$$, '23514', null, 'reserved_slugs refuses double hyphen');
+select throws_ok($$insert into public.organizations (name, slug, timezone) values ('x','tz-one','UTC+7')$$, '22023', null, 'POSIX UTC+7 refused');
+select throws_ok($$insert into public.organizations (name, slug, timezone) values ('x','tz-two','EST')$$, '22023', null, 'abbreviation EST refused');
+select throws_ok($$insert into public.organizations (name, slug, timezone) values ('x','tz-three','Etc/GMT-7')$$, '22023', null, 'Etc/GMT-7 refused');
+select throws_ok($$insert into public.organizations (name, slug, timezone) values ('x','tz-four','EST5EDT')$$, '22023', null, 'EST5EDT refused');
+select lives_ok($$insert into public.organizations (name, slug, timezone) values ('x','tz-five','Asia/Jakarta')$$, 'Asia/Jakarta accepted');
+select lives_ok($$insert into public.organizations (name, slug, timezone) values ('x','tz-six','Asia/Makassar')$$, 'Asia/Makassar accepted');
+select lives_ok($$insert into public.organizations (name, slug, timezone) values ('x','tz-seven','UTC')$$, 'UTC accepted');
+
 -- Locations
 insert into public.locations (org_id, name) select id, 'Main' from public.organizations where slug = 'demo-resto';
 select is((select tax_bps from public.locations), 0, 'location tax defaults to 0');
@@ -32,6 +43,7 @@ select throws_ok($$update public.locations set tax_bps = 10001$$, '23514', null,
 select throws_ok($$update public.locations set tax_bps = -1$$, '23514', null, 'negative tax');
 select throws_ok($$update public.locations set service_charge_bps = 10001$$, '23514', null, 'service charge over 10000 bps');
 select throws_ok($$update public.locations set service_charge_bps = -1$$, '23514', null, 'negative service charge');
+select throws_ok($$update public.locations set timezone = 'UTC+7'$$, '22023', null, 'location refuses UTC+7');
 select throws_ok($$update public.locations set timezone = 'Nowhere/Land'$$, '22023', null, 'location timezone checked');
 select throws_ok($$insert into public.locations (org_id, name) values (gen_random_uuid(), 'Orphan')$$, '23503', null, 'location needs an organization');
 
