@@ -4,9 +4,10 @@
 begin;
 select plan(146);
 
-insert into auth.users (id, instance_id, aud, role, email)
+-- Confirmed, as real sign-ups are: accept_invitation refuses callers whose email is unconfirmed.
+insert into auth.users (id, instance_id, aud, role, email, email_confirmed_at)
 select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid,
-       '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'u' || n || '@example.test'
+       '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'u' || n || '@example.test', now()
 from generate_series(1, 14) n;
 
 create function pg_temp.uid(p_user int) returns void language sql as $$
