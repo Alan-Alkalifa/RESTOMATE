@@ -22,6 +22,11 @@ select
   (select id from public.organizations where slug = 'org-two') as o2,
   (select id from public.organizations where slug = 'org-three') as o3;
 
+-- M0-BE-11 enforces plan limits: give the default (trial) package room for this fixture.
+update public.packages set max_locations = 10, max_staff = 10, max_tables = 20 where is_default;
+insert into public.subscriptions (org_id, package_id, status, trial_ends_at, current_period_end)
+select id, (select id from public.packages where is_default), 'trialing', now() + interval '14 days', now() + interval '14 days'
+from public.organizations;
 insert into public.locations (org_id, name) select o1, 'A' from ctx union all select o1, 'B' from ctx union all select o2, 'C' from ctx union all select o3, 'D' from ctx;
 insert into public.org_branding (org_id) select o1 from ctx union all select o2 from ctx;
 
@@ -56,8 +61,6 @@ insert into public.location_staff (member_id, location_id, org_id)
 select m.id, l.id, m.org_id from public.organization_members m join public.locations l on l.org_id = m.org_id and l.name = 'A'
 where m.user_id = '00000000-0000-0000-0000-000000000006';
 
-insert into public.subscriptions (org_id, package_id, status, trial_ends_at, current_period_end)
-select o1, (select id from public.packages where is_default), 'trialing', now() + interval '14 days', now() + interval '14 days' from ctx;
 insert into public.audit_logs (org_id, action) select o1, 'seed.one' from ctx union all select o2, 'seed.two' from ctx;
 
 create temp table locs on commit drop as
@@ -180,7 +183,7 @@ select is((select count(*)::int from public.roles), 5, 'owner: five roles');
 select ok((select count(*) from public.role_permissions) > 0, 'owner: role permissions');
 select is((select count(*)::int from public.organization_members), 6, 'owner: all six members (staff.manage)');
 select ok((select count(*) from public.location_staff) > 0, 'owner: location staff');
-select is((select count(*)::int from public.audit_logs), 1, 'owner: only own org audit rows');
+select is((select count(*)::int from public.audit_logs where action like 'seed.%'), 1, 'owner: only own org audit rows (seed.two is hidden)');
 select throws_ok($$update public.organizations set name = 'Hacked'$$, '42501', null, 'owner: no write through the API');
 select throws_ok($$insert into public.audit_logs (org_id, action) select o1, 'x' from ctx$$, '42501', null, 'owner: cannot write audit rows');
 
@@ -251,9 +254,10 @@ reset role;
 -- ---------------------------------------------------------------------------------------------
 -- Server-side helpers (run as postgres)
 -- ---------------------------------------------------------------------------------------------
-select is(private.org_limit((select o1 from ctx), 'locations'), 1, 'org_limit: locations from the current package');
-select is(private.org_limit((select o1 from ctx), 'staff'), 5, 'org_limit: staff');
-select is(private.org_limit((select o2 from ctx), 'tables'), 0, 'org_limit: no subscription fails closed to 0');
+select is(private.org_limit((select o1 from ctx), 'locations'), 10, 'org_limit: locations from the current package');
+select is(private.org_limit((select o1 from ctx), 'staff'), 10, 'org_limit: staff');
+insert into public.organizations (name, slug) values ('No sub', 'org-nosub');
+select is(private.org_limit((select id from public.organizations where slug = 'org-nosub'), 'tables'), 0, 'org_limit: no subscription fails closed to 0');
 select throws_ok($$select private.org_limit((select o1 from ctx), 'bananas')$$, '22023', null, 'org_limit: unknown key raises');
 update public.packages set max_tables = null where is_default;
 select is(private.org_limit((select o1 from ctx), 'tables'), null, 'org_limit: null means unlimited');

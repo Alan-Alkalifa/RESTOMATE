@@ -6,6 +6,11 @@ select has_table('public'::name, t::name) from unnest(array['staff_invitations',
 select ok((select bool_and(relrowsecurity) from pg_class where oid in ('public.staff_invitations'::regclass,'public.staff_invitation_locations'::regclass)), 'RLS on');
 
 insert into public.organizations (name, slug) values ('Org One', 'org-one'), ('Org Two', 'org-two');
+
+-- Fixture: plan limits are enforced by the M0-BE-11 guards, so test orgs get an unlimited package.
+insert into public.packages (key, name) values ('test_unlimited', 'Unlimited (test)');
+insert into public.subscriptions (org_id, package_id, status)
+select o.id, (select id from public.packages where key = 'test_unlimited'), 'active' from public.organizations o;
 insert into public.locations (org_id, name) select id, 'Loc ' || slug from public.organizations;
 create temp table ctx on commit drop as
 select
