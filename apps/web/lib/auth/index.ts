@@ -4,8 +4,10 @@
  * session, `organization_members`, roles or `platform_admins` to decide access. `proxy.ts` never
  * authorizes, and RLS is the second line behind these.
  *
- *   getCurrentUser()                 the verified user or null (cached privately; inside <Suspense>)
- *   requireUser({ next })            the user, or redirect to /login?next=<safe path>
+ *   getCurrentUser()                 the verified user, null (no session) or "unavailable" (Auth
+ *                                    unreachable; cached privately; inside <Suspense>)
+ *   requireUser({ next })            the user, or redirect to /login?next=<safe path>; throws
+ *                                    AuthUnavailableError on an outage (no redirect)
  *   getMembership(userId, ref)       active member of an active org, or the reason it is not
  *   getOrgContext(ref)               user + org + member + permissions + package, or a reason
  *   hasPermission / requirePermission(ctx, key)   `requirePermission` returns an ActionResult
@@ -21,7 +23,14 @@
 export * from "./result";
 export * from "./keys";
 export { LOGIN_PATH, DEFAULT_AFTER_LOGIN, loginUrl, safeNextPath } from "./next";
-export { type AuthUser, getCurrentUser, requireUser } from "./user";
+export {
+  type AuthUser,
+  type CurrentUser,
+  AuthUnavailableError,
+  UNAVAILABLE,
+  getCurrentUser,
+  requireUser,
+} from "./user";
 export {
   type Membership,
   type MembershipResult,

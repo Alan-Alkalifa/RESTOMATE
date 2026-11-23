@@ -13,7 +13,7 @@ import {
   packageTag,
   userMembershipsTag,
 } from "./keys";
-import { type AuthUser, getCurrentUser } from "./user";
+import { type AuthUser, UNAVAILABLE, getCurrentUser } from "./user";
 
 /*
  * Why these are `'use cache: private'` and not `'use cache'`: the database functions behind them
@@ -138,6 +138,7 @@ export type OrgContextResult = { ok: true; ctx: OrgContext } | { ok: false; reas
  */
 export async function getOrgContext(ref: OrgRef): Promise<OrgContextResult> {
   const user = await getCurrentUser();
+  if (user === UNAVAILABLE) return { ok: false, reason: "unavailable" };
   if (!user) return { ok: false, reason: "unauthenticated" };
 
   const result = await getMembership(user.id, ref);
