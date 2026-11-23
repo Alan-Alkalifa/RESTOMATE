@@ -64,10 +64,10 @@ select throws_ok($$select 1 from public.organizations$$, '42501', null, 'anon: o
 select throws_ok($$select 1 from public.locations$$, '42501', null, 'anon: locations');
 reset role;
 set local role authenticated;
-select throws_ok($$select 1 from public.organizations$$, '42501', null, 'authenticated: organizations');
+select is((select count(*)::int from public.organizations), 0, 'authenticated without membership sees no organizations rows (read policy, M0-BE-10)');
 select throws_ok($$select 1 from public.reserved_slugs$$, '42501', null, 'authenticated: reserved_slugs');
 select throws_ok($$insert into public.locations (org_id, name) select id, 'x' from public.organizations$$, '42501', null, 'authenticated: locations write');
-select throws_ok($$select 1 from public.org_branding$$, '42501', null, 'authenticated: org_branding');
+select is((select count(*)::int from public.org_branding), 0, 'authenticated without membership sees no org_branding rows (read policy, M0-BE-10)');
 reset role;
 
 select * from finish();
