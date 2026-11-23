@@ -1,0 +1,194 @@
+# Deploy DB (staging): applies the pending migrations to the staging database. See docs/STAGING.md.
+#
+# Runs only for:
+#   * a successful CI run for a push to main, and only when that commit is the tip of main or an
+#     ancestor of it, or
+#   * a manual run on main (workflow_dispatch), optionally with the staging seed.
+# Never for a pull request, a failed run or a commit that is not on main. There is no production
+# target. An older commit is fine: CI skips docs-only pushes, so a later docs-only push can become
+# the tip before the CI run of an earlier migration push finishes. Deploying the older commit then
+# still applies its migrations, and `db push` is forward-only, idempotent and serialized (see
+# concurrency below), so a newer deploy that already ran just finds nothing pending. If the staging
+# history already holds a version this commit does not have (a newer deploy ran first), the run
+# skips instead of failing on the unknown remote version.
+#
+# The only secret is SUPABASE_STAGING_DB_URL (a connection string for the staging database). There is
+# no Supabase access token. The string, its password, host, user and project ref are masked.
+name: Deploy DB (staging)
+
+# zizmor dangerous-triggers, mitigated: success + push + main only, checks out that push's SHA, secret only in its own steps (never checkout, install or actions).
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers]
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      apply_seed:
+        description: Also run supabase/seed-staging.sql after the migrations (idempotent, no users)
+        type: boolean
+        default: false
+
+# One deploy at a time. A run that is waiting is never cancelled: migrations are not interrupted.
+concurrency:
+  group: deploy-db-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash # adds pipefail
+
+env:
+  # Refuse an unencrypted connection to the hosted database.
+  PGSSLMODE: require
+
+jobs:
+  deploy:
+    name: Deploy DB (staging)
+    # A pull request run of CI never counts: only a push to main whose CI succeeded.
+    if: >-
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.head_branch == 'main')
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    # Lets the project owner add protection rules (reviewers, wait timer) to staging deploys.
+    environment: staging
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the commit CI tested
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 0 # full history, for the ancestor check below
+
+      # Deploy only a commit that is on main: the tip, or an ancestor of it. Fails closed.
+      - name: Stop unless this commit is on main
+        env:
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          fetched=true
+          git fetch --no-tags origin main || fetched=false
+          if [ "$fetched" != true ] || ! tip="$(git rev-parse --verify --quiet refs/remotes/origin/main)"; then
+            echo "::error::Could not read the tip of main."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$COMMIT_SHA" "$tip"; then
+            echo "::warning::${COMMIT_SHA} is not on main (tip ${tip}). Not deploying."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check the staging secret and mask it
+        if: env.SKIP != 'true'
+        env:
+          SUPABASE_STAGING_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_STAGING_DB_URL" ]; then
+            echo "::error::The repository secret SUPABASE_STAGING_DB_URL is not set. Add it (docs/STAGING.md, One-time setup) and re-run."
+            exit 1
+          fi
+          # The whole string, and each part on its own (as written and URL-decoded): password, host,
+          # user and the project ref (the user is postgres.<ref> with the pooler), so a log line that
+          # carries only one of them is masked too.
+          echo "::add-mask::$SUPABASE_STAGING_DB_URL"
+          python3 - <<'PY'
+          import os, urllib.parse
+          u = urllib.parse.urlsplit(os.environ["SUPABASE_STAGING_DB_URL"])
+          parts = {u.password, u.hostname}
+          user = urllib.parse.unquote(u.username or "")
+          if user != "postgres":  # the bare default would garble every log line
+              parts.update({u.username, user})
+          parts.add(urllib.parse.unquote(u.password or ""))
+          if "." in user:
+              parts.add(user.split(".", 1)[1])  # project ref
+          host = u.hostname or ""
+          # The host as written in the netloc too (hostname is lower-cased), without the port.
+          raw_host = u.netloc.rpartition("@")[2]
+          if raw_host.startswith("["):
+              raw_host = raw_host[1:].partition("]")[0]
+          else:
+              raw_host = raw_host.partition(":")[0]
+          parts.add(raw_host)
+          if host.startswith("db.") and host.endswith(".supabase.co"):
+              parts.add(host.split(".")[1])  # project ref, direct connection
+          for value in parts:
+              if value:
+                  print("::add-mask::" + value)
+          PY
+
+      # Read-only: if staging already has a migration this commit does not, a newer deploy ran first.
+      # Skip rather than fail on the unknown remote version. A missing history table (a fresh
+      # database) means nothing ran yet, so continue. A connection error fails the run.
+      - name: Skip if a newer deploy already ran
+        if: env.SKIP != 'true'
+        env:
+          SUPABASE_STAGING_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          ro=(psql "$SUPABASE_STAGING_DB_URL" -X -q -At -v ON_ERROR_STOP=1 --single-transaction -c "set transaction read only")
+          exists="$("${ro[@]}" -c "select to_regclass('supabase_migrations.schema_migrations') is not null")"
+          if [ "$exists" != t ]; then
+            echo "No migration history on staging yet. Continuing."
+            exit 0
+          fi
+          remote="$("${ro[@]}" -c "select version from supabase_migrations.schema_migrations order by version")"
+          local_versions="$(find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | sort -u)"
+          missing="$(comm -23 <(printf '%s\n' "$remote" | sed '/^$/d' | sort -u) <(printf '%s\n' "$local_versions"))"
+          if [ -n "$missing" ]; then
+            echo "::notice::Staging already has migration(s) this commit does not: $(echo "$missing" | paste -sd ' ' -). A newer deploy already ran. Skipping."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Set up pnpm
+        if: env.SKIP != 'true'
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          cache: true # pnpm store
+      - name: Set up Node
+        if: env.SKIP != 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install (pins the Supabase CLI)
+        if: env.SKIP != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Check the Supabase CLI version
+        if: env.SKIP != 'true'
+        run: |
+          pinned="$(node -p "require('./package.json').devDependencies.supabase")"
+          actual="$(pnpm --silent exec supabase --version)"
+          echo "Supabase CLI ${actual} (pinned ${pinned})"
+          if [ "$actual" != "$pinned" ]; then
+            echo "::error::Supabase CLI ${actual} is not the pinned ${pinned}."
+            exit 1
+          fi
+
+      # Never run `supabase migration repair` on staging without the lead: it rewrites the
+      # migration history that the push steps below and the skip check above rely on.
+      # Prints the migrations that are pending. Changes nothing.
+      - name: Dry run (pending migrations)
+        if: env.SKIP != 'true'
+        env:
+          SUPABASE_STAGING_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: pnpm --silent exec supabase db push --dry-run --remote="$SUPABASE_STAGING_DB_URL"
+
+      # Forward only: push applies what is pending and never resets or rewrites history.
+      # Never run `supabase migration repair` on staging without the lead.
+      - name: Apply migrations
+        if: env.SKIP != 'true'
+        env:
+          SUPABASE_STAGING_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: pnpm --silent exec supabase db push --remote="$SUPABASE_STAGING_DB_URL" --yes
+
+      # Optional and manual. All or nothing, and a second run changes nothing.
+      - name: Apply the staging seed
+        if: env.SKIP != 'true' && github.event_name == 'workflow_dispatch' && inputs.apply_seed
+        env:
+          SUPABASE_STAGING_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: psql "$SUPABASE_STAGING_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f supabase/seed-staging.sql
