@@ -1,14 +1,20 @@
 # Deploy DB (staging): applies the pending migrations to the staging database. See docs/STAGING.md.
 #
 # Runs only for:
-#   * a successful CI run for a push to main, and only when that commit is still the tip of main, or
+#   * a successful CI run for a push to main, and only when that commit is the tip of main or an
+#     ancestor of it, or
 #   * a manual run on main (workflow_dispatch), optionally with the staging seed.
-# Never for a pull request, a failed run or an older commit. There is no production target.
+# Never for a pull request, a failed run or a commit that is not on main. There is no production
+# target. An older commit is fine: CI skips docs-only pushes, so a later docs-only push can become
+# the tip before the CI run of an earlier migration push finishes. Deploying the older commit then
+# still applies its migrations, and `db push` is forward-only, idempotent and serialized (see
+# concurrency below), so a newer deploy that already ran just finds nothing pending.
 #
 # The only secret is SUPABASE_STAGING_DB_URL (a connection string for the staging database). There is
-# no Supabase access token. The string and its password are masked and never printed.
+# no Supabase access token. The string, its password, host, user and project ref are masked.
 name: Deploy DB (staging)
 
+# zizmor dangerous-triggers, mitigated: success + push + main only, checks out that push's SHA, secret only in its own steps (never checkout, install or actions).
 on:
   workflow_run:
     workflows: ["CI"]
@@ -57,19 +63,21 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
+          fetch-depth: 0 # full history, for the ancestor check below
 
-      # An older commit never overwrites a newer one: the run for the newer commit applies everything.
-      - name: Stop unless this commit is the tip of main
+      # Deploy only a commit that is on main: the tip, or an ancestor of it. Fails closed.
+      - name: Stop unless this commit is on main
         env:
           COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
-          tip="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)"
-          if [ -z "$tip" ]; then
+          fetched=true
+          git fetch --no-tags origin main || fetched=false
+          if [ "$fetched" != true ] || ! tip="$(git rev-parse --verify --quiet refs/remotes/origin/main)"; then
             echo "::error::Could not read the tip of main."
             exit 1
           fi
-          if [ "$tip" != "$COMMIT_SHA" ]; then
-            echo "::warning::${COMMIT_SHA} is not the tip of main (${tip}). Not deploying; the run for the tip does."
+          if ! git merge-base --is-ancestor "$COMMIT_SHA" "$tip"; then
+            echo "::warning::${COMMIT_SHA} is not on main (tip ${tip}). Not deploying."
             echo "SKIP=true" >> "$GITHUB_ENV"
           fi
 
@@ -82,13 +90,24 @@ jobs:
             echo "::error::The repository secret SUPABASE_STAGING_DB_URL is not set. Add it (docs/STAGING.md, One-time setup) and re-run."
             exit 1
           fi
-          # The whole string, and the password on its own (as written and URL-decoded), so a log
-          # line that carries only the password is masked too.
+          # The whole string, and each part on its own (as written and URL-decoded): password, host,
+          # user and the project ref (the user is postgres.<ref> with the pooler), so a log line that
+          # carries only one of them is masked too.
           echo "::add-mask::$SUPABASE_STAGING_DB_URL"
           python3 - <<'PY'
           import os, urllib.parse
           u = urllib.parse.urlsplit(os.environ["SUPABASE_STAGING_DB_URL"])
-          for value in {u.password or "", urllib.parse.unquote(u.password or "")}:
+          parts = {u.password, u.hostname}
+          user = urllib.parse.unquote(u.username or "")
+          if user != "postgres":  # the bare default would garble every log line
+              parts.update({u.username, user})
+          parts.add(urllib.parse.unquote(u.password or ""))
+          if "." in user:
+              parts.add(user.split(".", 1)[1])  # project ref
+          host = u.hostname or ""
+          if host.startswith("db.") and host.endswith(".supabase.co"):
+              parts.add(host.split(".")[1])  # project ref, direct connection
+          for value in parts:
               if value:
                   print("::add-mask::" + value)
           PY
