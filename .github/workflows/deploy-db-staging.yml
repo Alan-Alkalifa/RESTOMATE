@@ -1,0 +1,141 @@
+# Deploy DB (staging): applies the pending migrations to the staging database. See docs/STAGING.md.
+#
+# Runs only for:
+#   * a successful CI run for a push to main, and only when that commit is still the tip of main, or
+#   * a manual run on main (workflow_dispatch), optionally with the staging seed.
+# Never for a pull request, a failed run or an older commit. There is no production target.
+#
+# The only secret is SUPABASE_STAGING_DB_URL (a connection string for the staging database). There is
+# no Supabase access token. The string and its password are masked and never printed.
+name: Deploy DB (staging)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      apply_seed:
+        description: Also run supabase/seed-staging.sql after the migrations (idempotent, no users)
+        type: boolean
+        default: false
+
+# One deploy at a time. A run that is waiting is never cancelled: migrations are not interrupted.
+concurrency:
+  group: deploy-db-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash # adds pipefail
+
+env:
+  # Refuse an unencrypted connection to the hosted database.
+  PGSSLMODE: require
+
+jobs:
+  deploy:
+    name: Deploy DB (staging)
+    # A pull request run of CI never counts: only a push to main whose CI succeeded.
+    if: >-
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.head_branch == 'main')
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    # Lets the project owner add protection rules (reviewers, wait timer) to staging deploys.
+    environment: staging
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the commit CI tested
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      # An older commit never overwrites a newer one: the run for the newer commit applies everything.
+      - name: Stop unless this commit is the tip of main
+        env:
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          tip="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)"
+          if [ -z "$tip" ]; then
+            echo "::error::Could not read the tip of main."
+            exit 1
+          fi
+          if [ "$tip" != "$COMMIT_SHA" ]; then
+            echo "::warning::${COMMIT_SHA} is not the tip of main (${tip}). Not deploying; the run for the tip does."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check the staging secret and mask it
+        if: env.SKIP != 'true'
+        env:
+          SUPABASE_STAGING_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_STAGING_DB_URL" ]; then
+            echo "::error::The repository secret SUPABASE_STAGING_DB_URL is not set. Add it (docs/STAGING.md, One-time setup) and re-run."
+            exit 1
+          fi
+          # The whole string, and the password on its own (as written and URL-decoded), so a log
+          # line that carries only the password is masked too.
+          echo "::add-mask::$SUPABASE_STAGING_DB_URL"
+          python3 - <<'PY'
+          import os, urllib.parse
+          u = urllib.parse.urlsplit(os.environ["SUPABASE_STAGING_DB_URL"])
+          for value in {u.password or "", urllib.parse.unquote(u.password or "")}:
+              if value:
+                  print("::add-mask::" + value)
+          PY
+
+      - name: Set up pnpm
+        if: env.SKIP != 'true'
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          cache: true # pnpm store
+      - name: Set up Node
+        if: env.SKIP != 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install (pins the Supabase CLI)
+        if: env.SKIP != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Check the Supabase CLI version
+        if: env.SKIP != 'true'
+        run: |
+          pinned="$(node -p "require('./package.json').devDependencies.supabase")"
+          actual="$(pnpm --silent exec supabase --version)"
+          echo "Supabase CLI ${actual} (pinned ${pinned})"
+          if [ "$actual" != "$pinned" ]; then
+            echo "::error::Supabase CLI ${actual} is not the pinned ${pinned}."
+            exit 1
+          fi
+
+      # Prints the migrations that are pending. Changes nothing.
+      - name: Dry run (pending migrations)
+        if: env.SKIP != 'true'
+        env:
+          SUPABASE_STAGING_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: pnpm --silent exec supabase db push --dry-run --remote="$SUPABASE_STAGING_DB_URL"
+
+      # Forward only: push applies what is pending and never resets or rewrites history.
+      - name: Apply migrations
+        if: env.SKIP != 'true'
+        env:
+          SUPABASE_STAGING_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: pnpm --silent exec supabase db push --remote="$SUPABASE_STAGING_DB_URL" --yes
+
+      # Optional and manual. All or nothing, and a second run changes nothing.
+      - name: Apply the staging seed
+        if: env.SKIP != 'true' && github.event_name == 'workflow_dispatch' && inputs.apply_seed
+        env:
+          SUPABASE_STAGING_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: psql "$SUPABASE_STAGING_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f supabase/seed-staging.sql
