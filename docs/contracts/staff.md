@@ -3,7 +3,8 @@
 Invite people, manage their roles, locations and access. Result and code conventions are in
 [README.md](./README.md); how a page gets the org context is in [auth.md](./auth.md).
 
-> Status: final. Matches the merged code (M0-BE-22: #47 and its follow-up #50, M0-BE-30: #46).
+> Status: final. Matches the merged code (M0-BE-22: #47 and its follow-up #50, M0-BE-30: #46) and
+> M0-BE-31 / M0-BE-32 (`listMembers`, `previewInvitation`).
 
 Import from `@/lib/actions/staff/actions`; schemas from `@/lib/actions/staff/schemas` (safe in a
 client component). Server Actions. Input is a `FormData` or a plain object.
@@ -102,6 +103,38 @@ with the invitation's role and locations.
 | `unauthenticated`                                         | Not signed in. Send to `/login?next=/invite/accept?token=...` (encode `next`), or to sign-up with the invited address.                                                                    |
 | `unavailable`, `unknown`                                  | As in [README.md](./README.md).                                                                                                                                                           |
 
+### `previewInvitation({ token })`
+
+For the invite page, **before anyone signs in**: "Join Warung Sedap as Cashier". **No sign-in is needed**,
+so call it from the page for a signed-out visitor. Rate-limited per IP (60 per 10 minutes).
+
+| Field   | Rules                                                                                 |
+| ------- | ------------------------------------------------------------------------------------- |
+| `token` | The 43 characters of the link. Anything that can't be a token is the same as unknown. |
+
+**Output:** `ok(preview)`
+
+```ts
+type InvitationPreview =
+  | { status: "open" | "expired"; orgName: string; orgSlug: string; roleName: string }
+  | { status: "unavailable"; orgName: null; orgSlug: null; roleName: null };
+```
+
+- `open`: show the names and the **Accept** step (sign in or sign up first, keeping the link as `next`).
+- `expired`: show the names and "ask your manager for a new invitation" (it can be resent).
+- `unavailable`: "this link no longer works". It is **one answer** for an unknown or malformed token, a
+  used or revoked invitation and a suspended org, so a guess learns nothing. Don't try to say which.
+- Never the email, an ID, the locations or who invited. The token is never in the result.
+- **Errors:** `rate_limited`, `forbidden` (blocked as a bot), `unavailable` (the lookup itself failed,
+  which is different from the `unavailable` status above: show the error state with retry).
+
+#### Signed in as the wrong person
+
+If `acceptInvitation` answers `forbidden` with `form: ["staff.invitation.email_mismatch"]`, the user is
+signed in with another address than the invited one. Offer **"Sign out and use the invited address"**:
+call `signOut({ next: "/invite/accept?token=<token>" })`. They land on `/login?next=...` and come back
+to the invitation after signing in (or signing up, since `signup` accepts the same `next`).
+
 ### The invitation email link
 
 `<NEXT_PUBLIC_APP_URL>/invite/accept?token=<43-character token>`
@@ -110,7 +143,10 @@ The page at `/invite/accept` is the frontend's. It reads `token`, needs a signed
 sign-up first, keeping the link as `next`), and calls `acceptInvitation`. The link works once and the
 invitation expires after 7 days. The email body is a plain-text placeholder until M0-FE-10 replaces
 `renderInvitationEmail` (`@/lib/actions/staff/email`): it receives `{ orgName, roleName, acceptUrl }`
-and returns `{ subject, html, text }`.
+and returns `{ subject, html, text }`. The M0-FE-10 template must be **bilingual (English and Bahasa Indonesia)** and must **HTML-escape every
+value** it prints (org name, role name and the link) in the `html` part; the `text` part is plain
+text, and the subject must have no line break or control character. (The placeholder already escapes
+its values and is English only.)
 
 ## Members
 
@@ -171,6 +207,42 @@ plus the access errors.
 - **Reading invitations:** use `listInvitations` below. The signed-in role has no read access to
   `staff_invitations`.
 
+## `listMembers({ orgId, limit? })`
+
+The org's members, for the staff screen. Needs `staff.manage`.
+
+| Field   | Type              | Rules                                                             |
+| ------- | ----------------- | ----------------------------------------------------------------- |
+| `orgId` | uuid              | `staff.org.invalid`                                               |
+| `limit` | integer, optional | 1 to 200, default 100. Out of range is `validation`, not clamped. |
+
+**Output:** `ok({ members: MemberRow[] })`
+
+```ts
+type MemberRow = {
+  memberId: string;
+  userId: string;
+  isSelf: boolean; // true for the caller's own row, which is in the list. Disable its controls:
+  // changing your own role or status answers staff.member.self
+  fullName: string | null; // from the profile; null when the person has no name
+  email: string | null; // the profile's address (not the sign-in record)
+  roleId: string;
+  roleName: string;
+  roleKey: string | null; // null for a custom role
+  status: "active" | "deactivated";
+  deactivatedAt: string | null; // ISO 8601
+  locationIds: string[]; // the locations the member works at (Owner and Manager reach all)
+};
+```
+
+- **Order:** active members first, then deactivated; each A to Z by name, or by email when there is no
+  name (ignoring case). At most `limit` rows; the limit applies before the sort.
+- **Errors:** `validation`, `forbidden` (no `staff.manage`), the access errors, `unavailable` when any
+  read fails (never a partial list).
+- Show "x of y seats": **active members** plus **open invitations** against `ctx.package.max_staff`
+  (see [auth.md](./auth.md)).
+- Refetch after any member action.
+
 ## `listInvitations({ orgId, limit? })`
 
 The org's invitations, for the staff screen's pending list.
@@ -218,4 +290,5 @@ type InvitationRow = {
 `staff.locations.required`, `staff.invitation.exists`, `staff.invitation.already_member`,
 `staff.invitation.email_mismatch`, `staff.invitation.closed`, `staff.member.last_owner`,
 `staff.member.already_active`, `staff.member.already_deactivated`, `staff.member.self`,
-`staff.escalation_denied`, `staff.plan_limit.staff`.
+`staff.escalation_denied`, `staff.plan_limit.staff`. (`listMembers`, `listInvitations` and
+`previewInvitation` add none: their errors are codes without a field.)

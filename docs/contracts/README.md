@@ -15,6 +15,7 @@ Names only: no secret or environment value is written in these files.
 ## The result every action returns
 
 ```ts
+// import type { ActionResult, ActionErrorCode } from "@/lib/auth";
 type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: { code: ActionErrorCode; fieldErrors?: Record<string, string[]> } };
