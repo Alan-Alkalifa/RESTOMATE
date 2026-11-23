@@ -1,5 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
-import { getSupabaseEnv } from "@/lib/env";
+import { getSupabaseEnv } from "../env";
 
 /** Supabase client for Client Components. Public key only; RLS applies. */
 export function createClient() {

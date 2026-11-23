@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseAdminEnv, getSupabaseEnv } from "@/lib/env";
+import { getSupabaseAdminEnv, getSupabaseEnv } from "../env";
 
 /**
  * Service-role client. It BYPASSES RLS, so use it only where no user session can do the job

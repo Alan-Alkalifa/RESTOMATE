@@ -1,7 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { getSupabaseEnv } from "@/lib/env";
+import { getSupabaseEnv } from "../env";
 
 /**
  * Supabase client for Server Components, Server Actions and route handlers. It acts as the

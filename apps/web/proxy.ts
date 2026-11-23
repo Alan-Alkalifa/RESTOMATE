@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { resolveHost } from "@/lib/supabase/host";
-import { updateSession } from "@/lib/supabase/session";
+import { resolveHost } from "./lib/supabase/host";
+import { updateSession } from "./lib/supabase/session";
 
 /**
  * Host routing and session refresh only (Arcjet joins in M0-BE-16). This file NEVER decides who

@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
-import { getSupabaseEnv } from "@/lib/env";
+import { getSupabaseEnv } from "../env";
 
 /** Supabase auth cookies are named `sb-<project ref>-auth-token`, split into `.0`, `.1`, ... */
 export function hasSupabaseCookie(request: NextRequest): boolean {
