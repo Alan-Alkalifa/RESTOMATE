@@ -11,6 +11,11 @@ select ok((select bool_and(relrowsecurity) from pg_class where oid in (
 select is((select count(*)::int from public.permissions), 24, '24 permissions in the catalog');
 
 insert into public.organizations (name, slug) values ('Org One', 'org-one'), ('Org Two', 'org-two');
+
+-- Fixture: plan limits are enforced by the M0-BE-11 guards, so test orgs get an unlimited package.
+insert into public.packages (key, name) values ('test_unlimited', 'Unlimited (test)');
+insert into public.subscriptions (org_id, package_id, status)
+select o.id, (select id from public.packages where key = 'test_unlimited'), 'active' from public.organizations o;
 insert into auth.users (id, instance_id, aud, role, email) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'a@example.test'),
   ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'b@example.test');
@@ -89,7 +94,7 @@ select throws_ok($$insert into public.organization_members (org_id, user_id, rol
   from public.roles r where r.system_key = 'owner' and r.org_id = (select id from public.organizations where slug = 'org-one')$$, '23503', null, 'member cannot take another org''s role');
 select lives_ok($$insert into public.organization_members (org_id, user_id, role_id)
   select r.org_id, '00000000-0000-0000-0000-0000000000b2', r.id from public.roles r where r.system_key = 'cashier' and r.org_id = (select id from public.organizations where slug = 'org-two')$$, 'member in org two');
-select throws_ok($$update public.organization_members set status = 'gone'$$, '23514', null, 'status check');
+select throws_ok($$update public.organization_members set status = 'gone' where user_id = '00000000-0000-0000-0000-0000000000b2'$$, '23514', null, 'status check');
 select throws_ok($$update public.organization_members set status = 'deactivated' where user_id = '00000000-0000-0000-0000-0000000000b2'$$, '23514', null, 'deactivated needs a time');
 select lives_ok($$update public.organization_members set status = 'deactivated', deactivated_at = now() where user_id = '00000000-0000-0000-0000-0000000000b2'$$, 'deactivate');
 select lives_ok($$insert into public.organization_members (org_id, user_id, role_id)
