@@ -1,10 +1,13 @@
 import "server-only";
 import { cacheLife } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createDeadlineGuard } from "../supabase/fetch";
+import { AUTH_DOWN_HEADER } from "../supabase/signal";
 import { createClient } from "../supabase/server";
 import { UUID } from "./keys";
 import { loginUrl } from "./next";
+import { isAuthOutage } from "./transport";
 
 export type AuthUser = { id: string; email: string | null };
 
@@ -33,6 +36,8 @@ async function loadUser(): Promise<AuthUser | null> {
 
   const { data, error } = outcome.value;
   const sub = data?.claims?.sub;
+  // An unreachable Auth or key endpoint is an outage, not a signed-out user (a bad token is null).
+  if (error && isAuthOutage(error)) throw new Error("auth_unavailable"); // nothing cached
   if (error || typeof sub !== "string" || !UUID.test(sub)) return null; // no or invalid session
   const email = data?.claims?.email;
   return { id: sub, email: typeof email === "string" ? email : null };
@@ -49,6 +54,10 @@ async function loadUser(): Promise<AuthUser | null> {
  * A page must never treat a cached result as proof the user is still signed in.
  */
 export async function getCurrentUser(): Promise<CurrentUser> {
+  // The proxy already found Auth down in this very request: say so now, do not wait again.
+  // The header is set by `proxy.ts` only (a client's copy is stripped), and is read here, outside
+  // the private cache, so a cached answer can never hide it.
+  if ((await headers()).get(AUTH_DOWN_HEADER)) return UNAVAILABLE;
   try {
     return await loadUser();
   } catch {

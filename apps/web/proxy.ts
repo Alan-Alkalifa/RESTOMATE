@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { protectRequest } from "./lib/arcjet";
 import { resolveHost } from "./lib/supabase/host";
+import { AUTH_DOWN_HEADER } from "./lib/supabase/signal";
 import { updateSession } from "./lib/supabase/session";
 
 /**
@@ -11,7 +12,7 @@ import { updateSession } from "./lib/supabase/session";
 /** DOKU posts here. It carries no user session and no cookies; the proxy must not touch it. */
 export const DOKU_WEBHOOK_PATH = "/api/webhooks/doku";
 
-/** Set by this proxy for tenant hosts only; any value sent by a client is always removed. */
+/** Set by this proxy for tenant hosts only; any value sent by a client is always removed (so is `AUTH_DOWN_HEADER`). */
 export const TENANT_HEADER = "x-restomate-tenant";
 
 function isWebhook(pathname: string): boolean {
@@ -23,6 +24,7 @@ export async function proxy(request: NextRequest) {
     // No host check, Arcjet or session refresh, but a client-sent tenant header never reaches it.
     const headers = new Headers(request.headers);
     headers.delete(TENANT_HEADER);
+    headers.delete(AUTH_DOWN_HEADER);
     return NextResponse.next({ request: { headers } });
   }
 
@@ -55,6 +57,7 @@ export async function proxy(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.delete(TENANT_HEADER);
+  requestHeaders.delete(AUTH_DOWN_HEADER); // only `updateSession` may set it, never a client
   if (resolved.kind === "tenant" && resolved.slug) {
     // Guests only: no session to refresh on a customer site.
     requestHeaders.set(TENANT_HEADER, resolved.slug);

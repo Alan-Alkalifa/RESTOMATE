@@ -22,7 +22,15 @@
  */
 export * from "./result";
 export * from "./keys";
-export { LOGIN_PATH, DEFAULT_AFTER_LOGIN, loginUrl, safeNextPath } from "./next";
+export {
+  LOGIN_PATH,
+  DEFAULT_AFTER_LOGIN,
+  FORGOT_PASSWORD_PATH,
+  RESET_PASSWORD_PATH,
+  loginUrl,
+  safeNextPath,
+} from "./next";
+export { isAuthOutage } from "./transport";
 export {
   type AuthUser,
   type CurrentUser,

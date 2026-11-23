@@ -1,5 +1,8 @@
 export const LOGIN_PATH = "/login";
 export const DEFAULT_AFTER_LOGIN = "/app";
+export const FORGOT_PASSWORD_PATH = "/forgot-password";
+/** Where a recovery link lands (signed in by the link, to choose a new password). */
+export const RESET_PASSWORD_PATH = "/reset-password";
 
 /**
  * A `next` value is user input. Only a same-site absolute path is kept: it starts with one "/",

@@ -9,6 +9,8 @@ vi.mock("next/cache", () => ({
   cacheTag: (...t: string[]) => tags.push(...t),
   updateTag: (t: string) => updated.push(t),
 }));
+const requestHeaders = new Headers();
+vi.mock("next/headers", () => ({ headers: async () => requestHeaders }));
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
     throw Object.assign(new Error("NEXT_REDIRECT"), { url });
@@ -381,9 +383,12 @@ describe("requirePlatformAdmin", () => {
     expect(await requirePlatformAdmin()).toEqual({ ok: false, error: { code: "unauthenticated" } });
     expect(rpcCalled("admin:platform_admins")).toBe(false);
   });
-  it("fails closed when the lookup errors", async () => {
+  it("answers 'unavailable' (still a refusal) when the lookup errors, not 'not_platform_admin'", async () => {
     db.admins.add(U1);
     db.adminError = true;
+    expect(await requirePlatformAdmin()).toEqual({ ok: false, error: { code: "unavailable" } });
+  });
+  it("answers not_platform_admin when the lookup works and the user is not listed", async () => {
     expect(await requirePlatformAdmin()).toEqual({
       ok: false,
       error: { code: "not_platform_admin" },

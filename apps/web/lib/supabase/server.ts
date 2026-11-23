@@ -1,4 +1,5 @@
 import "server-only";
+import type { Database } from "@restomate/db";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseEnv } from "../env";
@@ -19,7 +20,7 @@ export async function createClient(guard: DeadlineGuard = createDeadlineGuard())
   const { url, publishableKey } = getSupabaseEnv();
   const cookieStore = await cookies();
 
-  return createServerClient(url, publishableKey, {
+  return createServerClient<Database>(url, publishableKey, {
     global: { fetch: guard.fetch },
     cookies: {
       getAll: () => cookieStore.getAll(),

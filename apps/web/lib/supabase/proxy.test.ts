@@ -1,6 +1,9 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DOKU_WEBHOOK_PATH, TENANT_HEADER, proxy } from "../../proxy";
+import { AUTH_DOWN_HEADER } from "./signal";
+
+const seen = (res: Response, name: string) => res.headers.get(`x-middleware-request-${name}`);
 
 const req = (url: string, headers: Record<string, string> = {}) =>
   new NextRequest(url, { headers: { host: new URL(url).host, ...headers } });
@@ -69,5 +72,36 @@ describe("proxy", () => {
       req("https://app.restomate.app/app", { cookie: "sb-ref-auth-token=garbage" }),
     );
     expect(res.status).toBe(200);
+  });
+
+  describe("the 'Auth is down' request signal", () => {
+    const withCookie = { cookie: "sb-ref-auth-token=garbage" };
+
+    it("is set when the refresh in this request failed", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+      const res = await proxy(req("https://app.restomate.app/app", withCookie));
+      expect(seen(res, AUTH_DOWN_HEADER)).toBe("1");
+    });
+
+    it("is never set when there is nothing to refresh", async () => {
+      const res = await proxy(req("https://app.restomate.app/app"));
+      expect(seen(res, AUTH_DOWN_HEADER)).toBeNull();
+    });
+
+    it("is dropped when a client sends it, on every path", async () => {
+      const fake = { [AUTH_DOWN_HEADER]: "1" };
+      expect(
+        seen(await proxy(req("https://app.restomate.app/app", fake)), AUTH_DOWN_HEADER),
+      ).toBeNull();
+      expect(
+        seen(await proxy(req("https://demo.restomate.app/", fake)), AUTH_DOWN_HEADER),
+      ).toBeNull();
+      expect(
+        seen(
+          await proxy(req(`https://app.restomate.app${DOKU_WEBHOOK_PATH}`, fake)),
+          AUTH_DOWN_HEADER,
+        ),
+      ).toBeNull();
+    });
   });
 });

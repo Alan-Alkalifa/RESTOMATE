@@ -18,6 +18,9 @@ export type ActionErrorCode =
   | "feature_unavailable" // the org's package does not include the feature
   | "not_platform_admin"
   | "validation"
+  | "invalid_credentials" // login: wrong email or password (the two are never told apart)
+  | "email_not_confirmed" // login: right password, but the address is not confirmed yet
+  | "invalid_token" // a confirmation or reset link that is wrong, expired or already used
   | "rate_limited"
   | "conflict"
   | "not_found"
