@@ -106,6 +106,29 @@ describe("checkSlug", () => {
     },
   );
 
+  it.each(["abc\n", "\tabc", "abc\t", "\nabc", "abc\r\n", "abc\u00a0"])(
+    "trims spaces only, like the database's btrim: %j is SLUG_INVALID",
+    async (slug) => {
+      expect(await checkSlug(slug)).toEqual({
+        ok: true,
+        data: { available: false, reason: "SLUG_INVALID" },
+      });
+      expect(world.calls).toEqual([]);
+      expect(await createOrganization({ name: "Kopi", slug })).toMatchObject({
+        error: { code: "validation", fieldErrors: { slug: ["org.slug.invalid"] } },
+      });
+    },
+  );
+
+  it("still trims plain spaces and lower-cases, as the database does", async () => {
+    world.rpc.is_slug_available = () => ({
+      data: [{ available: true, reason: null }],
+      error: null,
+    });
+    await checkSlug("   Kopi-Kita  ");
+    expect(world.calls).toEqual([{ fn: "is_slug_available", args: { p_slug: "kopi-kita" } }]);
+  });
+
   it.each(["abc", "a1b", "warung-sedap-2", "a".repeat(40), "123"])(
     "accepts %j as valid",
     async (slug) => {

@@ -17,9 +17,23 @@ export type EmailMessage = {
   text: string;
 };
 
+/** RFC 5321: the local part (before the last "@") is at most 64 octets. Resend refuses longer. */
+export const LOCAL_PART_MAX = 64;
+
 // The length limits come first: Zod's email pattern backtracks, and Zod stops at a failed
-// `abort` check.
-const address = z.string().max(254, { abort: true }).pipe(z.email());
+// `abort` check. The local part is checked in bytes, so a non-ASCII address can't slip past.
+const address = z
+  .string()
+  .max(254, { abort: true })
+  .refine(
+    (v) =>
+      new TextEncoder().encode(v.slice(0, Math.max(0, v.lastIndexOf("@")))).length <=
+      LOCAL_PART_MAX,
+    {
+      abort: true,
+    },
+  )
+  .pipe(z.email());
 
 const schema = z.object({
   kind: z.enum(EMAIL_KINDS),

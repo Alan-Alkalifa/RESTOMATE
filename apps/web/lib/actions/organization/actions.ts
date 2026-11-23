@@ -1,6 +1,5 @@
 "use server";
 
-import type { Database } from "@restomate/db";
 import {
   type ActionResult,
   UNAVAILABLE,
@@ -18,6 +17,7 @@ import {
   createOrganizationSchema,
   fieldErrorsOf,
   isValidSlug,
+  normalizeSlug,
   readInput,
 } from "./schemas";
 
@@ -27,24 +27,6 @@ import {
  * sent to analytics. `input` is a `FormData` or a plain object; with `useActionState`, wrap it:
  * `(_prev, formData) => createOrganization(formData)`.
  */
-
-type Fns = Database["public"]["Functions"];
-type RpcResult<F extends keyof Fns> = Promise<{
-  data: Fns[F]["Returns"] | null;
-  error: { code?: string; message?: string } | null;
-}>;
-/** The two RPCs this module calls, typed by the generated database types. */
-type OrgRpc = {
-  rpc(
-    fn: "is_slug_available",
-    args: Fns["is_slug_available"]["Args"],
-  ): RpcResult<"is_slug_available">;
-  rpc(
-    fn: "create_organization",
-    args: Fns["create_organization"]["Args"],
-  ): RpcResult<"create_organization">;
-};
-const orgDb = async () => (await createClient()) as unknown as OrgRpc;
 
 type SignedIn = { ok: true; userId: string } | { ok: false; result: ReturnType<typeof fail> };
 
@@ -75,10 +57,10 @@ export async function checkSlug(
   const refused = await limited("slugCheck", auth.userId);
   if (refused) return refused;
 
-  const normalized = slug.trim().toLowerCase();
+  const normalized = normalizeSlug(slug); // spaces only, as the database trims
   if (!isValidSlug(normalized)) return ok({ available: false, reason: "SLUG_INVALID" as const });
 
-  const supabase = await orgDb();
+  const supabase = await createClient();
   const { data, error } = await supabase.rpc("is_slug_available", { p_slug: normalized });
   if (error) {
     const mapped = createOrgErrorResult(error);
@@ -111,7 +93,7 @@ export async function createOrganization(
   if (refused) return refused;
 
   const v = parsed.data;
-  const supabase = await orgDb();
+  const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_organization", {
     p_name: v.name,
     p_slug: v.slug,
