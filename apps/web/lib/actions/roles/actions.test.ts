@@ -246,6 +246,24 @@ describe("updateRole", () => {
     ]);
   });
 
+  it("an explicit null for name, description or permissions keeps, the same as not sent", async () => {
+    expect(
+      await updateRole({
+        orgId: ORG,
+        roleId: ROLE,
+        name: null,
+        description: null,
+        permissions: null,
+      }),
+    ).toEqual({ ok: true, data: undefined });
+    expect(world.calls[0]?.args).toEqual({
+      p_role_id: ROLE,
+      p_name: null,
+      p_description: null,
+      p_permission_keys: null,
+    });
+  });
+
   it("'' clears the description, [] removes every permission, a new name is cleaned", async () => {
     expect(
       await updateRole({
@@ -319,6 +337,50 @@ describe("updateRole", () => {
       ok: false,
       error: { code: "forbidden" },
     });
+  });
+});
+
+describe("updateRole from a form", () => {
+  const form = (...fields: [string, string][]) => {
+    const fd = new FormData();
+    fd.append("orgSlug", "warung");
+    fd.append("roleId", ROLE);
+    for (const [k, v] of fields) fd.append(k, v);
+    return fd;
+  };
+
+  it("with the marker and no box checked, every permission is removed", async () => {
+    await updateRole(form(["permissions_submitted", "1"]));
+    expect(world.calls[0]?.args).toEqual({
+      p_role_id: ROLE,
+      p_name: null,
+      p_description: null,
+      p_permission_keys: [],
+    });
+  });
+
+  it("with the marker and boxes checked, the permissions are exactly those", async () => {
+    await updateRole(
+      form(
+        ["permissions_submitted", "1"],
+        ["permissions", "orders.view"],
+        ["permissions", "kitchen.view"],
+      ),
+    );
+    expect(world.calls[0]?.args.p_permission_keys).toEqual(["orders.view", "kitchen.view"]);
+  });
+
+  it("without the marker and no box, the permissions are kept", async () => {
+    await updateRole(form(["name", "Bar"]));
+    expect(world.calls[0]?.args.p_permission_keys).toBeNull();
+  });
+
+  it("with the marker, a permission the caller lacks is still refused", async () => {
+    world.org = member(["staff.manage", "orders.view"]);
+    expect(
+      await updateRole(form(["permissions_submitted", "1"], ["permissions", "reports.view"])),
+    ).toMatchObject({ ok: false, error: { code: "forbidden" } });
+    expect(world.calls).toEqual([]);
   });
 });
 

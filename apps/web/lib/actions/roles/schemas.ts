@@ -61,6 +61,8 @@ export const permissionsSchema = z
   .array(permissionKey, { error: "roles.permissions.invalid" })
   .transform((keys) => [...new Set(keys)]);
 
+const keepOnNull = (v: unknown) => (v === null ? undefined : v);
+
 const uuid = (error: string) => z.string({ error }).regex(UUID, { error });
 
 /**
@@ -89,16 +91,17 @@ export const createRoleSchema = z
 export type CreateRoleInput = z.input<typeof createRoleSchema>;
 
 /**
- * Update: an absent field keeps what the role has (the database's rule: null keeps). The one
- * exception to "absent": an empty description (`""`) clears it.
+ * Update: an absent or null field keeps what the role has (the database's rule: null keeps). The
+ * one exception: an empty description (`""`) clears it, and `permissions: []` removes them all.
  */
 export const updateRoleSchema = z
   .object({
     ...orgRef,
     roleId: uuid("roles.role.invalid"),
-    name: roleNameSchema.optional(),
-    description: z.preprocess((v) => (v === null ? undefined : v), descriptionText.optional()),
-    permissions: permissionsSchema.optional(),
+    // null is the same as not sent: it keeps what the role has.
+    name: z.preprocess(keepOnNull, roleNameSchema.optional()),
+    description: z.preprocess(keepOnNull, descriptionText.optional()),
+    permissions: z.preprocess(keepOnNull, permissionsSchema.optional()),
   })
   .refine(exactlyOneOrg, { error: "roles.org.invalid", path: ["orgId"] });
 export type UpdateRoleInput = z.input<typeof updateRoleSchema>;
@@ -108,10 +111,19 @@ export const deleteRoleSchema = z
   .refine(exactlyOneOrg, { error: "roles.org.invalid", path: ["orgId"] });
 export type DeleteRoleInput = z.input<typeof deleteRoleSchema>;
 
+/** The hidden field a role form adds, so "no box checked" can be told from "no list sent". */
+export const PERMISSIONS_SUBMITTED = "permissions_submitted";
+
 /**
  * Whatever the form sent (`FormData` or a plain object) as a plain object. Only fields that were
- * sent are present, so an absent field means "keep" on update. `permissions` is every value of that
- * field name (one checkbox each).
+ * sent are present, so an absent field means "keep" on update.
+ *
+ * `permissions` from a form is every value of that field name (one checkbox each). A browser sends
+ * nothing for unchecked boxes, so a form that cleared every box has no `permissions` field at all,
+ * which would read as "keep". A form therefore adds a hidden `permissions_submitted` field: when
+ * it is present, the permissions are exactly the checked values (`[]` when none are checked).
+ * Without it, an absent `permissions` keeps (as before). Plain objects are unchanged: `[]` clears,
+ * absent or null keeps.
  */
 export function readRoleInput(raw: unknown): Record<string, unknown> {
   if (raw instanceof FormData) {
@@ -119,7 +131,11 @@ export function readRoleInput(raw: unknown): Record<string, unknown> {
     for (const key of new Set(raw.keys())) {
       const values = raw.getAll(key).filter((v): v is string => typeof v === "string");
       if (key === "permissions") out[key] = values;
-      else if (values.length > 0) out[key] = values[values.length - 1];
+      else if (key !== PERMISSIONS_SUBMITTED && values.length > 0)
+        out[key] = values[values.length - 1];
+    }
+    if (raw.has(PERMISSIONS_SUBMITTED)) {
+      out.permissions = raw.getAll("permissions").filter((v): v is string => typeof v === "string");
     }
     return out;
   }

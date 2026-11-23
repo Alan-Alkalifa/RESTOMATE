@@ -143,6 +143,31 @@ describe("update schema", () => {
     ).toBeUndefined();
   });
 
+  it("null keeps, the same as not sent, for name, description and permissions", () => {
+    const r = updateRoleSchema.parse({
+      orgId: ORG,
+      roleId: ROLE,
+      name: null,
+      description: null,
+      permissions: null,
+    });
+    expect(r.name).toBeUndefined();
+    expect(r.description).toBeUndefined();
+    expect(r.permissions).toBeUndefined();
+  });
+
+  it("a value that is not null is still checked: a blank name or a bad list is refused", () => {
+    expect(updateRoleSchema.safeParse({ orgId: ORG, roleId: ROLE, name: "  " }).success).toBe(
+      false,
+    );
+    expect(updateRoleSchema.safeParse({ orgId: ORG, roleId: ROLE, permissions: "x" }).success).toBe(
+      false,
+    );
+    expect(
+      updateRoleSchema.safeParse({ orgId: ORG, roleId: ROLE, permissions: ["no.such"] }).success,
+    ).toBe(false);
+  });
+
   it("an empty permission list is a real list, not absent", () => {
     expect(
       updateRoleSchema.parse({ orgId: ORG, roleId: ROLE, permissions: [] }).permissions,
@@ -172,10 +197,44 @@ describe("readRoleInput", () => {
     });
   });
 
-  it("a form with no permission checked sends none: the list is absent, not empty", () => {
+  it("without the marker, a form with no permission checked sends no list: absent, which keeps", () => {
     const fd = new FormData();
     fd.append("name", "Bar");
     expect("permissions" in readRoleInput(fd)).toBe(false);
+    expect(
+      updateRoleSchema.parse({ ...readRoleInput(fd), orgId: ORG, roleId: ROLE }).permissions,
+    ).toBeUndefined();
+  });
+
+  it("with the permissions_submitted marker and no box checked, the permissions are []", () => {
+    const fd = new FormData();
+    fd.append("name", "Bar");
+    fd.append("permissions_submitted", "1");
+    expect(readRoleInput(fd)).toEqual({ name: "Bar", permissions: [] });
+    expect(
+      updateRoleSchema.parse({ ...readRoleInput(fd), orgId: ORG, roleId: ROLE }).permissions,
+    ).toEqual([]);
+  });
+
+  it("with the marker and boxes checked, exactly those; the marker itself is not passed on", () => {
+    const fd = new FormData();
+    fd.append("permissions_submitted", "1");
+    fd.append("permissions", "orders.view");
+    fd.append("permissions", "kitchen.view");
+    fd.append("permissions_submitted", "again");
+    expect(readRoleInput(fd)).toEqual({ permissions: ["orders.view", "kitchen.view"] });
+  });
+
+  it("the marker does not change plain objects: [] clears, absent or null keeps", () => {
+    expect(readRoleInput({ permissions_submitted: "1", name: "Bar" })).toEqual({
+      permissions_submitted: "1",
+      name: "Bar",
+    });
+    const parse = (o: object) =>
+      updateRoleSchema.parse({ orgId: ORG, roleId: ROLE, ...o }).permissions;
+    expect(parse({ permissions: [] })).toEqual([]);
+    expect(parse({})).toBeUndefined();
+    expect(parse({ permissions_submitted: "1" })).toBeUndefined();
   });
 
   it("files and non-objects are ignored", () => {
