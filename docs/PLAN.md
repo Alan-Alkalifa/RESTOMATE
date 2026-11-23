@@ -137,22 +137,22 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 
 **Database**
 - [x] **M0-BE-29 Privilege baseline.** _(ADIT)_ First migration: no default privileges for API roles or `PUBLIC` on new objects in `public`. Merges before M0-BE-05. *Done when:* a new table, view, sequence and function are unreachable until granted, from local and hosted starting defaults.
-- [ ] **M0-BE-05 Identity tables.** _(ADIT)_ `profiles` (synced from `auth.users`), `platform_admins` (service role only), `platform_settings` (deny by default), `audit_logs`. *Done when:* a client can't write admin, settings or audit rows.
-- [ ] **M0-BE-06 Tenancy tables.** _(ADIT)_ `organizations` (unique slug of 3–40 characters, status, currency, timezone), `reserved_slugs`, `locations` (address, timezone, currency, tax and service-charge bps, tax-on-service flag), `org_branding` (https-only logo URL). *Done when:* constraints and RLS are in place.
-- [ ] **M0-BE-07 Packages.** _(ADIT)_ `packages` (prices, trial days, limits, features, active, public, default) and `subscriptions`. *Done when:* one default package gives a new restaurant a trial.
-- [ ] **M0-BE-08 Roles.** _(ADIT)_ `permissions`, `default_role_permissions`, `roles`, `role_permissions`, `organization_members`, `location_staff`, seeded from §4.2.1. *Done when:* the five system roles match that table.
-- [ ] **M0-BE-09 Invitations.** _(ADIT)_ `staff_invitations` with SHA-256 token hash, capped expiry, accepted and revoked times, explicit all-locations flag. *Done when:* no raw token is stored.
-- [ ] **M0-BE-10 Helpers.** _(ADIT)_ `is_platform_admin`, `is_org_member`, `has_permission` (fails closed), `has_location_access`, `my_permissions`, `get_org_package`, `my_org_membership`, `private.org_limit`, `private.write_audit`. *Done when:* a suspended org or deactivated member gets no access.
-- [ ] **M0-BE-11 Guards.** _(ADIT)_ Triggers for plan limits (`PLAN_LIMIT:<key>`), last owner, system-role protection, no self-escalation, no member delete, `updated_at`, audit. *Done when:* each forbidden write fails in the database.
-- [ ] **M0-BE-12 RPCs.** _(ADIT)_ `is_slug_available`, `create_organization` (one transaction, per-user cap), `accept_invitation` (email must match), `set_member_locations` (atomic), `get_storefront`. *Done when:* a failure leaves no partial rows.
+- [x] **M0-BE-05 Identity tables.** _(ADIT)_ `profiles` (synced from `auth.users`), `platform_admins` (service role only), `platform_settings` (deny by default), `audit_logs`. *Done when:* a client can't write admin, settings or audit rows.
+- [x] **M0-BE-06 Tenancy tables.** _(ADIT)_ `organizations` (unique slug of 3–40 characters, status, currency, timezone), `reserved_slugs`, `locations` (address, timezone, currency, tax and service-charge bps, tax-on-service flag), `org_branding` (https-only logo URL). *Done when:* constraints and RLS are in place.
+- [x] **M0-BE-07 Packages.** _(ADIT)_ `packages` (prices, trial days, limits, features, active, public, default) and `subscriptions`. *Done when:* one default package gives a new restaurant a trial.
+- [x] **M0-BE-08 Roles.** _(ADIT)_ `permissions`, `default_role_permissions`, `roles`, `role_permissions`, `organization_members`, `location_staff`, seeded from §4.2.1. *Done when:* the five system roles match that table.
+- [x] **M0-BE-09 Invitations.** _(ADIT)_ `staff_invitations` with SHA-256 token hash, capped expiry, accepted and revoked times, explicit all-locations flag. *Done when:* no raw token is stored.
+- [x] **M0-BE-10 Helpers.** _(ADIT)_ `is_platform_admin`, `is_org_member`, `has_permission` (fails closed), `has_location_access`, `my_permissions`, `get_org_package`, `my_org_membership`, `private.org_limit`, `private.write_audit`. *Done when:* a suspended org or deactivated member gets no access.
+- [x] **M0-BE-11 Guards.** _(ADIT)_ Triggers for plan limits (`PLAN_LIMIT:<key>`), last owner, system-role protection, no self-escalation, no member delete, `updated_at`, audit. *Done when:* each forbidden write fails in the database.
+- [x] **M0-BE-12 RPCs.** _(ADIT)_ `is_slug_available`, `create_organization` (one transaction, per-user cap), `accept_invitation` (email must match), `set_member_locations` (atomic), `get_storefront`. *Done when:* a failure leaves no partial rows.
 - [ ] **M0-BE-13 Seeds and types.** _(ADIT)_ Local seed (three packages, Demo Restaurant with two locations, a second tenant, one user per role, platform admin), staging seed without users, `packages/db` generated types. *Done when:* a reset gives the same data each time.
 
 **App infrastructure**
-- [ ] **M0-BE-14 Clients and proxy.** _(CARLO)_ Supabase server, browser, proxy and server-only admin clients. `proxy.ts` resolves hosts, refreshes sessions, skips the DOKU webhook and serves Vercel preview hosts. *Done when:* an unknown host returns 404 and preview URLs open.
+- [x] **M0-BE-14 Clients and proxy.** _(CARLO)_ Supabase server, browser, proxy and server-only admin clients. `proxy.ts` resolves hosts, refreshes sessions, skips the DOKU webhook and serves Vercel preview hosts. *Done when:* an unknown host returns 404 and preview URLs open.
 - [ ] **M0-BE-15 Auth access layer.** _(CARLO)_ `getCurrentUser`, `requireUser`, `getMembership`, `getOrgContext`, `requirePermission`, `requirePlatformAdmin`, `hasFeature`. *Done when:* all server code has one way to check access.
-- [ ] **M0-BE-16 Abuse protection.** _(CARLO)_ Arcjet shield, bot detection, rate limits and a signup preset. *Done when:* repeated auth attempts are limited.
+- [x] **M0-BE-16 Abuse protection.** _(CARLO)_ Arcjet shield, bot detection, rate limits and a signup preset. *Done when:* repeated auth attempts are limited.
 - [x] **M0-BE-17 Analytics and errors.** _(CARLO)_ PostHog capture, typed events, org grouping, error tracking, allow-listed query parameters, masked tokens, autocapture and recording off. *Done when:* no token or personal field leaves the app.
-- [ ] **M0-BE-18 Email sender.** _(CARLO)_ Resend wrapper with one recipient, idempotency key, log mode locally, failures logged and retryable. *Done when:* a failed send can be retried without a duplicate.
+- [x] **M0-BE-18 Email sender.** _(CARLO)_ Resend wrapper with one recipient, idempotency key, log mode locally, failures logged and retryable. *Done when:* a failed send can be retried without a duplicate.
 - [x] **M0-BE-19 Money.** _(CARLO)_ Formatting (`Rp 25.000`), tax and service-charge calculation. *Done when:* rounding has unit tests.
 
 **Features**
@@ -796,6 +796,11 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-22 | M0-BE-17 merged after QA (PR #21). Error messages are never sent; event values, route words and query values are allow-lists (a new static route or event is added in `lib/analytics` first); no host means analytics is off. Accepted S4: a stack frame's file name under `_next/static` is sent as it is, as real ones are build hashes. Not proven: real PostHog ingestion and delivery on Vercel, Firefox and Safari. REYKI mounts it in `apps/web/instrumentation-client.ts` and measures the bundle (about 35 KB gzip) | ALAN, from CARLO's PR and DAVIN's QA |
 | 2026-11-22 | The Supabase stack needs about 6 GB of sandbox memory: it passed there and failed on 2 GB. M0-BE-03 merges only after DAVIN's full repeat. M0-BE-29 is stacked on it meanwhile and merges after it | ALAN, from ADIT's and DAVIN's runs |
 | 2026-11-23 | M0-BE-03 (PR #9) and M0-BE-29 (PR #24) merged after DAVIN's PASS on a 6 GB sandbox. "Healthy within 60 seconds" is measured from when `start` or `db reset` returns, not over the whole command, which takes 70 to 110 s when images are cached. `seed.sql` doesn't exist yet, so the CLI prints a "no files matched" notice; M0-BE-13 adds it. M0-BE-05 onward grant explicitly and minimally on every new object, and DAVIN pins the baseline in pgTAP in M0-QA-01 | ALAN, from DAVIN's QA |
+| 2026-11-23 | M0-BE-05 to 12, 14, 16 and 18 merged after DAVIN's QA (PRs #27-#37). QA findings rated S4 were routed into the next task that touches the same code instead of reopening merged PRs, and each is written into that task | ALAN |
+| 2026-11-23 | Stacked PRs: after the lower PR is squash-merged, the upper one is replayed onto main with `git rebase --onto origin/main <lower head>`, not by merging main in, and goes back to QA only when its own files changed | ALAN, from the #34/#36/#37/#38 conflicts |
+| 2026-11-23 | Supabase client deadlines (M0-BE-14/15): Auth calls 2.5 s, after which an Auth outage reads as "unavailable" (never "signed out"); database, storage and function calls 10 s per call, never aborting each other. Access-layer lookups use `'use cache: private'`, not shared `'use cache'`, because the database functions answer for the caller's JWT | ALAN, from DAVIN's outage tests and CARLO's design |
+| 2026-11-23 | Arcjet bot rule allows search engines, previews, Slack and social unfurlers, monitors and Vercel. Login per-IP limit is 60 per 15 min because a venue's devices share one IP; per-email limits stop guessing | ALAN |
+| 2026-11-23 | Generated database types are checked in CI (regenerate after reset, fail on diff) | ALAN, from DAVIN's #38 QA |
 
 ### Open
 
@@ -811,6 +816,9 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | E-Faktur for subscription invoices | M6-LD-01 |
 | PostHog project setting that discards client IPs is on (project owner) | Before M0's Frontend step mounts analytics |
 | Consent for analytics (legal, project owner) | Before public launch |
+| `all_locations` invitations copy today's locations at accept time, so later locations don't reach that member (likely an `all_locations` flag on `organization_members`) | M2 Plan, before locations can be created in the app |
+| Deleting a location removes it from invitation lists without an audit row | M2 Plan, with location management |
+| ADIT's sandbox can't run the local Supabase stack (memory); asked the project owner to raise it to 6 GB | Project owner |
 | Storefront analytics: a tenant's subdomain reaches PostHog in the `Origin` header (reverse proxy, or none on storefronts) | M4 Plan |
 
 ### `instant = false` opt-outs
