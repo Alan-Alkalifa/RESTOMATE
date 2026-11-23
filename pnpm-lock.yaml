@@ -190,6 +190,9 @@ importers:
       '@arcjet/next':
         specifier: ^1.16.0
         version: 1.16.0(next@16.4.6(@babel/core@7.29.13(supports-color@7.2.0))(@types/node@20.19.43)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))
+      '@restomate/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@supabase/ssr':
         specifier: ^0.12.7
         version: 0.12.7(@supabase/supabase-js@2.119.2)
