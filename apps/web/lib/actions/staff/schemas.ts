@@ -33,6 +33,22 @@ const locationIds = z.array(id("staff.locations.invalid")).max(200).default([]);
 
 export const orgIdSchema = id("staff.org.invalid");
 
+export const LIST_LIMIT_DEFAULT = 100;
+export const LIST_LIMIT_MAX = 200;
+export const listInvitationsSchema = z.object({
+  orgId: id("staff.org.invalid"),
+  // FormData sends a string. Out of range is refused, not clamped.
+  limit: z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : typeof v === "string" ? Number(v) : v),
+    z
+      .number({ error: "staff.field.invalid" })
+      .int({ error: "staff.field.invalid" })
+      .min(1, { error: "staff.field.invalid" })
+      .max(LIST_LIMIT_MAX, { error: "staff.field.invalid" })
+      .default(LIST_LIMIT_DEFAULT),
+  ),
+});
+
 export const inviteSchema = z
   .object({
     orgId: orgIdSchema,

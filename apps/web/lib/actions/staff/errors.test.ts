@@ -22,7 +22,10 @@ describe("staffErrorResult", () => {
       e('duplicate key value violates unique constraint "staff_invitations_one_open_idx"', "23505"),
       { code: "conflict", fieldErrors: { email: ["staff.invitation.exists"] } },
     ],
-    [e("ESCALATION_DENIED", "42501"), { code: "forbidden" }],
+    [
+      e("ESCALATION_DENIED", "42501"),
+      { code: "forbidden", fieldErrors: { form: ["staff.escalation_denied"] } },
+    ],
     [e("FORBIDDEN", "42501"), { code: "forbidden" }],
     [e("permission denied for table staff_invitations", "42501"), { code: "forbidden" }],
     [e("LAST_OWNER"), { code: "conflict", fieldErrors: { form: ["staff.member.last_owner"] } }],

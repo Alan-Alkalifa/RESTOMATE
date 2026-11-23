@@ -90,9 +90,6 @@ vi.mock("../../supabase/admin", () => ({
         },
         maybeSingle: async () => {
           world.order.push(`admin:${table}`);
-          if (table === "roles") {
-            return { data: world.roleName ? { name: world.roleName } : null, error: null };
-          }
           const inv = world.invitation;
           const hit = inv && inv.id === filters.id && inv.org_id === filters.org_id;
           return { data: hit ? inv : null, error: null };
@@ -104,16 +101,22 @@ vi.mock("../../supabase/admin", () => ({
 }));
 vi.mock("../../supabase/server", () => ({
   createClient: async () => {
-    const query = {
-      select: () => query,
-      eq: () => query,
-      maybeSingle: async () => {
-        world.order.push("member");
-        return world.member;
-      },
-    };
     return {
-      from: () => query,
+      from: (table: string) => {
+        const query = {
+          select: () => query,
+          eq: () => query,
+          maybeSingle: async () => {
+            if (table === "roles") {
+              world.order.push("user:roles");
+              return { data: world.roleName ? { name: world.roleName } : null, error: null };
+            }
+            world.order.push("member");
+            return world.member;
+          },
+        };
+        return query;
+      },
       rpc: async (fn: string, args: Record<string, unknown>) => {
         world.order.push(`rpc:${fn}`);
         world.calls.push({ fn, args });
@@ -207,7 +210,7 @@ describe("inviteStaff", () => {
       orgName: "Warung Sedap",
       roleName: "Cashier",
     });
-    expect(world.order).toEqual(["context", "rpc:create_staff_invitation", "admin:roles", "email"]);
+    expect(world.order).toEqual(["context", "rpc:create_staff_invitation", "user:roles", "email"]);
   });
 
   it("all locations sends no list; a list and all locations together is refused first", async () => {
@@ -244,7 +247,10 @@ describe("inviteStaff", () => {
   });
 
   it.each([
-    [dbError("ESCALATION_DENIED", "42501"), { code: "forbidden" }],
+    [
+      dbError("ESCALATION_DENIED", "42501"),
+      { code: "forbidden", fieldErrors: { form: ["staff.escalation_denied"] } },
+    ],
     [
       dbError("PLAN_LIMIT:staff"),
       { code: "feature_unavailable", fieldErrors: { form: ["staff.plan_limit.staff"] } },
@@ -388,7 +394,10 @@ describe("members", () => {
       dbError("LAST_OWNER"),
       { code: "conflict", fieldErrors: { form: ["staff.member.last_owner"] } },
     ],
-    [dbError("ESCALATION_DENIED", "42501"), { code: "forbidden" }],
+    [
+      dbError("ESCALATION_DENIED", "42501"),
+      { code: "forbidden", fieldErrors: { form: ["staff.escalation_denied"] } },
+    ],
     [
       dbError("PLAN_LIMIT:staff"),
       { code: "feature_unavailable", fieldErrors: { form: ["staff.plan_limit.staff"] } },
@@ -401,6 +410,34 @@ describe("members", () => {
     world.rpc.set_member_status = () => answer;
     expect(await deactivateMember(ref)).toEqual({ ok: false, error });
     expect(updated).toEqual([]);
+  });
+
+  it("your own row is refused with its own key, before the database is asked", async () => {
+    world.member = { data: { user_id: ME }, error: null };
+    const expected = {
+      ok: false,
+      error: { code: "forbidden", fieldErrors: { form: ["staff.member.self"] } },
+    };
+    expect(await changeMemberRole({ ...ref, roleId: ROLE })).toEqual(expected);
+    expect(await deactivateMember(ref)).toEqual(expected);
+    expect(await reactivateMember(ref)).toEqual(expected);
+    expect(world.calls).toEqual([]);
+    expect(updated).toEqual([]);
+  });
+
+  it("escalation, 'not allowed' and 'last owner' are three different answers to the screen", async () => {
+    const answers = [];
+    for (const message of ["ESCALATION_DENIED", "FORBIDDEN", "LAST_OWNER"]) {
+      world.rpc.change_member_role = () =>
+        dbError(message, message === "LAST_OWNER" ? "P0001" : "42501");
+      answers.push(await changeMemberRole({ ...ref, roleId: ROLE }));
+    }
+    expect(new Set(answers.map((a) => JSON.stringify(a))).size).toBe(3);
+    expect(answers.map((a) => (a.ok ? "" : a.error.code))).toEqual([
+      "forbidden",
+      "forbidden",
+      "conflict",
+    ]);
   });
 
   it("a member of another org is forbidden before the database is asked", async () => {
