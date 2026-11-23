@@ -24,3 +24,20 @@ export async function emailKey(scope: string, email: string, secret: string): Pr
   );
   return Array.from(new Uint8Array(mac), (b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+/**
+ * A rate-limit key for a user ID: HMAC-SHA256 (hex) of `<scope>:<id>`, keyed with a server
+ * secret, so Arcjet never sees the raw ID and one preset's count stays apart from another's.
+ */
+export async function userKey(scope: string, userId: string, secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, enc.encode(`${scope}:${userId}`));
+  return Array.from(new Uint8Array(mac), (b) => b.toString(16).padStart(2, "0")).join("");
+}

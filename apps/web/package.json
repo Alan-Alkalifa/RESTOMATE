@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@arcjet/next": "^1.16.0",
+    "@restomate/db": "workspace:*",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.2",
     "next": "16.4.6",
