@@ -3,8 +3,9 @@
 Invite people, manage their roles, locations and access. Result and code conventions are in
 [README.md](./README.md); how a page gets the org context is in [auth.md](./auth.md).
 
-> Status: written from PR #47 (M0-BE-22). Finish-check against the merged code before REYKI relies
-> on it.
+> Status: matches the merged code of PR #47 (M0-BE-22). `listInvitations` and the two keys
+> `staff.escalation_denied` / `staff.member.self` are in PR #50 (a follow-up to #47); they are part of
+> this contract and are final once #50 merges.
 
 Import from `@/lib/actions/staff/actions`; schemas from `@/lib/actions/staff/schemas` (safe in a
 client component). Server Actions. Input is a `FormData` or a plain object.
@@ -18,7 +19,8 @@ A Cashier calling any of them gets `forbidden` and nothing happens. The database
 own rules **as the caller** (second line):
 
 - You can only give a role whose permissions you hold, and only an Owner gives or takes the Owner role.
-- You can't change your own role or status.
+- You can't change your own role or status. The action refuses it first with
+  `forbidden` + `form: ["staff.member.self"]`.
 - A member whose role holds permissions you lack is out of reach (`forbidden`).
 - The last active Owner can't be changed or deactivated (`conflict`, `staff.member.last_owner`).
 
@@ -54,7 +56,8 @@ holds a staff slot of the package while it is open. There is at most one open in
 |---|---|---|
 | `validation` | the keys above | An input rule. |
 | `validation` | `email: ["staff.email.invalid"]` / `roleId: ["staff.role.invalid"]` / `locationIds: ["staff.locations.invalid"]` | The database refused it (a role outside the org, a location outside the org or out of the caller's reach). |
-| `forbidden` | none | No `staff.manage`, or **escalation**: a role or permission the caller lacks. |
+| `forbidden` | none | No `staff.manage`, or an id that isn't one of this org's. |
+| `forbidden` | `form: ["staff.escalation_denied"]` | **Escalation**: a role or permission the caller lacks (for example giving Owner as a non-Owner). Say "you can't give a role with permissions you don't have". |
 | `feature_unavailable` | `form: ["staff.plan_limit.staff"]` | The package's staff limit is full (open invitations count). |
 | `conflict` | `email: ["staff.invitation.exists"]` | An open invitation for this email exists. Offer Resend or Revoke. |
 | `conflict` | `form: ["staff.invitation.already_member"]` | The email belongs to an active member. |
@@ -117,9 +120,15 @@ and returns `{ subject, html, text }`.
 
 **Output:** `ok()`. Takes effect on that member's next request.
 
-**Errors:** `validation` (`staff.member.invalid`, `staff.role.invalid`), `forbidden` (no
-`staff.manage`; **your own row**; a member you can't act on; a role you can't give), `conflict`
-(`form: ["staff.member.last_owner"]`), plus the access errors.
+**Errors:** `validation` (`staff.member.invalid`, `staff.role.invalid`), `conflict`
+(`form: ["staff.member.last_owner"]`), plus the access errors, and three different `forbidden`
+answers the screen can tell apart:
+
+| `forbidden` with | Means |
+|---|---|
+| no `fieldErrors` | No `staff.manage`, or a member that isn't one of this org's. |
+| `form: ["staff.member.self"]` | It's your own row. Nobody changes their own role or status. |
+| `form: ["staff.escalation_denied"]` | A member whose role holds permissions you lack, or a role you can't give (an Owner is changed only by an Owner). |
 
 ### `deactivateMember({ orgId, memberId })`
 
@@ -128,8 +137,8 @@ the same transaction** (all devices, and their other orgs' sessions too); a toke
 works for up to an hour at the auth layer, but every request re-checks membership and a deactivated
 member is refused (`member_deactivated`).
 
-**Output:** `ok()`. **Errors:** as `changeMemberRole`, and `conflict`
-`form: ["staff.member.already_deactivated"]`. Never yourself, never the last Owner.
+**Output:** `ok()`. **Errors:** as `changeMemberRole` (your own row is `staff.member.self`), and
+`conflict` `form: ["staff.member.already_deactivated"]`. Never the last Owner.
 
 ### `reactivateMember({ orgId, memberId })`
 
@@ -147,8 +156,9 @@ Replaces the member's locations. The Owner and Manager reach every location rega
 | `locationIds` | uuid[] (may be empty, at most 200). `staff.locations.invalid` for a bad ID. |
 
 **Output:** `ok()`. **Errors:** `validation` (`locationIds: ["staff.locations.invalid"]` also when a
-location is outside the org or out of the caller's reach), `forbidden` (no `staff.manage`; your own
-row; a member you can't act on), plus the access errors.
+location is outside the org or out of the caller's reach), `forbidden` (no `staff.manage`, a member
+that isn't this org's, or a member you can't act on: always the plain `forbidden`, without a key),
+plus the access errors.
 
 ## Rate limits and caches
 
@@ -157,12 +167,51 @@ row; a member you can't act on), plus the access errors.
 - Cache tags refreshed (IDs only): for `acceptInvitation`, `user:<userId>:memberships` and
   `org:<orgId>:member:<userId>` of the caller; for `changeMemberRole`, `deactivateMember`,
   `reactivateMember` and `setMemberLocations`, the same two for the **member acted on**.
-- **Reading the lists.** The member list is readable by a manager through the user's own client
-  (RLS: a member sees their own row, `staff.manage` sees all of the org's). **Invitations are not
-  readable by the signed-in role at all** (no grant on `staff_invitations`), so the pending-invitation
-  list needs a server read. **OPEN: this contract does not define it yet** (see the PR for MF-T25); do
-  not build the invitations list until it does. A closed invitation can have **no role** (its role was
-  deleted afterwards): show it as "role deleted".
+- **Reading the member list:** a manager reads it through the user's own client (RLS: a member sees
+  their own row, `staff.manage` sees all of the org's). Roles are readable by every member (see
+  [roles.md](./roles.md)).
+- **Reading invitations:** use `listInvitations` below. The signed-in role has no read access to
+  `staff_invitations`.
+
+## `listInvitations({ orgId, limit? })`
+
+The org's invitations, for the staff screen's pending list.
+
+| Field | Type | Rules |
+|---|---|---|
+| `orgId` | uuid | `staff.org.invalid`. |
+| `limit` | integer, optional | 1 to 200, default 100. Out of range is `validation` (`limit: ["staff.field.invalid"]`), not clamped. |
+
+**Output:** `ok({ invitations: InvitationRow[] })`. Import the type from `@/lib/actions/staff/actions`.
+
+```ts
+type InvitationRow = {
+  id: string;
+  email: string;
+  roleId: string | null;       // null: a closed invitation whose role was deleted afterwards
+  roleName: string | null;     // null together with roleId; show "role deleted"
+  allLocations: boolean;
+  locationIds: string[];       // empty when allLocations is true
+  createdAt: string;           // ISO 8601
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  status: "open" | "expired" | "accepted" | "revoked";
+};
+```
+
+- **Order:** `open` (newest first), then `expired`, then `accepted` and `revoked` (newest first). At
+  most `limit` rows in all, so a long history is cut off at the end: closed rows are the first to go.
+- `expired` is an unaccepted, unrevoked invitation past its 7 days. It no longer holds a staff slot
+  and its link no longer works, **but it is still not closed**: it still blocks a new invitation to
+  the same email (`conflict`, `staff.invitation.exists`). So `open` **and** `expired` rows can be
+  **resent** (that revokes it and sends a fresh one) or **revoked**; only `accepted` and `revoked`
+  rows are final (`conflict`, `staff.invitation.closed`). For an `expired` row, **Resend** is the
+  right button.
+- The token and its hash are never in the result. The raw token only exists in the email.
+- **Errors:** `validation`, `forbidden` (no `staff.manage`), the access errors, and `unavailable`
+  when any read fails (never a partial list).
+- No cache tags are involved; refetch after an invite, resend, revoke or accept.
 
 ## Message keys
 
@@ -170,4 +219,5 @@ row; a member you can't act on), plus the access errors.
 `staff.role.invalid`, `staff.member.invalid`, `staff.invitation.invalid`, `staff.locations.invalid`,
 `staff.locations.required`, `staff.invitation.exists`, `staff.invitation.already_member`,
 `staff.invitation.email_mismatch`, `staff.invitation.closed`, `staff.member.last_owner`,
-`staff.member.already_active`, `staff.member.already_deactivated`, `staff.plan_limit.staff`.
+`staff.member.already_active`, `staff.member.already_deactivated`, `staff.member.self`,
+`staff.escalation_denied`, `staff.plan_limit.staff`.
