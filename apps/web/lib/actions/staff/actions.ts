@@ -20,6 +20,7 @@ import {
   fieldErrorsOf,
   inviteSchema,
   invitationRefSchema,
+  listInvitationsSchema,
   memberRefSchema,
   readInput,
   setLocationsSchema,
@@ -97,15 +98,18 @@ export async function setMemberLocations(input: unknown): Promise<ActionResult> 
 }
 
 /*
- * Reads with the service role, only AFTER the caller was authorized (`managerOf`): the staff
- * tables have no client read access for invitations and roles. They only look up what the action
- * needs (a role's name, an invitation's address) and always pin the org the caller manages.
+ * Reads of `staff_invitations` use the service role, only AFTER the caller was authorized
+ * (`managerOf`): that table has no client read access. They only look up what the action needs and
+ * always pin the org the caller manages. Roles are read as the user (RLS lets members read them).
  */
 
 type EmailOutcome = { invitationId: string; emailSent: boolean };
 
+/** A role's name, read as the user: members can read their org's roles (RLS). */
 async function roleName(orgId: string, roleId: string): Promise<string | null> {
-  const { data } = await createAdminClient()
+  const { data } = await (
+    await createClient()
+  )
     .from("roles")
     .select("name")
     .eq("org_id", orgId)
@@ -248,6 +252,9 @@ export async function revokeInvitation(input: unknown): Promise<ActionResult> {
   return ok();
 }
 
+/** Nobody changes their own role or status: answered here so the screen can say so. */
+const SELF = { form: ["staff.member.self"] };
+
 /** The user ID of a member of this org (the manager's own RLS view), or null. */
 async function memberUserId(orgId: string, memberId: string) {
   const supabase = await createClient();
@@ -272,6 +279,7 @@ export async function changeMemberRole(input: unknown): Promise<ActionResult> {
   const member = await memberUserId(orgId, memberId);
   if ("error" in member) return staffErrorResult(member.error);
   if (!member.userId) return fail("forbidden");
+  if (member.userId === manager.ctx.user.id) return fail("forbidden", SELF);
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("change_member_role", {
@@ -293,6 +301,7 @@ async function setStatus(input: unknown, status: "active" | "deactivated"): Prom
   const member = await memberUserId(orgId, memberId);
   if ("error" in member) return staffErrorResult(member.error);
   if (!member.userId) return fail("forbidden");
+  if (member.userId === manager.ctx.user.id) return fail("forbidden", SELF);
 
   const supabase = await createClient();
   const { data: userId, error } = await supabase.rpc("set_member_status", {
@@ -314,4 +323,121 @@ export async function deactivateMember(input: unknown): Promise<ActionResult> {
 /** Reactivate a deactivated member (takes a staff slot; never your own row). */
 export async function reactivateMember(input: unknown): Promise<ActionResult> {
   return setStatus(input, "active");
+}
+
+/*
+ * Listing invitations. The signed-in role has no read access to `staff_invitations`, so this is a
+ * server read: `staff.manage` first, then the service role, pinned to the caller's org, with an
+ * explicit column list. `token_hash` is never selected and nothing secret is returned.
+ */
+
+export type InvitationStatus = "open" | "expired" | "accepted" | "revoked";
+
+export type InvitationRow = {
+  id: string;
+  email: string;
+  /** Null on a closed invitation whose role was deleted afterwards. */
+  roleId: string | null;
+  roleName: string | null;
+  allLocations: boolean;
+  /** Empty when `allLocations` is true. */
+  locationIds: string[];
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  status: InvitationStatus;
+};
+
+const INVITATION_COLUMNS =
+  "id, email, role_id, all_locations, created_at, expires_at, accepted_at, revoked_at";
+
+function statusOf(
+  row: { accepted_at: string | null; revoked_at: string | null; expires_at: string },
+  now: number,
+): InvitationStatus {
+  if (row.accepted_at) return "accepted";
+  if (row.revoked_at) return "revoked";
+  return new Date(row.expires_at).getTime() > now ? "open" : "expired";
+}
+
+/**
+ * The org's invitations: open ones first (newest first), then expired ones, then accepted and
+ * revoked ones (newest first), at most `limit` rows (default 100, at most 200).
+ */
+export async function listInvitations(
+  input: unknown,
+): Promise<ActionResult<{ invitations: InvitationRow[] }>> {
+  const parsed = listInvitationsSchema.safeParse(readInput(input));
+  if (!parsed.success) return fail("validation", fieldErrorsOf(parsed.error));
+  const { orgId, limit } = parsed.data;
+
+  const manager = await managerOf(orgId);
+  if (!manager.ok) return manager.result;
+  const org = manager.ctx.org.id; // the verified org, never the caller's value from here on
+
+  const admin = createAdminClient();
+  const unclosed = await admin
+    .from("staff_invitations")
+    .select(INVITATION_COLUMNS)
+    .eq("org_id", org)
+    .is("accepted_at", null)
+    .is("revoked_at", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (unclosed.error) return fail("unavailable");
+
+  let rows = unclosed.data ?? [];
+  if (rows.length < limit) {
+    const closed = await admin
+      .from("staff_invitations")
+      .select(INVITATION_COLUMNS)
+      .eq("org_id", org)
+      .or("accepted_at.not.is.null,revoked_at.not.is.null")
+      .order("created_at", { ascending: false })
+      .limit(limit - rows.length);
+    if (closed.error) return fail("unavailable");
+    rows = [...rows, ...(closed.data ?? [])];
+  }
+  if (rows.length === 0) return ok({ invitations: [] });
+
+  const ids = rows.map((r) => r.id);
+  const roleIds = [...new Set(rows.map((r) => r.role_id).filter((r): r is string => r !== null))];
+  const [locations, roles] = await Promise.all([
+    admin
+      .from("staff_invitation_locations")
+      .select("invitation_id, location_id")
+      .eq("org_id", org)
+      .in("invitation_id", ids),
+    roleIds.length === 0
+      ? Promise.resolve({ data: [], error: null })
+      : (await createClient()).from("roles").select("id, name").eq("org_id", org).in("id", roleIds),
+  ]);
+  if (locations.error || roles.error) return fail("unavailable");
+
+  const locationsOf = new Map<string, string[]>();
+  for (const l of locations.data ?? []) {
+    locationsOf.set(l.invitation_id, [...(locationsOf.get(l.invitation_id) ?? []), l.location_id]);
+  }
+  const nameOf = new Map((roles.data ?? []).map((r) => [r.id, r.name]));
+
+  const now = Date.now();
+  const rank = { open: 0, expired: 1, accepted: 2, revoked: 2 } as const;
+  const invitations = rows
+    .map((r): InvitationRow => ({
+      id: r.id,
+      email: r.email,
+      roleId: r.role_id,
+      roleName: r.role_id ? (nameOf.get(r.role_id) ?? null) : null,
+      allLocations: r.all_locations,
+      locationIds: locationsOf.get(r.id) ?? [],
+      createdAt: r.created_at,
+      expiresAt: r.expires_at,
+      acceptedAt: r.accepted_at,
+      revokedAt: r.revoked_at,
+      status: statusOf(r, now),
+    }))
+    // A stable sort keeps the newest-first order inside each group.
+    .sort((a, b) => rank[a.status] - rank[b.status]);
+  return ok({ invitations });
 }

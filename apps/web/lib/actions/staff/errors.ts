@@ -22,7 +22,10 @@ export function staffErrorResult(error: DbError): ReturnType<typeof fail> {
       return fail("conflict", { form: ["staff.invitation.already_member"] });
     case "INVITATION_EXISTS":
       return fail("conflict", { email: ["staff.invitation.exists"] });
+    // Giving a role or permission the caller lacks, or acting on someone above them: still
+    // `forbidden`, but with a key so the screen can say why.
     case "ESCALATION_DENIED":
+      return fail("forbidden", { form: ["staff.escalation_denied"] });
     case "FORBIDDEN":
       return fail("forbidden");
     case "LAST_OWNER":
