@@ -128,10 +128,10 @@ select throws_ok($$select 1 from public.organization_members$$, '42501', null, '
 reset role;
 set local role authenticated;
 select throws_ok($$select 1 from public.permissions$$, '42501', null, 'authenticated: permissions');
-select throws_ok($$select 1 from public.roles$$, '42501', null, 'authenticated: roles');
-select throws_ok($$select 1 from public.role_permissions$$, '42501', null, 'authenticated: role_permissions');
+select is((select count(*)::int from public.roles), 0, 'authenticated without membership sees no roles rows (read policy, M0-BE-10)');
+select is((select count(*)::int from public.role_permissions), 0, 'authenticated without membership sees no role_permissions rows (read policy, M0-BE-10)');
 select throws_ok($$insert into public.organization_members (org_id, user_id, role_id) select org_id, user_id, role_id from public.organization_members$$, '42501', null, 'authenticated: members write');
-select throws_ok($$select 1 from public.location_staff$$, '42501', null, 'authenticated: location_staff');
+select is((select count(*)::int from public.location_staff), 0, 'authenticated without membership sees no location_staff rows (read policy, M0-BE-10)');
 select throws_ok($$select 1 from public.default_role_permissions$$, '42501', null, 'authenticated: default_role_permissions');
 reset role;
 
