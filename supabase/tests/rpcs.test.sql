@@ -2,7 +2,7 @@
 -- and the S4 hardening. RPCs are definer functions, so most cases run as postgres with auth.uid()
 -- set by the claims; grant cases switch roles.
 begin;
-select plan(146);
+select plan(155);
 
 -- Confirmed, as real sign-ups are: accept_invitation refuses callers whose email is unconfirmed.
 insert into auth.users (id, instance_id, aud, role, email, email_confirmed_at)
@@ -354,6 +354,23 @@ select pg_temp.invite('u13@example.test', 'tok-locs2', 'cashier');
 insert into public.staff_invitation_locations (invitation_id, location_id, org_id)
 select i.id, c.loc1, c.org from public.staff_invitations i, ctx c where i.token_hash = pg_temp.hash('tok-locs2');
 select lives_ok($$delete from public.staff_invitation_locations where invitation_id = (select id from public.staff_invitations where token_hash = pg_temp.hash('tok-locs2'))$$, 'an open invitation''s list can still be edited');
+select throws_ok($$insert into public.roles (org_id, name) select org, E'\tTabbed' from ctx$$, '23514', null, 'S4: a leading tab is refused');
+select throws_ok($$insert into public.roles (org_id, name) select org, E'\nNewline' from ctx$$, '23514', null, 'S4: a leading newline is refused');
+select throws_ok($$insert into public.roles (org_id, name) select org, E'\u00a0Nbsp' from ctx$$, '23514', null, 'S4: a leading no-break space is refused');
+select throws_ok($$insert into public.roles (org_id, name) select org, E'Trailing\t' from ctx$$, '23514', null, 'S4: a trailing tab is refused');
+select throws_ok($$insert into public.roles (org_id, name) select org, E'\u3000Wide' from ctx$$, '23514', null, 'S4: a leading ideographic space is refused');
+select lives_ok($$insert into public.roles (org_id, name) select org, 'Inner space ok' from ctx$$, 'whitespace inside a name is fine');
+
+-- Deleting a location that sits on a closed invitation's list cascades; a direct list-row delete stays refused
+insert into public.locations (org_id, name) select org, 'Temp' from ctx;
+select pg_temp.invite('u14@example.test', 'tok-temp', 'cashier');
+insert into public.staff_invitation_locations (invitation_id, location_id, org_id)
+select i.id, l.id, l.org_id from public.staff_invitations i, public.locations l where i.token_hash = pg_temp.hash('tok-temp') and l.name = 'Temp' and l.org_id = (select org from ctx);
+update public.staff_invitations set revoked_at = now() where token_hash = pg_temp.hash('tok-temp');
+select throws_ok($$delete from public.staff_invitation_locations where invitation_id = (select id from public.staff_invitations where token_hash = pg_temp.hash('tok-temp'))$$, '55000', null, 'a direct delete of a closed invitation''s list row is still refused');
+select lives_ok($$delete from public.locations where name = 'Temp' and org_id = (select org from ctx)$$, 'S2: a location on a closed invitation''s list can be deleted');
+select is((select count(*)::int from public.staff_invitation_locations il join public.staff_invitations i on i.id = il.invitation_id where i.token_hash = pg_temp.hash('tok-temp')), 0, 'and its list row went with it');
+
 select lives_ok($$delete from public.organizations where slug in ('warung-a', 'kedai-b', 'other-tenant')$$, 'deleting organizations still cascades through everything');
 
 select * from finish();

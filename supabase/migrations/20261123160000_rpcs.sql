@@ -45,10 +45,16 @@ begin
 end;
 $$;
 
--- Role names are unique ignoring case and padding, and stored trimmed.
+-- Role names are unique ignoring case, and carry no whitespace at either end. btrim only strips
+-- spaces, so the check names the whitespace classes itself: \s (space, tab, newline, ...) plus the
+-- common Unicode spaces (no-break space, en/em/thin spaces, zero-width space, line and paragraph
+-- separators, narrow no-break space, ideographic space, byte order mark).
 drop index public.roles_org_name_idx;
-create unique index roles_org_name_idx on public.roles (org_id, lower(btrim(name)));
-alter table public.roles add constraint roles_name_trimmed check (name = btrim(name));
+create unique index roles_org_name_idx on public.roles (org_id, lower(name));
+alter table public.roles add constraint roles_name_trimmed check (
+  name !~ '^[\s\u00a0\u2000-\u200b\u2028\u2029\u202f\u205f\u3000\ufeff]'
+  and name !~ '[\s\u00a0\u2000-\u200b\u2028\u2029\u202f\u205f\u3000\ufeff]$'
+);
 
 -- The server (service_role) updates only columns that may change, so no API role can move a row
 -- to another tenant (org_id) or rewrite a key, hash or owner. Definer functions run as postgres
@@ -199,7 +205,7 @@ end;
 $$;
 
 -- The location list of a closed invitation is frozen: no insert, update or delete (a cascade from a
--- deleted invitation or organization still works).
+-- deleted invitation, location or organization still works).
 create or replace function private.check_invitation_location()
 returns trigger
 language plpgsql
@@ -210,7 +216,10 @@ declare
 begin
   if tg_op = 'DELETE' then
     select * into v_inv from public.staff_invitations where id = old.invitation_id;
-    if found and (v_inv.accepted_at is not null or v_inv.revoked_at is not null) then
+    -- A location that is itself being deleted takes its list rows with it (the foreign key cascade),
+    -- even on a closed invitation; deleting just a list row of a closed invitation stays refused.
+    if found and (v_inv.accepted_at is not null or v_inv.revoked_at is not null)
+       and exists (select 1 from public.locations l where l.id = old.location_id) then
       raise exception 'closed invitations cannot be changed' using errcode = '55000';
     end if;
     return old;
