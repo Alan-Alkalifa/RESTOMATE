@@ -252,6 +252,78 @@ describe("createOrganization", () => {
     expect(world.order).toEqual([]);
   });
 
+  it.each([
+    ["taxBps", "abc"],
+    ["taxBps", "-1"],
+    ["taxBps", -1],
+    ["taxBps", "10001"],
+    ["taxBps", 10001],
+    ["taxBps", "1.5"],
+    ["taxBps", 1.5],
+    ["taxBps", "1e9"],
+    ["serviceChargeBps", "abc"],
+    ["serviceChargeBps", "-5"],
+    ["serviceChargeBps", 2.5],
+    ["serviceChargeBps", 10001],
+    ["serviceChargeBps", "NaN"],
+    ["serviceChargeBps", "Infinity"],
+  ])("a bad rate (%s = %j) has its own key, never the generic one", async (field, value) => {
+    expect(await createOrganization({ name: "Kopi", slug: "kopi", [field]: value })).toEqual({
+      ok: false,
+      error: { code: "validation", fieldErrors: { [field]: ["org.bps.invalid"] } },
+    });
+    expect(world.calls).toEqual([]);
+  });
+
+  it.each([0, "0", 10000, "10000", 1100, "1100", "", null])(
+    "accepts the rate %j",
+    async (value) => {
+      world.rpc.create_organization = () => ({
+        data: [{ new_org_id: ORG, new_org_slug: "kopi" }],
+        error: null,
+      });
+      expect((await createOrganization({ name: "Kopi", slug: "kopi", taxBps: value })).ok).toBe(
+        true,
+      );
+    },
+  );
+
+  it("long names and addresses have their own keys", async () => {
+    expect(
+      await createOrganization({
+        name: "x".repeat(121),
+        slug: "kopi",
+        locationName: "y".repeat(121),
+        address: "z".repeat(501),
+      }),
+    ).toEqual({
+      ok: false,
+      error: {
+        code: "validation",
+        fieldErrors: {
+          name: ["org.name.too_long"],
+          locationName: ["org.location_name.too_long"],
+          address: ["org.address.too_long"],
+        },
+      },
+    });
+    // Exactly at the limits is fine.
+    world.rpc.create_organization = () => ({
+      data: [{ new_org_id: ORG, new_org_slug: "kopi" }],
+      error: null,
+    });
+    expect(
+      (
+        await createOrganization({
+          name: "x".repeat(120),
+          slug: "kopi",
+          locationName: "y".repeat(120),
+          address: "z".repeat(500),
+        })
+      ).ok,
+    ).toBe(true);
+  });
+
   it.each(["US/Eastern", "Etc/GMT-7", "EST5EDT", "Asia/Nowhere", "posix/Asia/Jakarta"])(
     "refuses the timezone %j as the database does",
     async (timezone) => {
