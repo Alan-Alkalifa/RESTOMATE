@@ -18,7 +18,12 @@ function isWebhook(pathname: string): boolean {
 }
 
 export async function proxy(request: NextRequest) {
-  if (isWebhook(request.nextUrl.pathname)) return NextResponse.next();
+  if (isWebhook(request.nextUrl.pathname)) {
+    // No host check, Arcjet or session refresh, but a client-sent tenant header never reaches it.
+    const headers = new Headers(request.headers);
+    headers.delete(TENANT_HEADER);
+    return NextResponse.next({ request: { headers } });
+  }
 
   // `process.env.X` is read here at request time (a Vercel system variable is not a Next
   // public variable), and the host comes from the request, which Vercel sets.

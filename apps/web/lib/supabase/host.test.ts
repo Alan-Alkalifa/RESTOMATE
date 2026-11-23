@@ -29,6 +29,9 @@ describe("resolveHost", () => {
     "-bad.restomate.app",
     "bad-.restomate.app",
     "x_y.restomate.app",
+    "xn--abc.restomate.app",
+    "a--b.restomate.app",
+    "my--cafe.restomate.app",
     `${"a".repeat(41)}.restomate.app`,
     "",
   ])("returns unknown for %j", (host) => {

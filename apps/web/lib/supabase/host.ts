@@ -21,7 +21,9 @@ export type HostConfig = {
 
 const PREVIEW_HOST =
   /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.vercel\.app$/;
-const SLUG = /^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])$/;
+// 3-40 characters, no leading or trailing hyphen, and no "--" (the database forbids it; this also
+// keeps punycode labels such as "xn--abc" from resolving as a tenant).
+const SLUG = /^(?!.*--)[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])$/;
 
 const lower = (v: string | undefined) => v?.trim().toLowerCase() || undefined;
 

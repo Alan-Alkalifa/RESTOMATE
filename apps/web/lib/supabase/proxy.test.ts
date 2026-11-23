@@ -43,6 +43,14 @@ describe("proxy", () => {
     expect(app.headers.get("x-middleware-request-x-restomate-tenant")).toBeNull();
   });
 
+  it("strips a client-sent tenant header on the webhook path too", async () => {
+    const res = await proxy(
+      req(`https://app.restomate.app${DOKU_WEBHOOK_PATH}`, { [TENANT_HEADER]: "victim" }),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get(`x-middleware-request-${TENANT_HEADER}`)).toBeNull();
+  });
+
   it("passes the DOKU webhook through, even on an unknown host", async () => {
     const res = await proxy(req(`https://other.example${DOKU_WEBHOOK_PATH}`));
     expect(res.status).toBe(200);
