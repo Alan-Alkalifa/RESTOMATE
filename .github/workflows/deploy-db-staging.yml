@@ -72,8 +72,18 @@ jobs:
         env:
           COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
-          fetched=true
-          git fetch --no-tags origin main || fetched=false
+          # Up to 3 tries: GitHub can answer a fetch with a transient error (an HTTP 403 was seen once).
+          fetched=false
+          for attempt in 1 2 3; do
+            if git fetch --no-tags origin main; then
+              fetched=true
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::Fetching main failed (try ${attempt} of 3). Retrying in 5 seconds."
+              sleep 5
+            fi
+          done
           if [ "$fetched" != true ] || ! tip="$(git rev-parse --verify --quiet refs/remotes/origin/main)"; then
             echo "::error::Could not read the tip of main."
             exit 1
@@ -92,21 +102,38 @@ jobs:
             echo "::error::The repository secret SUPABASE_STAGING_DB_URL is not set. Add it (docs/STAGING.md, One-time setup) and re-run."
             exit 1
           fi
-          # The whole string, and each part on its own (as written and URL-decoded): password, host,
+          # Validate first, before anything echoes the value: a newline or quote in it would otherwise
+          # reach the log ahead of its mask. Nothing is stripped: fix a bad value in the secret. Then mask
+          # the whole string, and each part on its own (as written and URL-decoded): password, host,
           # user and the project ref (the user is postgres.<ref> with the pooler), so a log line that
-          # carries only one of them is masked too.
-          echo "::add-mask::$SUPABASE_STAGING_DB_URL"
+          # carries only one of them is masked too. Errors never print the value.
           python3 - <<'PY'
-          import os, urllib.parse
-          u = urllib.parse.urlsplit(os.environ["SUPABASE_STAGING_DB_URL"])
-          parts = {u.password, u.hostname}
-          user = urllib.parse.unquote(u.username or "")
+          import os, re, sys, urllib.parse
+          v = os.environ["SUPABASE_STAGING_DB_URL"]
+          def fail(why):
+              print("::error::SUPABASE_STAGING_DB_URL must be a postgresql:// URI (docs/STAGING.md): " + why)
+              sys.exit(1)
+          if not re.fullmatch(r"postgres(ql)?://[^\s'\"]+", v):
+              fail("it must start with postgresql:// (or postgres://) and contain no whitespace or quotes")
+          try:
+              u = urllib.parse.urlsplit(v)
+              host = u.hostname
+              u.port  # raises on a non-numeric or out-of-range port
+          except ValueError:
+              fail("it could not be parsed (check the host and port)")
+          if not host:
+              fail("it has no host")
+          if not u.username:
+              fail("it has no user")
+          if not u.path.lstrip("/"):
+              fail("it has no database name (path)")
+          parts = {v, u.password, host}
+          user = urllib.parse.unquote(u.username)
           if user != "postgres":  # the bare default would garble every log line
               parts.update({u.username, user})
           parts.add(urllib.parse.unquote(u.password or ""))
           if "." in user:
               parts.add(user.split(".", 1)[1])  # project ref
-          host = u.hostname or ""
           # The host as written in the netloc too (hostname is lower-cased), without the port.
           raw_host = u.netloc.rpartition("@")[2]
           if raw_host.startswith("["):
@@ -119,28 +146,6 @@ jobs:
           for value in parts:
               if value:
                   print("::add-mask::" + value)
-          PY
-          # Validate the format (after masking, never printing the value). Nothing is stripped: a quote,
-          # space or newline in the secret is an error to fix in the secret, not here.
-          python3 - <<'PY'
-          import os, re, sys, urllib.parse
-          v = os.environ["SUPABASE_STAGING_DB_URL"]
-          def fail(why):
-              print("::error::SUPABASE_STAGING_DB_URL must be a postgresql:// URI (docs/STAGING.md): " + why)
-              sys.exit(1)
-          if not re.fullmatch(r"postgres(ql)?://[^\s'\"]+", v):
-              fail("it must start with postgresql:// (or postgres://) and contain no whitespace or quotes")
-          try:
-              u = urllib.parse.urlsplit(v)
-              host = u.hostname
-          except ValueError:
-              fail("it could not be parsed as a URI")
-          if not host:
-              fail("it has no host")
-          if not u.username:
-              fail("it has no user")
-          if not u.path.lstrip("/"):
-              fail("it has no database name (path)")
           PY
 
       # Read-only: if staging already has a migration this commit does not, a newer deploy ran first.
