@@ -141,6 +141,60 @@ describe.each(["passwordReset", "resendConfirmation"] as const)("%s", (preset) =
   });
 });
 
+describe("email input", () => {
+  const PRESETS = ["login", "signup", "passwordReset", "resendConfirmation"] as const;
+
+  it.each(PRESETS)("%s rejects a non-string email without calling Arcjet", async (preset) => {
+    for (const bad of [123, {}, [], ["a@b.co"], null, true]) {
+      const r = await protectAuth(preset, {
+        email: bad as never,
+        request: req("13.0.0.1") as never,
+      });
+      expect(r).toEqual({ allowed: false, reason: "email_rejected" });
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it.each(["", "   ", "\t\n"])(
+    "signup rejects a blank email (%j) without calling Arcjet",
+    async (blank) => {
+      expect(await call("signup", "13.0.0.2", blank)).toEqual({
+        allowed: false,
+        reason: "email_rejected",
+      });
+      expect(await call("signup", "13.0.0.2", undefined)).toEqual({
+        allowed: false,
+        reason: "email_rejected",
+      });
+      expect(calls).toHaveLength(0);
+    },
+  );
+
+  it.each(["login", "passwordReset", "resendConfirmation"] as const)(
+    "%s with no or blank email is limited by IP only",
+    async (preset) => {
+      const max = AUTH_LIMITS[preset].ip.max;
+      expect((await call(preset, "13.0.0.3", undefined)).allowed).toBe(true);
+      expect((await call(preset, "13.0.0.3", "  ")).allowed).toBe(true);
+      expect(Object.keys(calls[0].props)).toEqual([]);
+      for (let i = 0; i < max; i++) await call(preset, "13.0.0.3", undefined);
+      expect(await call(preset, "13.0.0.3", undefined)).toEqual({
+        allowed: false,
+        reason: "rate_limited",
+      });
+    },
+  );
+
+  it("rejects a bad email even when Arcjet is not configured", async () => {
+    vi.stubEnv("ARCJET_KEY", "");
+    resetArcjetForTests();
+    expect(await call("signup", "13.0.0.4", " ")).toEqual({
+      allowed: false,
+      reason: "email_rejected",
+    });
+  });
+});
+
 describe("no personal value leaves", () => {
   it("passes a keyed hash, never the address, as the rate-limit key", async () => {
     await call("login", "10.0.0.1", "Secret.Person@Example.com");

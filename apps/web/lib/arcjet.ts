@@ -12,12 +12,15 @@ import { getArcjetEnv } from "./env";
  * Logs carry a code and a preset or surface name, never a value.
  */
 
-/** Bots that may still reach the site: search engines, link previews, uptime monitors, Vercel. */
+/** Bots that may still reach the site: search engines, link previews, chat and social unfurlers, uptime monitors, Vercel. */
 export const ALLOWED_BOTS = [
   "CATEGORY:SEARCH_ENGINE",
   "CATEGORY:PREVIEW",
   "CATEGORY:MONITOR",
   "CATEGORY:VERCEL",
+  // Links shared in Slack, Discord, Bluesky and the like must unfurl; those crawlers only GET.
+  "CATEGORY:SLACK",
+  "CATEGORY:SOCIAL",
 ] as const;
 
 export type Surface = "app" | "tenant";

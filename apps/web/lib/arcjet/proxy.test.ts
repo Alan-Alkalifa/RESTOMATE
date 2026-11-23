@@ -33,7 +33,13 @@ describe("proxy abuse protection", () => {
   });
 
   it("lets search engines, link previews and people through", async () => {
-    for (const bot of ["CATEGORY:SEARCH_ENGINE", "CATEGORY:PREVIEW", undefined]) {
+    for (const bot of [
+      "CATEGORY:SEARCH_ENGINE",
+      "CATEGORY:PREVIEW",
+      "CATEGORY:SLACK",
+      "CATEGORY:SOCIAL",
+      undefined,
+    ]) {
       expect((await proxy(req("https://restomate.app/", bot))).status).toBe(200);
     }
   });

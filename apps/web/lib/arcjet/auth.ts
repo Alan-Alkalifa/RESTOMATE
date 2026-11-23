@@ -55,18 +55,32 @@ export function resetAuthClientsForTests() {
  * `email` is whatever the user typed; pass it when the form has one. `request` is for tests and
  * route handlers; a Server Action leaves it out and the request is read from Next.
  * Fails open, with a logged code, when Arcjet is missing or errors.
+ *
+ * The email is checked before Arcjet is called, so this holds with or without a key: a value that
+ * is not a string is rejected, and so is a blank one on signup. On the other presets an absent or
+ * blank email just means the per-IP limit alone.
  */
 export async function protectAuth(
   preset: AuthPreset,
   input: { email?: string; request?: Parameters<Client["protect"]>[0] } = {},
 ): Promise<AuthProtection> {
+  const raw: unknown = input.email;
+  if (raw !== undefined && typeof raw !== "string") {
+    logDecision("arcjet_denied_email_rejected", preset);
+    return { allowed: false, reason: "email_rejected" };
+  }
+  if (preset === "signup" && (raw === undefined || raw.trim() === "")) {
+    logDecision("arcjet_denied_email_rejected", preset);
+    return { allowed: false, reason: "email_rejected" };
+  }
+
   const base = getArcjet();
   if (!base) {
     logDecision("arcjet_unconfigured", preset);
     return { allowed: true };
   }
   try {
-    const email = input.email ? normalizeEmail(input.email) : "";
+    const email = typeof raw === "string" ? normalizeEmail(raw) : "";
     const withEmail = email !== "";
     const id = `${preset}:${withEmail}`;
     let client = clients.get(id);
