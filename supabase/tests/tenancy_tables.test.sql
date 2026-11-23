@@ -11,7 +11,7 @@ insert into public.organizations (name, slug) values ('Demo', 'demo-resto');
 -- Fixture: plan limits are enforced by the M0-BE-11 guards, so test orgs get an unlimited package.
 insert into public.packages (key, name) values ('test_unlimited', 'Unlimited (test)');
 insert into public.subscriptions (org_id, package_id, status)
-select o.id, (select id from public.packages where key = 'test_unlimited'), 'active' from public.organizations o;
+select o.id, (select id from public.packages where key = 'test_unlimited'), 'active' from public.organizations o where o.slug in ('demo-resto');
 select is((select currency || timezone || status from public.organizations where slug = 'demo-resto'), 'IDRAsia/Jakartaactive', 'defaults');
 select throws_ok($$insert into public.organizations (name, slug) values ('x','ab')$$, '23514', null, 'slug too short');
 select lives_ok($$insert into public.organizations (name, slug) values ('x','abc')$$, '3 chars ok');
@@ -42,7 +42,7 @@ select lives_ok($$insert into public.organizations (name, slug, timezone) values
 
 -- Locations
 insert into public.locations (org_id, name) select id, 'Main' from public.organizations where slug = 'demo-resto';
-select is((select tax_bps from public.locations), 0, 'location tax defaults to 0');
+select is((select l.tax_bps from public.locations l join public.organizations o on o.id = l.org_id where o.slug = 'demo-resto'), 0, 'location tax defaults to 0');
 select lives_ok($$update public.locations set tax_bps = 10000, service_charge_bps = 10000$$, '100% is the upper bound');
 select throws_ok($$update public.locations set tax_bps = 10001$$, '23514', null, 'tax over 10000 bps');
 select throws_ok($$update public.locations set tax_bps = -1$$, '23514', null, 'negative tax');

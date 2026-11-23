@@ -26,7 +26,7 @@ select
 update public.packages set max_locations = 10, max_staff = 10, max_tables = 20 where is_default;
 insert into public.subscriptions (org_id, package_id, status, trial_ends_at, current_period_end)
 select id, (select id from public.packages where is_default), 'trialing', now() + interval '14 days', now() + interval '14 days'
-from public.organizations;
+from public.organizations where slug in ('org-one', 'org-two', 'org-three');
 insert into public.locations (org_id, name) select o1, 'A' from ctx union all select o1, 'B' from ctx union all select o2, 'C' from ctx union all select o3, 'D' from ctx;
 insert into public.org_branding (org_id) select o1 from ctx union all select o2 from ctx;
 

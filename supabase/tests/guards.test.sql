@@ -1,6 +1,6 @@
 -- M0-BE-11: each forbidden write fails in the database.
 begin;
-select plan(95);
+select plan(96);
 
 insert into auth.users (id, instance_id, aud, role, email)
 select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid,
@@ -13,7 +13,7 @@ insert into public.organizations (name, slug) values
   ('Limited', 'lim-org'), ('Limited two', 'lim2-org'), ('Free', 'free-org'), ('No subscription', 'nosub-org');
 insert into public.subscriptions (org_id, package_id, status)
 select o.id, (select id from public.packages where key = case when o.slug = 'free-org' then 'unl' else 'lim' end), 'active'
-from public.organizations o where o.slug <> 'nosub-org';
+from public.organizations o where o.slug in ('lim-org', 'lim2-org', 'free-org');
 
 create temp table ctx on commit drop as
 select
@@ -75,8 +75,9 @@ select throws_ok($$update public.organization_members set status = 'active', dea
 select lives_ok($$update public.organization_members set status = 'deactivated', deactivated_at = now() where user_id = '00000000-0000-0000-0000-000000000004'$$, 'deactivate again');
 select lives_ok($$select pg_temp.invite((select lim from ctx), 'one@example.test', 'cashier')$$, 'an invitation takes the third slot');
 select throws_ok($$select pg_temp.invite((select lim from ctx), 'two@example.test', 'cashier')$$, 'P0001', 'PLAN_LIMIT:staff', 'a second invitation is refused: members + open invitations');
-select lives_ok($$select pg_temp.add_member((select lim from ctx), 5, 'waiter')$$, 'accepting counts members only, so the invited slot is not counted twice');
+select throws_ok($$select pg_temp.add_member((select lim from ctx), 5, 'waiter')$$, 'P0001', 'PLAN_LIMIT:staff', 'a direct add is refused while an open invitation holds the last slot (M0-BE-13)');
 select lives_ok($$update public.staff_invitations set revoked_at = now() where email = 'one@example.test'$$, 'revoke');
+select lives_ok($$select pg_temp.add_member((select lim from ctx), 5, 'waiter')$$, 'with the invitation revoked the slot is free');
 
 -- expired and revoked invitations don't hold a slot
 select lives_ok($$select pg_temp.add_member((select lim2 from ctx), 1, 'owner')$$, 'lim2: staff 1');
@@ -226,7 +227,7 @@ select is((select actor_id from public.audit_logs where action = 'member.created
 insert into public.location_staff (member_id, location_id, org_id)
 select m.id, l.id, m.org_id from public.organization_members m join public.locations l on l.org_id = m.org_id
 where m.org_id = (select lim from ctx) and m.user_id = '00000000-0000-0000-0000-000000000001' limit 1;
-select ok((select count(*) from public.audit_logs where action = 'location_staff.created') = 1, 'location staff changes are audited');
+select ok((select count(*) from public.audit_logs where action = 'location_staff.created' and org_id = (select lim from ctx)) = 1, 'location staff changes are audited');
 select lives_ok($$delete from public.organizations where slug = 'lim2-org'$$, 'deleting an org cascades through members and audit triggers');
 select is((select count(*)::int from public.organization_members where org_id not in (select id from public.organizations)), 0, 'no orphan members');
 
