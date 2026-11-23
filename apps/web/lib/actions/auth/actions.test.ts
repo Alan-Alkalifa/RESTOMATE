@@ -219,6 +219,17 @@ describe("signup", () => {
     expect(await signup(input)).toEqual({ ok: true, data: { status: "confirmation_sent" } });
   });
 
+  it.each(["user_already_exists", "email_exists"])(
+    "answers exactly as for a new address when the confirmed account exists (%s)",
+    async (code) => {
+      const fresh = await signup(input);
+      world.auth.signUp = () => authError(code, 422);
+      const existing = await signup(input);
+      expect(existing).toEqual({ ok: true, data: { status: "confirmation_sent" } });
+      expect(JSON.stringify(existing)).toBe(JSON.stringify(fresh)); // byte for byte the same
+    },
+  );
+
   it("maps Arcjet's email refusal (disposable address) to a validation key", async () => {
     world.protect = { allowed: false, reason: "email_rejected" };
     expect(await signup(input)).toEqual({

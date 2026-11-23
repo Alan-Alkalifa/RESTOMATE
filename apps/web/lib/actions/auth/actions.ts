@@ -86,10 +86,19 @@ export async function signup(
     }),
   );
   if (outcome.status !== "done") return fail("unavailable");
-  if (outcome.value.error) return authErrorResult(outcome.value.error);
+  const { error } = outcome.value;
+  // An address that already has a confirmed account must look exactly like a new one (QA S2):
+  // the same `ok`, nothing else in the response, so the form can't tell who has an account.
+  if (error && ACCOUNT_EXISTS.has(String((error as { code?: unknown }).code))) {
+    return ok({ status: "confirmation_sent" as const });
+  }
+  if (error) return authErrorResult(error);
   if (outcome.value.data.session) redirect(destination);
   return ok({ status: "confirmation_sent" as const });
 }
+
+/** GoTrue's codes for "this address is already registered" (the name changed between versions). */
+const ACCOUNT_EXISTS = new Set(["user_already_exists", "email_exists"]);
 
 /**
  * Send a password-reset email. The answer does not say whether the address has an account:
