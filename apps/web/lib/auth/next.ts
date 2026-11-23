@@ -9,7 +9,6 @@ export const DEFAULT_AFTER_LOGIN = "/app";
 export function safeNextPath(raw: unknown, fallback: string = DEFAULT_AFTER_LOGIN): string {
   if (typeof raw !== "string" || raw.length === 0 || raw.length > 512) return fallback;
   if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return fallback;
-  // eslint-disable-next-line no-control-regex
   if (/[\\\u0000-\u001f\u007f]/.test(raw)) return fallback;
   let decoded: string;
   try {

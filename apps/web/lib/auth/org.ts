@@ -106,8 +106,18 @@ export async function getMembership(userId: string, ref: OrgRef): Promise<Member
   if (!row) return { ok: false, reason: "no_membership" };
   if (row.org_status !== "active") return { ok: false, reason: "org_suspended" };
   if (row.member_status !== "active") return { ok: false, reason: "member_deactivated" };
-  const { org_status: _s, member_status: _m, ...membership } = row;
-  return { ok: true, membership };
+  return {
+    ok: true,
+    membership: {
+      org_id: row.org_id,
+      org_slug: row.org_slug,
+      org_name: row.org_name,
+      member_id: row.member_id,
+      role_id: row.role_id,
+      role_key: row.role_key,
+      role_name: row.role_name,
+    },
+  };
 }
 
 export type OrgContext = {
