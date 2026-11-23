@@ -145,23 +145,26 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [x] **M0-BE-10 Helpers.** _(ADIT)_ `is_platform_admin`, `is_org_member`, `has_permission` (fails closed), `has_location_access`, `my_permissions`, `get_org_package`, `my_org_membership`, `private.org_limit`, `private.write_audit`. *Done when:* a suspended org or deactivated member gets no access.
 - [x] **M0-BE-11 Guards.** _(ADIT)_ Triggers for plan limits (`PLAN_LIMIT:<key>`), last owner, system-role protection, no self-escalation, no member delete, `updated_at`, audit. *Done when:* each forbidden write fails in the database.
 - [x] **M0-BE-12 RPCs.** _(ADIT)_ `is_slug_available`, `create_organization` (one transaction, per-user cap), `accept_invitation` (email must match), `set_member_locations` (atomic), `get_storefront`. *Done when:* a failure leaves no partial rows.
-- [ ] **M0-BE-13 Seeds and types.** _(ADIT)_ Local seed (three packages, Demo Restaurant with two locations, a second tenant, one user per role, platform admin), staging seed without users, `packages/db` generated types. *Done when:* a reset gives the same data each time.
+- [x] **M0-BE-13 Seeds and types.** _(ADIT)_ Local seed (three packages, Demo Restaurant with two locations, a second tenant, one user per role, platform admin), staging seed without users, `packages/db` generated types. *Done when:* a reset gives the same data each time.
 
 **App infrastructure**
 - [x] **M0-BE-14 Clients and proxy.** _(CARLO)_ Supabase server, browser, proxy and server-only admin clients. `proxy.ts` resolves hosts, refreshes sessions, skips the DOKU webhook and serves Vercel preview hosts. *Done when:* an unknown host returns 404 and preview URLs open.
-- [ ] **M0-BE-15 Auth access layer.** _(CARLO)_ `getCurrentUser`, `requireUser`, `getMembership`, `getOrgContext`, `requirePermission`, `requirePlatformAdmin`, `hasFeature`. *Done when:* all server code has one way to check access.
+- [x] **M0-BE-15 Auth access layer.** _(CARLO)_ `getCurrentUser`, `requireUser`, `getMembership`, `getOrgContext`, `requirePermission`, `requirePlatformAdmin`, `hasFeature`. *Done when:* all server code has one way to check access.
 - [x] **M0-BE-16 Abuse protection.** _(CARLO)_ Arcjet shield, bot detection, rate limits and a signup preset. *Done when:* repeated auth attempts are limited.
 - [x] **M0-BE-17 Analytics and errors.** _(CARLO)_ PostHog capture, typed events, org grouping, error tracking, allow-listed query parameters, masked tokens, autocapture and recording off. *Done when:* no token or personal field leaves the app.
 - [x] **M0-BE-18 Email sender.** _(CARLO)_ Resend wrapper with one recipient, idempotency key, log mode locally, failures logged and retryable. *Done when:* a failed send can be retried without a duplicate.
 - [x] **M0-BE-19 Money.** _(CARLO)_ Formatting (`Rp 25.000`), tax and service-charge calculation. *Done when:* rounding has unit tests.
 
 **Features**
-- [ ] **M0-BE-20 Auth actions.** _(CARLO)_ Login, signup, confirm by token hash, forgot and reset password, sign out, safe `next` redirect. *Done when:* all return one `ActionResult` shape and signed-in users skip the auth pages.
-- [ ] **M0-BE-21 Create restaurant.** _(CARLO)_ Slug check and create action on the RPC. *Done when:* the user lands in their organization as Owner.
-- [ ] **M0-BE-22 Staff actions.** _(CARLO)_ Invite, resend, revoke, accept, change role, set locations, deactivate with sign-out everywhere. *Done when:* every action is permission-checked and audited.
-- [ ] **M0-BE-23 Custom roles.** _(CARLO)_ Create, edit and delete roles from the permission list, gated by package. *Done when:* nobody can grant a permission they lack.
-- [ ] **M0-BE-24 Staging delivery.** _(ADIT)_ The database deploy workflow described in `STAGING.md`. *Done when:* the workflow's dry run passes. It applies only after merge.
-- [ ] **M0-BE-25 Contracts.** _(CARLO)_ Auth, organization, staff, roles. *Done when:* each lists inputs, outputs, errors and permissions.
+- [x] **M0-BE-20 Auth actions.** _(CARLO)_ Login, signup, confirm by token hash, forgot and reset password, sign out, safe `next` redirect. *Done when:* all return one `ActionResult` shape and signed-in users skip the auth pages.
+- [x] **M0-BE-21 Create restaurant.** _(CARLO)_ Slug check and create action on the RPC. *Done when:* the user lands in their organization as Owner.
+- [x] **M0-BE-22 Staff actions.** _(CARLO)_ Invite, resend, revoke, accept, change role, set locations, deactivate with sign-out everywhere. *Done when:* every action is permission-checked and audited.
+- [x] **M0-BE-23 Custom roles.** _(ADIT, moved from CARLO)_ Create, edit and delete roles from the permission list, gated by package. *Done when:* nobody can grant a permission they lack.
+- [x] **M0-BE-24 Staging delivery.** _(ADIT)_ The database deploy workflow described in `STAGING.md`. *Done when:* the workflow's dry run passes. It applies only after merge.
+- [x] **M0-BE-25 Contracts.** _(CARLO)_ Auth, organization, staff, roles. *Done when:* each lists inputs, outputs, errors and permissions.
+- [x] **M0-BE-30 Staff and role RPCs.** _(ADIT)_ Definer RPCs for every staff and custom-role write, so the M0-BE-11 guards run as the caller (a `service_role` write has no `auth.uid()`). Deactivation ends the user's sessions in the same transaction. *Done when:* each requires `staff.manage` and runs the guards.
+- [x] **M0-BE-31 Frontend reads and contract gaps.** _(CARLO)_ `listMyOrganizations`, `listMembers`, `listLocations`, `resendConfirmation`, `signOut({ next })`, the signup `next`, `previewInvitation`, and the contract additions REYKI asked for. *Done when:* REYKI can build M0-FE-04 to 08 from the contracts.
+- [x] **M0-BE-32 Invitation preview RPC.** _(ADIT)_ `get_invitation_preview(token)` for anon: org, role and status, one identical answer for every unusable token. *Done when:* the invite page can show "Join X as Cashier" before accepting.
 
 #### 4.2.1 Permission catalog
 
@@ -199,7 +202,10 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 | M0-BE-22 | 15, 18 |
 | M0-BE-23 | 15 |
 | M0-BE-24 | 04, 13 |
-| M0-BE-25 | 20, 21, 22, 23 |
+| M0-BE-25 | 20, 21, 22, 23, 31 |
+| M0-BE-30 | 11 |
+| M0-BE-31 | 15, 32 |
+| M0-BE-32 | 30 |
 | M0-BE-26 | 01 |
 | M0-BE-27 | 26 |
 | M0-BE-28 | 01 |
@@ -803,6 +809,8 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-23 | Generated database types are checked in CI (regenerate after reset, fail on diff) | ALAN, from DAVIN's #38 QA |
 | 2026-11-23 | Staging database live: M0-BE-24 (PR #41) deploys migrations after CI on `main` (tip or ancestor; skips if staging is already ahead), and the first runs applied the 10 M0 migrations and the staging seed. ADIT's sandbox now runs the local stack (6 GB, without Studio) | ALAN |
 | 2026-11-23 | M0-BE-20 QA: auth email templates with `token_hash` links are M0-FE-10's (REYKI, with ADIT's `config.toml` wiring in a paired PR); until then the end-to-end confirmation link is not expected to sign the user in. Accepted: sign-out sits behind the proxy's shield and bot rules (real browsers pass); `/auth/confirm` redirects on the request origin (fine on Vercel) | ALAN, from DAVIN's QA |
+| 2026-11-23 | M0 Backend step closed: M0-BE-01 to 32 merged after DAVIN's QA. Added during the step: M0-BE-30 (staff/role writes as definer RPCs, so the database guards see the caller), M0-BE-31 and M0-BE-32 (the reads and the invitation preview REYKI's contract check found missing). M0-BE-23 moved from CARLO to ADIT: the board listed ADIT and ADIT started it while CARLO was on M0-BE-22; it kept one owner and no shared files | ALAN |
+| 2026-11-23 | Contracts (`docs/contracts/`) are the frontend's source of truth for M0. A page without the needed permission shows a notice and hides its nav entry (not a 404). The invitation email is bilingual (EN and ID) with escaped values. Timezone pickers offer canonical IANA names only, Indonesian zones first | ALAN, with REYKI and CARLO |
 
 ### Open
 
