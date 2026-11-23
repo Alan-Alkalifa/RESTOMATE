@@ -3,9 +3,10 @@
 begin;
 select plan(17);
 
-insert into auth.users (id, instance_id, aud, role, email)
+-- Confirmed, as real sign-ups are: accept_invitation refuses unconfirmed callers.
+insert into auth.users (id, instance_id, aud, role, email, email_confirmed_at)
 select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid,
-       '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'u' || n || '@example.test'
+       '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'u' || n || '@example.test', now()
 from generate_series(1, 10) n;
 
 insert into public.packages (key, name, max_locations, max_staff) values ('five', 'Five staff (test)', 5, 5);
