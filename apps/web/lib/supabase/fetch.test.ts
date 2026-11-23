@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 import { SUPABASE_DEADLINE_MS, createDeadlineGuard } from "./fetch";
 
 afterEach(() => {
@@ -80,7 +82,6 @@ describe("deadline guard", () => {
 
 describe("admin and server clients use it", () => {
   it("the admin client gives up on a hung Supabase within the deadline", async () => {
-    vi.mock("server-only", () => ({}));
     vi.useFakeTimers();
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://abcdefgh.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key-not-real");
