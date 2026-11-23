@@ -265,7 +265,8 @@ $$;
 -- ---------------------------------------------------------------------------------------------
 -- create_organization. One transaction: any failure rolls back every row.
 -- ---------------------------------------------------------------------------------------------
--- The most organizations one user can own (active Owner member, any org status). One place.
+-- The most organizations one user can own (active Owner member, any org status). One named value.
+-- It is an abuse limit, not a pricing rule: M1 can change it here without touching the RPC.
 create function private.max_owned_orgs()
 returns integer
 language sql
