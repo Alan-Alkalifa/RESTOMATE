@@ -19,6 +19,7 @@ const world = {
   cookies: [{ name: "sb-ref-auth-token" }, { name: "sb-ref-auth-token.0" }, { name: "theme" }],
   deleted: [] as string[],
   protectArgs: [] as { preset: string; input: unknown }[],
+  clients: [] as string[],
 };
 
 vi.mock("../../arcjet/auth", () => ({
@@ -43,15 +44,28 @@ vi.mock("../../auth/user", async (original) => ({
   },
 }));
 
-const authCall = (name: string) => async (args: unknown) => {
-  world.order.push(`supabase:${name}`);
-  world.calls.push({ name, args });
-  const handler = world.auth[name];
-  return handler ? handler() : { data: {}, error: null };
-};
+const authCall =
+  (name: string, client = "cookies") =>
+  async (args: unknown) => {
+    world.order.push(`supabase:${name}`);
+    world.calls.push({ name, args });
+    world.clients.push(`${name}:${client}`);
+    const handler = world.auth[name];
+    return handler ? handler() : { data: {}, error: null };
+  };
+const fakeAuth = (client: string) => ({
+  auth: {
+    signUp: authCall("signUp", client),
+    resetPasswordForEmail: authCall("resetPasswordForEmail", client),
+  },
+});
+vi.mock("../../supabase/stateless", () => ({
+  createStatelessAuthClient: () => fakeAuth("stateless"),
+}));
 vi.mock("../../supabase/server", () => ({
   createClient: async () => ({
     auth: {
+      setSession: authCall("setSession"),
       signInWithPassword: authCall("signInWithPassword"),
       signUp: authCall("signUp"),
       resetPasswordForEmail: authCall("resetPasswordForEmail"),
@@ -86,6 +100,7 @@ beforeEach(() => {
     calls: [],
     deleted: [],
     protectArgs: [],
+    clients: [],
   });
 });
 
@@ -249,8 +264,30 @@ describe("signup", () => {
   });
 
   it("signs in at once when the project does not need confirmation", async () => {
-    world.auth.signUp = () => ({ data: { session: { access_token: "x" } }, error: null });
+    world.auth.signUp = () => ({
+      data: { session: { access_token: "a", refresh_token: "r" } },
+      error: null,
+    });
     await expect(redirected(signup({ ...input, next: "/app/start" }))).resolves.toBe("/app/start");
+    expect(world.calls[1]).toEqual({
+      name: "setSession",
+      args: { access_token: "a", refresh_token: "r" },
+    });
+  });
+
+  it("signup and the reset request use the cookie-free client; nothing else does", async () => {
+    await signup(input);
+    await requestPasswordReset({ email: "a@b.co" });
+    world.signedIn = { id: "u1", email: null };
+    await redirected(
+      resetPassword({ password: "a-new-password", confirmPassword: "a-new-password" }),
+    );
+    expect(world.clients).toEqual([
+      "signUp:stateless",
+      "resetPasswordForEmail:stateless",
+      "updateUser:cookies",
+      "signOut:cookies",
+    ]);
   });
 });
 

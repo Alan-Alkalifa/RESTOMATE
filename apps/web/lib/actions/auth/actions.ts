@@ -25,6 +25,7 @@ import {
   protect,
   runAuth,
   skipIfSignedIn,
+  statelessAuthClient,
 } from "./shared";
 
 /*
@@ -76,7 +77,8 @@ export async function signup(
   if (refused) return refused;
   await skipIfSignedIn(destination);
 
-  const { supabase, guard } = await authClient();
+  // Cookie-free: the response's headers must not differ for an existing address (QA S3).
+  const { supabase, guard } = statelessAuthClient();
   const outcome = await runAuth(guard, () =>
     supabase.auth.signUp({
       email,
@@ -93,7 +95,19 @@ export async function signup(
     return ok({ status: "confirmation_sent" as const });
   }
   if (error) return authErrorResult(error);
-  if (outcome.value.data.session) redirect(destination);
+  const session = outcome.value.data.session;
+  if (session) {
+    // Only when the project has email confirmation switched off: sign in by writing the session
+    // into the cookies through the normal client, then move on.
+    const { supabase: cookieClient, guard: cookieGuard } = await authClient();
+    await runAuth(cookieGuard, () =>
+      cookieClient.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      }),
+    );
+    redirect(destination);
+  }
   return ok({ status: "confirmation_sent" as const });
 }
 
@@ -113,7 +127,8 @@ export async function requestPasswordReset(input: unknown): Promise<ActionResult
   if (refused) return refused;
   await skipIfSignedIn(DEFAULT_AFTER_LOGIN);
 
-  const { supabase, guard } = await authClient();
+  // Cookie-free, as signup: a known and an unknown address get the same headers (QA S3).
+  const { supabase, guard } = statelessAuthClient();
   const outcome = await runAuth(guard, () => supabase.auth.resetPasswordForEmail(email));
   if (outcome.status !== "done") return fail("unavailable");
   if (outcome.value.error) {

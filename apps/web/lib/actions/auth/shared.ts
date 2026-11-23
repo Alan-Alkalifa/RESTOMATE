@@ -4,6 +4,7 @@ import { protectAuth, type AuthPreset } from "../../arcjet/auth";
 import { UNAVAILABLE, fail, getCurrentUser, isAuthOutage } from "../../auth";
 import { createDeadlineGuard, type DeadlineGuard } from "../../supabase/fetch";
 import { createClient } from "../../supabase/server";
+import { createStatelessAuthClient } from "../../supabase/stateless";
 import { fieldErrorsOf } from "./schemas";
 import type { z } from "zod";
 
@@ -62,6 +63,15 @@ export async function runAuth<T>(guard: DeadlineGuard, operation: () => Promise<
   } catch {
     return { status: "failed" } as const;
   }
+}
+
+/**
+ * A cookie-free Auth client (`createStatelessAuthClient`) with its own deadline, for signup and the
+ * reset request: no Set-Cookie differs between a new and an existing address.
+ */
+export function statelessAuthClient() {
+  const guard = createDeadlineGuard();
+  return { supabase: createStatelessAuthClient(guard), guard };
 }
 
 type AuthErrorLike = { code?: unknown; name?: unknown; status?: unknown };
