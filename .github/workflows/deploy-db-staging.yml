@@ -120,6 +120,28 @@ jobs:
               if value:
                   print("::add-mask::" + value)
           PY
+          # Validate the format (after masking, never printing the value). Nothing is stripped: a quote,
+          # space or newline in the secret is an error to fix in the secret, not here.
+          python3 - <<'PY'
+          import os, re, sys, urllib.parse
+          v = os.environ["SUPABASE_STAGING_DB_URL"]
+          def fail(why):
+              print("::error::SUPABASE_STAGING_DB_URL must be a postgresql:// URI (docs/STAGING.md): " + why)
+              sys.exit(1)
+          if not re.fullmatch(r"postgres(ql)?://[^\s'\"]+", v):
+              fail("it must start with postgresql:// (or postgres://) and contain no whitespace or quotes")
+          try:
+              u = urllib.parse.urlsplit(v)
+              host = u.hostname
+          except ValueError:
+              fail("it could not be parsed as a URI")
+          if not host:
+              fail("it has no host")
+          if not u.username:
+              fail("it has no user")
+          if not u.path.lstrip("/"):
+              fail("it has no database name (path)")
+          PY
 
       # Read-only: if staging already has a migration this commit does not, a newer deploy ran first.
       # Skip rather than fail on the unknown remote version. A missing history table (a fresh
