@@ -446,7 +446,9 @@ $$;
 -- ---------------------------------------------------------------------------------------------
 -- set_member_locations(member_id, location_ids): atomic replace. Needs staff.manage in the
 -- member's org; every location must belong to that org. A member that doesn't exist, or sits in
--- an org the caller can't manage, gives the same FORBIDDEN.
+-- an org the caller can't manage, gives the same FORBIDDEN. Unless the caller is an Owner: they
+-- can't edit their own locations, can't hand out a location they don't reach (LOCATION_INVALID),
+-- and can't edit a member whose role they couldn't assign (FORBIDDEN).
 -- ---------------------------------------------------------------------------------------------
 create function public.set_member_locations(p_member_id uuid, p_location_ids uuid[])
 returns void
@@ -455,10 +457,13 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_uid uuid := (select auth.uid());
   v_org uuid;
+  v_target public.organization_members;
   v_ids uuid[];
+  v_caller_owner boolean;
 begin
-  if (select auth.uid()) is null then
+  if v_uid is null then
     raise exception 'UNAUTHENTICATED' using errcode = '28000';
   end if;
   if p_location_ids is null then
@@ -471,7 +476,26 @@ begin
   end if;
 
   -- Serialize edits of the same member.
-  perform 1 from public.organization_members m where m.id = p_member_id for update;
+  select * into v_target from public.organization_members m where m.id = p_member_id for update;
+
+  v_caller_owner := exists (
+    select 1 from public.organization_members m
+    join public.roles r on r.org_id = m.org_id and r.id = m.role_id
+    where m.org_id = v_org and m.user_id = v_uid and m.status = 'active' and r.system_key = 'owner'
+  );
+
+  if not v_caller_owner then
+    -- No widening your own reach, and the same rule as the member guards: nobody edits a member
+    -- whose role holds permissions they lack (an Owner member only by an Owner).
+    if v_target.user_id = v_uid then
+      raise exception 'FORBIDDEN' using errcode = '42501';
+    end if;
+    begin
+      perform private.assert_can_assign_role(v_org, v_target.role_id);
+    exception when insufficient_privilege then
+      raise exception 'FORBIDDEN' using errcode = '42501';
+    end;
+  end if;
 
   select coalesce(array_agg(distinct x), array[]::uuid[]) into v_ids
   from unnest(p_location_ids) x where x is not null;
@@ -481,7 +505,18 @@ begin
     raise exception 'LOCATION_INVALID' using errcode = 'P0001';
   end if;
 
-  delete from public.location_staff s where s.member_id = p_member_id and s.location_id <> all (v_ids);
+  if not v_caller_owner and exists (
+    select 1 from unnest(v_ids) x where not private.has_location_access(v_org, x)
+  ) then
+    -- A caller can only hand out locations they reach themself.
+    raise exception 'LOCATION_INVALID' using errcode = 'P0001';
+  end if;
+
+  -- Atomic replace. A caller who isn't an Owner replaces only the part of the list they can reach:
+  -- rows for locations outside their reach are left alone.
+  delete from public.location_staff s
+  where s.member_id = p_member_id and s.location_id <> all (v_ids)
+    and (v_caller_owner or private.has_location_access(v_org, s.location_id));
   insert into public.location_staff (member_id, location_id, org_id)
   select p_member_id, l.id, v_org from public.locations l
   where l.org_id = v_org and l.id = any (v_ids)

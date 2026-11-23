@@ -2,7 +2,7 @@
 -- and the S4 hardening. RPCs are definer functions, so most cases run as postgres with auth.uid()
 -- set by the claims; grant cases switch roles.
 begin;
-select plan(134);
+select plan(146);
 
 insert into auth.users (id, instance_id, aud, role, email)
 select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid,
@@ -271,6 +271,35 @@ select pg_temp.invite('u12@example.test', 'tok-manager', 'manager');
 select pg_temp.uid(12);
 select lives_ok($$select * from public.accept_invitation('tok-manager')$$, 'a manager joins');
 select lives_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(10)), array[(select loc1 from ctx)])$$, 'and may set locations (staff.manage)');
+select pg_temp.nouid();
+
+-- A custom role with staff.manage plus the cashier permissions, limited to location LA1 (Main)
+insert into public.roles (org_id, name) select org, 'Loc admin' from ctx;
+insert into public.role_permissions (role_id, org_id, permission_key)
+select r.id, r.org_id, k
+from public.roles r, (select permission_key as k from public.role_permissions rp join public.roles c on c.id = rp.role_id where c.system_key = 'cashier' and c.org_id = (select org from ctx)
+                      union select 'staff.manage') perms
+where r.name = 'Loc admin' and r.org_id = (select org from ctx);
+insert into public.organization_members (org_id, user_id, role_id)
+select org, pg_temp.uuid_of(13), (select id from public.roles where name = 'Loc admin' and org_id = ctx.org) from ctx;
+insert into public.location_staff (member_id, location_id, org_id)
+select m.id, c.loc1, c.org from public.organization_members m, ctx c where m.user_id = pg_temp.uuid_of(13);
+select pg_temp.uid(1);
+select lives_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(10)), array[(select loc1 from ctx), (select loc2 from ctx)])$$, 'setup: the cashier has both locations');
+select pg_temp.uid(13);
+select throws_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(13)), array[(select loc1 from ctx), (select loc2 from ctx)])$$, '42501', 'FORBIDDEN', 'a limited staff.manage member cannot widen their own locations');
+select throws_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(10)), array[(select loc2 from ctx)])$$, 'P0001', 'LOCATION_INVALID', 'nor give another member a location they cannot reach');
+select lives_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(10)), array[(select loc1 from ctx)])$$, 'but can give a location they reach');
+select is((select array_agg(l.name order by l.name) from public.location_staff s join public.locations l on l.id = s.location_id where s.member_id = (select id from public.organization_members where user_id = pg_temp.uuid_of(10))), array['Main','Second'], 'and the locations outside their reach are left alone');
+select throws_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(1) and org_id = (select org from ctx)), array[(select loc1 from ctx)])$$, '42501', 'FORBIDDEN', 'nobody but an Owner edits an Owner''s locations');
+select throws_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(12)), array[(select loc1 from ctx)])$$, '42501', 'FORBIDDEN', 'nor a manager (their role holds permissions the caller lacks)');
+select pg_temp.uid(12);
+select lives_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(10)), array[(select loc1 from ctx), (select loc2 from ctx)])$$, 'a Manager can give a Cashier both locations');
+select is((select count(*)::int from public.location_staff where member_id = (select id from public.organization_members where user_id = pg_temp.uuid_of(10))), 2, 'both are stored');
+select throws_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(1) and org_id = (select org from ctx)), array[(select loc1 from ctx)])$$, '42501', 'FORBIDDEN', 'a Manager cannot edit an Owner''s locations');
+select pg_temp.uid(1);
+select lives_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(1) and org_id = (select org from ctx)), array[(select loc1 from ctx)])$$, 'an Owner can edit their own locations');
+select lives_ok($$select public.set_member_locations((select id from public.organization_members where user_id = pg_temp.uuid_of(13)), array[(select loc1 from ctx), (select loc2 from ctx)])$$, 'and widen a limited member');
 select pg_temp.nouid();
 
 -- ---------------------------------------------------------------------------------------------
