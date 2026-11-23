@@ -8,7 +8,9 @@
 # target. An older commit is fine: CI skips docs-only pushes, so a later docs-only push can become
 # the tip before the CI run of an earlier migration push finishes. Deploying the older commit then
 # still applies its migrations, and `db push` is forward-only, idempotent and serialized (see
-# concurrency below), so a newer deploy that already ran just finds nothing pending.
+# concurrency below), so a newer deploy that already ran just finds nothing pending. If the staging
+# history already holds a version this commit does not have (a newer deploy ran first), the run
+# skips instead of failing on the unknown remote version.
 #
 # The only secret is SUPABASE_STAGING_DB_URL (a connection string for the staging database). There is
 # no Supabase access token. The string, its password, host, user and project ref are masked.
@@ -16,7 +18,7 @@ name: Deploy DB (staging)
 
 # zizmor dangerous-triggers, mitigated: success + push + main only, checks out that push's SHA, secret only in its own steps (never checkout, install or actions).
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers]
     workflows: ["CI"]
     types: [completed]
     branches: [main]
@@ -105,12 +107,41 @@ jobs:
           if "." in user:
               parts.add(user.split(".", 1)[1])  # project ref
           host = u.hostname or ""
+          # The host as written in the netloc too (hostname is lower-cased), without the port.
+          raw_host = u.netloc.rpartition("@")[2]
+          if raw_host.startswith("["):
+              raw_host = raw_host[1:].partition("]")[0]
+          else:
+              raw_host = raw_host.partition(":")[0]
+          parts.add(raw_host)
           if host.startswith("db.") and host.endswith(".supabase.co"):
               parts.add(host.split(".")[1])  # project ref, direct connection
           for value in parts:
               if value:
                   print("::add-mask::" + value)
           PY
+
+      # Read-only: if staging already has a migration this commit does not, a newer deploy ran first.
+      # Skip rather than fail on the unknown remote version. A missing history table (a fresh
+      # database) means nothing ran yet, so continue. A connection error fails the run.
+      - name: Skip if a newer deploy already ran
+        if: env.SKIP != 'true'
+        env:
+          SUPABASE_STAGING_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          ro=(psql "$SUPABASE_STAGING_DB_URL" -X -q -At -v ON_ERROR_STOP=1 --single-transaction -c "set transaction read only")
+          exists="$("${ro[@]}" -c "select to_regclass('supabase_migrations.schema_migrations') is not null")"
+          if [ "$exists" != t ]; then
+            echo "No migration history on staging yet. Continuing."
+            exit 0
+          fi
+          remote="$("${ro[@]}" -c "select version from supabase_migrations.schema_migrations order by version")"
+          local_versions="$(find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | sort -u)"
+          missing="$(comm -23 <(printf '%s\n' "$remote" | sed '/^$/d' | sort -u) <(printf '%s\n' "$local_versions"))"
+          if [ -n "$missing" ]; then
+            echo "::notice::Staging already has migration(s) this commit does not: $(echo "$missing" | paste -sd ' ' -). A newer deploy already ran. Skipping."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
 
       - name: Set up pnpm
         if: env.SKIP != 'true'
@@ -138,6 +169,8 @@ jobs:
             exit 1
           fi
 
+      # Never run `supabase migration repair` on staging without the lead: it rewrites the
+      # migration history that the push steps below and the skip check above rely on.
       # Prints the migrations that are pending. Changes nothing.
       - name: Dry run (pending migrations)
         if: env.SKIP != 'true'
@@ -146,6 +179,7 @@ jobs:
         run: pnpm --silent exec supabase db push --dry-run --remote="$SUPABASE_STAGING_DB_URL"
 
       # Forward only: push applies what is pending and never resets or rewrites history.
+      # Never run `supabase migration repair` on staging without the lead.
       - name: Apply migrations
         if: env.SKIP != 'true'
         env:
