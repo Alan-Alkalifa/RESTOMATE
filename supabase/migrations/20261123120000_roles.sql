@@ -148,18 +148,26 @@ create index location_staff_location_idx on public.location_staff (org_id, locat
 grant select, insert, delete on table public.location_staff to service_role;
 
 -- ---------------------------------------------------------------------------------------------
--- System roles can't be changed or deleted. Only the seed below (a trigger inside a trigger,
--- pg_trigger_depth() > 1) writes them. A cascade from a deleted organization is allowed.
+-- System roles can't be changed or deleted by an API role. The decision is on who writes, not on
+-- trigger depth: only current_user = 'postgres' may write them. That is the owner that runs
+-- migrations and the definer context of seed_org_roles below. anon, authenticated and service_role
+-- are refused with 42501. These functions are SECURITY INVOKER on purpose: current_user is the
+-- caller, and they only read roles and organizations, which service_role can select.
+-- A cascade from a deleted organization is allowed.
 -- ---------------------------------------------------------------------------------------------
 create function private.protect_system_roles()
 returns trigger
 language plpgsql
-security definer
 set search_path = ''
 as $$
 begin
+  if current_user = 'postgres' then
+    if tg_op = 'DELETE' then return old; end if;
+    return new;
+  end if;
+
   if tg_op = 'INSERT' then
-    if new.is_system and pg_trigger_depth() <= 1 then
+    if new.is_system then
       raise exception 'system roles are created with the organization' using errcode = '42501';
     end if;
     return new;
@@ -187,15 +195,14 @@ create trigger roles_protect_system
 create function private.protect_system_role_permissions()
 returns trigger
 language plpgsql
-security definer
 set search_path = ''
 as $$
 declare
   v_role_id uuid := case when tg_op = 'DELETE' then old.role_id else new.role_id end;
   v_org_id uuid := case when tg_op = 'DELETE' then old.org_id else new.org_id end;
 begin
-  if exists (select 1 from public.roles r where r.id = v_role_id and r.is_system)
-     and pg_trigger_depth() <= 1
+  if current_user <> 'postgres'
+     and exists (select 1 from public.roles r where r.id = v_role_id and r.is_system)
      and exists (select 1 from public.organizations o where o.id = v_org_id) then
     raise exception 'system role permissions cannot be changed' using errcode = '42501';
   end if;
@@ -250,7 +257,8 @@ create trigger organizations_seed_roles
   after insert on public.organizations
   for each row execute function private.organizations_seed_roles();
 
--- Organizations that exist before this migration (hosted staging).
+-- Organizations that exist before this migration (hosted staging). Runs as postgres, so the
+-- guards above let it write the system roles.
 do $$
 declare
   v_org uuid;

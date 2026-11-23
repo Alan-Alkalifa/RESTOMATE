@@ -1,6 +1,6 @@
 -- M0-BE-08: role catalog, cross-tenant links, system role protection, no client access.
 begin;
-select plan(52);
+select plan(60);
 
 select has_table('public'::name, t::name)
 from unnest(array['permissions','default_role_permissions','roles','role_permissions','organization_members','location_staff']) t;
@@ -49,21 +49,30 @@ select is((select count(*)::int from actual where role_key = 'cashier' and slug 
 select is((select count(*)::int from actual where role_key = 'waiter' and slug = 'org-one'), 7, 'waiter has 7');
 select is((select count(*)::int from actual where role_key = 'kitchen' and slug = 'org-one'), 3, 'kitchen has 3');
 
--- System roles can't be changed or deleted
+-- System roles can't be changed or deleted by service_role (postgres, the migration owner, may)
+set local role service_role;
 select throws_ok($$update public.roles set name = 'Boss' where system_key = 'owner'$$, '42501', null, 'system role rename refused');
 select throws_ok($$update public.roles set is_system = false, system_key = null where system_key = 'owner'$$, '42501', null, 'system role demotion refused');
 select throws_ok($$delete from public.roles where system_key = 'cashier'$$, '42501', null, 'system role delete refused');
 select throws_ok($$insert into public.roles (org_id, system_key, is_system, name) select id, 'owner', true, 'Owner2' from public.organizations where slug = 'org-one'$$, '42501', null, 'cannot create a system role by hand');
 select throws_ok($$delete from public.role_permissions where permission_key = 'pos.use'$$, '42501', null, 'system role permission delete refused');
 select throws_ok($$insert into public.role_permissions (role_id, org_id, permission_key) select id, org_id, 'billing.manage' from public.roles where system_key = 'cashier' and org_id = (select id from public.organizations where slug = 'org-one')$$, '42501', null, 'system role permission add refused');
+reset role;
 
 -- Custom roles
 insert into public.roles (org_id, name) select id, 'Host' from public.organizations where slug = 'org-one';
 insert into public.roles (org_id, name) select id, 'Host' from public.organizations where slug = 'org-two';
 select throws_ok($$insert into public.roles (org_id, name) select id, 'host' from public.organizations where slug = 'org-one'$$, '23505', null, 'role names unique per org (case-insensitive)');
-select throws_ok($$update public.roles set is_system = true, system_key = 'owner' where name = 'Host' and org_id = (select id from public.organizations where slug = 'org-one')$$, '42501', null, 'custom role cannot be promoted');
+set local role service_role;
+select throws_ok($$update public.roles set is_system = true, system_key = 'owner' where name = 'Host' and org_id = (select id from public.organizations where slug = 'org-one')$$, '42501', null, 'custom role cannot be promoted by service_role');
+reset role;
 select lives_ok($$update public.roles set name = 'Host stand' where name = 'Host' and org_id = (select id from public.organizations where slug = 'org-one')$$, 'custom role can be renamed');
-select lives_ok($$insert into public.role_permissions (role_id, org_id, permission_key) select id, org_id, 'tables.view' from public.roles where name = 'Host stand'$$, 'custom role permission added');
+set local role service_role;
+select lives_ok($$insert into public.role_permissions (role_id, org_id, permission_key) select id, org_id, 'tables.view' from public.roles where name = 'Host stand'$$, 'service_role adds a custom role permission');
+select lives_ok($$insert into public.role_permissions (role_id, org_id, permission_key) select id, org_id, 'orders.view' from public.roles where name = 'Host stand'$$, 'service_role adds another');
+select lives_ok($$delete from public.role_permissions where permission_key = 'orders.view' and role_id = (select id from public.roles where name = 'Host stand')$$, 'service_role removes a custom role permission');
+select lives_ok($$update public.roles set description = 'Front of house' where name = 'Host stand'$$, 'service_role edits a custom role');
+reset role;
 select throws_ok($$insert into public.role_permissions (role_id, org_id, permission_key) select id, org_id, 'nope.nope' from public.roles where name = 'Host stand'$$, '23503', null, 'unknown permission refused');
 -- Cross-tenant: role from org one with org two's id
 select throws_ok($$insert into public.role_permissions (role_id, org_id, permission_key)
@@ -99,6 +108,18 @@ select throws_ok($$insert into public.location_staff (member_id, location_id, or
 -- Cascade: deleting an org removes its system roles even though they are protected
 select lives_ok($$delete from public.organizations where slug = 'org-two'$$, 'org delete cascades through system roles');
 select is((select count(*)::int from public.roles where org_id not in (select id from public.organizations)), 0, 'no orphan roles');
+
+-- Backfill path: an organization that exists without roles (as on hosted before this migration)
+alter table public.organizations disable trigger organizations_seed_roles;
+insert into public.organizations (name, slug) values ('Legacy', 'legacy-org');
+alter table public.organizations enable trigger organizations_seed_roles;
+select is((select count(*)::int from public.roles where org_id = (select id from public.organizations where slug = 'legacy-org')), 0, 'legacy org starts without roles');
+select lives_ok($$select private.seed_org_roles((select id from public.organizations where slug = 'legacy-org'))$$, 'backfill runs as postgres');
+select is((select count(*)::int from public.roles where is_system and org_id = (select id from public.organizations where slug = 'legacy-org')), 5, 'backfill seeds five system roles');
+select is((select count(*)::int from public.role_permissions where org_id = (select id from public.organizations where slug = 'legacy-org')), 40, 'and their 40 permissions');
+set local role service_role;
+select throws_ok($$select private.seed_org_roles((select id from public.organizations where slug = 'legacy-org'))$$, '42501', null, 'service_role cannot call the seed');
+reset role;
 
 -- No client access
 set local role anon;
