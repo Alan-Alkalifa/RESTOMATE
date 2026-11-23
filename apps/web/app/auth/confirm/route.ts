@@ -22,8 +22,9 @@ import { createClient } from "../../../lib/supabase/server";
  * A bad, expired or used link goes back to the page it belongs to with `?error=invalid_link` (a
  * code, never a message), and an outage with `?error=unavailable`. The redirect stays on the host
  * that received the request, which `proxy.ts` has already checked, and `next` can never leave it.
+ *
+ * Reading the request makes this handler dynamic (Cache Components: no `dynamic` segment config).
  */
-export const dynamic = "force-dynamic";
 
 function redirectTo(request: NextRequest, path: string, error?: "invalid_link" | "unavailable") {
   const url = new URL(path, request.nextUrl.origin);
