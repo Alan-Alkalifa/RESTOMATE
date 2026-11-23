@@ -150,6 +150,25 @@ describe("no personal value leaves", () => {
     expect(String(props.emailKey)).not.toContain("secret");
   });
 
+  it.each(["login", "passwordReset", "resendConfirmation"] as const)(
+    "%s sends no raw email to Arcjet",
+    async (preset) => {
+      const address = "Private.Person@Example.com";
+      await call(preset, "10.0.0.2", address);
+      const { props } = calls[0];
+      expect(Object.keys(props)).toEqual(["emailKey"]);
+      expect(props).not.toHaveProperty("email");
+      const values = Object.values(props).map((v) => String(v).toLowerCase());
+      expect(values).not.toContain(address.toLowerCase());
+      expect(JSON.stringify(props).toLowerCase()).not.toContain("private.person");
+    },
+  );
+
+  it("signup sends the address, because email validation needs it", async () => {
+    await call("signup", "10.0.0.3", "Private.Person@Example.com");
+    expect(calls[0].props.email).toBe("private.person@example.com");
+  });
+
   it("keeps one preset's key apart from another's", async () => {
     expect(await emailKey("login", "a@b.co", SECRET)).not.toBe(
       await emailKey("signup", "a@b.co", SECRET),

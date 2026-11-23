@@ -14,7 +14,11 @@ export type AuthPreset = "login" | "signup" | "passwordReset" | "resendConfirmat
 
 type Limit = { max: number; interval: number }; // interval in seconds
 export const AUTH_LIMITS: Record<AuthPreset, { ip: Limit; email: Limit }> = {
-  login: { ip: { max: 20, interval: 900 }, email: { max: 5, interval: 900 } },
+  // A venue's POS tablets and staff phones often share one public IP, and a shift change can mean
+  // a dozen or more logins within minutes. The per-IP limit is therefore loose (60 per 15 min) so
+  // it can't lock a whole restaurant out; the per-email limit (5 per 15 min) is what stops
+  // guessing against one account.
+  login: { ip: { max: 60, interval: 900 }, email: { max: 5, interval: 900 } },
   signup: { ip: { max: 5, interval: 3600 }, email: { max: 3, interval: 3600 } },
   passwordReset: { ip: { max: 5, interval: 3600 }, email: { max: 3, interval: 3600 } },
   resendConfirmation: { ip: { max: 5, interval: 3600 }, email: { max: 3, interval: 3600 } },
@@ -71,8 +75,13 @@ export async function protectAuth(
       clients.set(id, client);
     }
     const req = input.request ?? (await nextRequest());
+    // Only signup's `validateEmail` needs the address itself. Every other preset gets the keyed
+    // hash alone, so a raw address is not sent to Arcjet where it isn't needed.
     const props = withEmail
-      ? { email, emailKey: await emailKey(preset, email, getArcjetEnv().ARCJET_KEY) }
+      ? {
+          emailKey: await emailKey(preset, email, getArcjetEnv().ARCJET_KEY),
+          ...(preset === "signup" && { email }),
+        }
       : {};
     const decision = await (
       client.protect as (r: typeof req, p: object) => ReturnType<Client["protect"]>
