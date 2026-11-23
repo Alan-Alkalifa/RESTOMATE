@@ -15,7 +15,7 @@ insert into public.organizations (name, slug) values ('Org One', 'org-one'), ('O
 -- Fixture: plan limits are enforced by the M0-BE-11 guards, so test orgs get an unlimited package.
 insert into public.packages (key, name) values ('test_unlimited', 'Unlimited (test)');
 insert into public.subscriptions (org_id, package_id, status)
-select o.id, (select id from public.packages where key = 'test_unlimited'), 'active' from public.organizations o;
+select o.id, (select id from public.packages where key = 'test_unlimited'), 'active' from public.organizations o where o.slug in ('org-one', 'org-two');
 insert into auth.users (id, instance_id, aud, role, email) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'a@example.test'),
   ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'b@example.test');

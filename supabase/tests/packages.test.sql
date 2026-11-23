@@ -25,9 +25,9 @@ select lives_ok($$update public.packages set is_active = false where key = 'plan
 -- Default package gives a new restaurant a trial
 insert into public.organizations (name, slug) values ('Trial Co', 'trial-co');
 select lives_ok($$select private.start_default_trial((select id from public.organizations where slug = 'trial-co'))$$, 'start trial');
-select is((select status from public.subscriptions), 'trialing', 'status is trialing');
-select is((select trial_ends_at from public.subscriptions), (select current_period_start + interval '14 days' from public.subscriptions), 'trial_ends_at = now + trial days');
-select is((select package_id from public.subscriptions), (select id from public.packages where is_default), 'on the default package');
+select is((select status from public.subscriptions where org_id = (select id from public.organizations where slug = 'trial-co')), 'trialing', 'status is trialing');
+select is((select trial_ends_at from public.subscriptions where org_id = (select id from public.organizations where slug = 'trial-co')), (select current_period_start + interval '14 days' from public.subscriptions where org_id = (select id from public.organizations where slug = 'trial-co')), 'trial_ends_at = now + trial days');
+select is((select package_id from public.subscriptions where org_id = (select id from public.organizations where slug = 'trial-co')), (select id from public.packages where is_default), 'on the default package');
 select throws_ok($$select private.start_default_trial((select id from public.organizations where slug = 'trial-co'))$$, '23505', null, 'second current subscription refused');
 select throws_ok($$select private.start_default_trial(gen_random_uuid())$$, '23503', null, 'organization must exist');
 
@@ -36,9 +36,9 @@ select throws_ok($$update public.subscriptions set status = 'paused'$$, '23514',
 select throws_ok($$update public.subscriptions set trial_ends_at = null$$, '23514', null, 'trialing needs trial_ends_at');
 select throws_ok($$update public.subscriptions set current_period_end = current_period_start - interval '1 day'$$, '23514', null, 'period order');
 select throws_ok($$update public.subscriptions set status = 'canceled'$$, '23514', null, 'canceled needs canceled_at');
-select lives_ok($$update public.subscriptions set status = 'canceled', canceled_at = now()$$, 'cancel');
+select lives_ok($$update public.subscriptions set status = 'canceled', canceled_at = now() where org_id = (select id from public.organizations where slug = 'trial-co')$$, 'cancel');
 select lives_ok($$select private.start_default_trial((select id from public.organizations where slug = 'trial-co'))$$, 'a new current one after cancel (history kept)');
-select is((select count(*)::int from public.subscriptions), 2, 'history kept');
+select is((select count(*)::int from public.subscriptions where org_id = (select id from public.organizations where slug = 'trial-co')), 2, 'history kept');
 select throws_ok($$delete from public.packages where is_default$$, '23503', null, 'package in use cannot be deleted');
 
 -- No client access

@@ -10,8 +10,8 @@ insert into public.organizations (name, slug) values ('Org One', 'org-one'), ('O
 -- Fixture: plan limits are enforced by the M0-BE-11 guards, so test orgs get an unlimited package.
 insert into public.packages (key, name) values ('test_unlimited', 'Unlimited (test)');
 insert into public.subscriptions (org_id, package_id, status)
-select o.id, (select id from public.packages where key = 'test_unlimited'), 'active' from public.organizations o;
-insert into public.locations (org_id, name) select id, 'Loc ' || slug from public.organizations;
+select o.id, (select id from public.packages where key = 'test_unlimited'), 'active' from public.organizations o where o.slug in ('org-one', 'org-two');
+insert into public.locations (org_id, name) select id, 'Loc ' || slug from public.organizations where slug in ('org-one', 'org-two');
 create temp table ctx on commit drop as
 select
   (select id from public.organizations where slug = 'org-one') as o1,

@@ -138,6 +138,15 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Start and reset the database
         run: pnpm run ci:db
+      - name: Check generated database types
+        # Generated right after the reset, before any test installs pgTAP: the committed file must be
+        # exactly what the schema produces.
+        run: |
+          pnpm run db:types
+          if ! git diff --exit-code -- packages/db/src/database.types.ts; then
+            echo "::error file=packages/db/src/database.types.ts::types are stale: run pnpm db:types after db reset and commit the result"
+            exit 1
+          fi
       - name: Run pgTAP
         if: needs.check.outputs.pgtap == 'true'
         run: pnpm run db:test
