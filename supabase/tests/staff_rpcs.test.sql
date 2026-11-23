@@ -1,7 +1,7 @@
 -- M0-BE-30: staff RPCs. Definer functions, so cases run as postgres with auth.uid() set by the
 -- claims; the grant cases read the privileges.
 begin;
-select plan(184);
+select plan(203);
 
 insert into auth.users (id, instance_id, aud, role, email, email_confirmed_at)
 select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid,
@@ -127,8 +127,13 @@ select is((select actor_id from public.audit_logs where action = 'staff_invitati
 select is(public.create_staff_invitation(pg_temp.org('staff-a'), 'all@example.test', pg_temp.role('staff-a', 'waiter'), pg_temp.h('t2'), true, null),
   pg_temp.inv('all@example.test'), 'returns the new invitation id (all locations)');
 select is((select count(*)::int from public.staff_invitation_locations where invitation_id = pg_temp.inv('all@example.test')), 0, 'all_locations has no list');
-select lives_ok($$select public.create_staff_invitation(pg_temp.org('staff-a'), 'empty@example.test', pg_temp.role('staff-a', 'manager'), pg_temp.h('t3'), false, array[]::uuid[])$$,
-  'an empty list is allowed');
+select throws_ok($$select public.create_staff_invitation(pg_temp.org('staff-a'), 'empty@example.test', pg_temp.role('staff-a', 'manager'), pg_temp.h('t3'), false, array[]::uuid[])$$,
+  'P0001', 'LOCATION_INVALID', 'an empty location list is refused without all_locations');
+select throws_ok($$select public.create_staff_invitation(pg_temp.org('staff-a'), 'empty@example.test', pg_temp.role('staff-a', 'manager'), pg_temp.h('t3'), false, array[null]::uuid[])$$,
+  'P0001', 'LOCATION_INVALID', 'so is a list of only nulls');
+select is((select count(*)::int from public.staff_invitations where email = 'empty@example.test'), 0, 'and no invitation is left');
+select lives_ok($$select public.create_staff_invitation(pg_temp.org('staff-a'), 'empty@example.test', pg_temp.role('staff-a', 'manager'), pg_temp.h('t3'), true, array[]::uuid[])$$,
+  'an empty list with all_locations is fine (there is nothing to list)');
 
 -- Refusals, each leaving nothing behind
 create temp table before_snap (s text);
@@ -320,9 +325,18 @@ select throws_ok($$select public.create_role(pg_temp.org('staff-a'), 'Typo', nul
 select is(pg_temp.roles_snap(), (select s from rsnap), 'none of them left a role or permission row');
 select lives_ok($$select public.create_role(pg_temp.org('staff-a'), 'Empty', null, null)$$, 'no permission list is an empty role');
 
+-- Descriptions
+select throws_ok($$select public.create_role(pg_temp.org('staff-a'), 'Long Text', repeat('d', 301), array['orders.view'])$$, 'P0001', 'DESCRIPTION_INVALID', 'a 301-character description is DESCRIPTION_INVALID, not NAME_INVALID');
+select is((select count(*)::int from public.roles where name = 'Long Text'), 0, 'and creates nothing');
+select lives_ok($$select public.create_role(pg_temp.org('staff-a'), 'Exact Text', repeat('d', 300), array['orders.view'])$$, 'a 300-character description is accepted');
+select lives_ok($$select public.create_role(pg_temp.org('staff-a'), 'Padded Text', '   ', null)$$, 'a blank description is accepted');
+select is((select description from public.roles where name = 'Padded Text'), null, 'and stored as null');
+select throws_ok($$select public.update_role((select id from rid where name = 'a'), null, repeat('d', 301), null)$$, 'P0001', 'DESCRIPTION_INVALID', 'update: a 301-character description');
+select throws_ok($$select public.update_role((select id from rid where name = 'a'), repeat('n', 61), 'ok', null)$$, 'P0001', 'NAME_INVALID', 'update: a long name is still NAME_INVALID');
+select is((select description from public.roles where id = (select id from rid where name = 'a')), 'Runs the bar', 'and the description is unchanged');
+
 select pg_temp.uid(6);
 select throws_ok($$select public.create_role(pg_temp.org('staff-a'), 'Greedy', null, array['kitchen.view', 'reports.view'])$$, '42501', 'ESCALATION_DENIED', 'a Supervisor cannot grant a permission they lack');
-select is(pg_temp.roles_snap(), (select s from rsnap), 'and no half-created role is left (empty role from above included)') where false;
 select is((select count(*)::int from public.roles where name = 'Greedy'), 0, 'the refused role does not exist');
 select lives_ok($$select public.create_role(pg_temp.org('staff-a'), 'Kitchen Plus', null, array['kitchen.view', 'orders.view'])$$, 'but can grant what they hold');
 select throws_ok($$select public.update_role((select id from rid where name = 'a'), null, null, array['reports.view'])$$, '42501', 'ESCALATION_DENIED', 'update: a permission they lack');
@@ -340,8 +354,16 @@ select pg_temp.uid(1);
 select lives_ok($$select public.update_role((select id from rid where name = 'a'), 'Bar Boss', 'New text', array['orders.view', 'reports.view'])$$, 'the Owner updates name, description and permissions');
 select is((select name || '/' || description from public.roles where id = (select id from rid where name = 'a')), 'Bar Boss/New text', 'name and description changed');
 select is((select array_agg(permission_key order by permission_key) from public.role_permissions where role_id = (select id from rid where name = 'a')), array['orders.view', 'reports.view'], 'permissions replaced: one kept, one removed, one added');
-select lives_ok($$select public.update_role((select id from rid where name = 'a'), null, null, null)$$, 'a null name and permission list keep them');
+select lives_ok($$select public.update_role((select id from rid where name = 'a'), null, null, null)$$, 'null name, description and permission list keep them');
 select is((select name from public.roles where id = (select id from rid where name = 'a')), 'Bar Boss', 'the name is kept');
+select is((select description from public.roles where id = (select id from rid where name = 'a')), 'New text', 'the description is kept');
+select lives_ok($$select public.update_role((select id from rid where name = 'a'), null, '', null)$$, 'an empty description clears it');
+select is((select description from public.roles where id = (select id from rid where name = 'a')), null, 'now null');
+select lives_ok($$select public.update_role((select id from rid where name = 'a'), null, 'Back again', array['orders.view', 'reports.view'])$$, 'a description can be set again');
+select is((select description from public.roles where id = (select id from rid where name = 'a')), 'Back again', 'and reads back');
+select lives_ok($$select public.update_role((select id from rid where name = 'a'), null, null, array[]::text[])$$, 'an empty permission list removes them all');
+select is((select count(*)::int from public.role_permissions where role_id = (select id from rid where name = 'a')), 0, 'none left');
+select lives_ok($$select public.update_role((select id from rid where name = 'a'), null, null, array['orders.view', 'reports.view'])$$, 'and they can be restored');
 select is((select count(*)::int from public.role_permissions where role_id = (select id from rid where name = 'a')), 2, 'and so are the permissions');
 select throws_ok($$select public.update_role((select id from rid where name = 'a'), 'reporter', null, null)$$, 'P0001', 'ROLE_NAME_TAKEN', 'update: a name already used');
 select throws_ok($$select public.update_role((select id from rid where name = 'a'), 'Bar Boss', null, array['no.such.permission'])$$, 'P0001', 'PERMISSION_INVALID', 'update: an unknown permission');

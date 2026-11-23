@@ -115,6 +115,10 @@ begin
   select coalesce(array_agg(distinct x), array[]::uuid[]) into v_ids
   from unnest(p_location_ids) x where x is not null;
 
+  -- An invitation that grants no location is refused: at least one, unless all_locations.
+  if cardinality(v_ids) = 0 then
+    raise exception 'LOCATION_INVALID' using errcode = 'P0001';
+  end if;
   if (select count(*) from public.locations l where l.org_id = p_org_id and l.id = any (v_ids))
      <> cardinality(v_ids) then
     raise exception 'LOCATION_INVALID' using errcode = 'P0001';
@@ -405,6 +409,24 @@ begin
 end;
 $$;
 
+-- Trims a role description: blank becomes null, over 300 characters is DESCRIPTION_INVALID. Checked
+-- here, so a long description is never reported as a bad name.
+create function private.clean_role_description(p_description text)
+returns text
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  v_desc text := nullif(btrim(coalesce(p_description, '')), '');
+begin
+  if char_length(v_desc) > 300 then
+    raise exception 'DESCRIPTION_INVALID' using errcode = 'P0001';
+  end if;
+  return v_desc;
+end;
+$$;
+
 -- Distinct, non-null permission keys, all of them in the catalog.
 create function private.clean_permission_keys(p_keys text[])
 returns text[]
@@ -433,13 +455,14 @@ declare
   v_org uuid := private.staff_manage_org(p_org_id);
   v_name text := private.clean_role_name(p_name);
   v_keys text[] := private.clean_permission_keys(coalesce(p_permission_keys, array[]::text[]));
+  v_desc text := private.clean_role_description(p_description);
   v_id uuid;
 begin
   if not private.org_has_custom_roles(v_org) then
     raise exception 'PLAN_FEATURE:custom_roles' using errcode = 'P0001';
   end if;
   begin
-    insert into public.roles (org_id, name, description) values (v_org, v_name, nullif(btrim(coalesce(p_description, '')), ''))
+    insert into public.roles (org_id, name, description) values (v_org, v_name, v_desc)
     returning id into v_id;
   exception
     when unique_violation then raise exception 'ROLE_NAME_TAKEN' using errcode = 'P0001';
@@ -451,7 +474,10 @@ begin
 end;
 $$;
 
--- Replaces name, description and the permission list. A null name or permission list keeps it.
+-- Contract: every argument but the role id is optional. null keeps the current value:
+--   p_name             null = keep; otherwise trimmed, 1 to 60 characters
+--   p_description      null = keep; '' (or blank) clears it; otherwise trimmed, up to 300 characters
+--   p_permission_keys  null = keep; otherwise the full new list (an empty array removes them all)
 -- Only the added permissions are checked by the guard; the caller must already hold every
 -- permission the role has now.
 create function public.update_role(p_role_id uuid, p_name text, p_description text, p_permission_keys text[])
@@ -464,6 +490,7 @@ declare
   v_role public.roles;
   v_org uuid := private.staff_manage_org((select r.org_id from public.roles r where r.id = p_role_id));
   v_name text;
+  v_desc text;
   v_keys text[];
 begin
   select * into v_role from public.roles r where r.id = p_role_id for update;
@@ -474,6 +501,7 @@ begin
     raise exception 'PLAN_FEATURE:custom_roles' using errcode = 'P0001';
   end if;
   v_name := case when p_name is null then v_role.name else private.clean_role_name(p_name) end;
+  v_desc := case when p_description is null then v_role.description else private.clean_role_description(p_description) end;
   if p_permission_keys is not null then
     v_keys := private.clean_permission_keys(p_permission_keys);
   end if;
@@ -481,7 +509,7 @@ begin
 
   begin
     update public.roles
-    set name = v_name, description = nullif(btrim(coalesce(p_description, '')), '')
+    set name = v_name, description = v_desc
     where id = p_role_id;
   exception
     when unique_violation then raise exception 'ROLE_NAME_TAKEN' using errcode = 'P0001';
@@ -536,6 +564,7 @@ revoke all on function private.assert_can_act_on_member(public.organization_memb
 
 revoke all on function private.org_has_custom_roles(uuid) from public, anon, authenticated, service_role;
 revoke all on function private.clean_role_name(text) from public, anon, authenticated, service_role;
+revoke all on function private.clean_role_description(text) from public, anon, authenticated, service_role;
 revoke all on function private.clean_permission_keys(text[]) from public, anon, authenticated, service_role;
 
 revoke all on function public.create_staff_invitation(uuid, text, uuid, bytea, boolean, uuid[]) from public, anon, service_role;
