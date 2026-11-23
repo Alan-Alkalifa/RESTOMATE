@@ -66,6 +66,9 @@ export const inviteSchema = z
     error: "staff.locations.invalid",
   });
 
+/** `listMembers` takes the same input as `listInvitations`. */
+export const listMembersSchema = listInvitationsSchema;
+
 export const invitationRefSchema = z.object({
   orgId: orgIdSchema,
   invitationId: id("staff.invitation.invalid"),
@@ -81,6 +84,8 @@ export const acceptSchema = z.object({
     .string({ error: "staff.invitation.invalid" })
     .regex(TOKEN_PATTERN, { error: "staff.invitation.invalid" }),
 });
+/** The same token shape as `acceptSchema`. */
+export const previewSchema = acceptSchema;
 
 /** FormData or a plain object as a plain object. `locationIds` keeps every repeated value. */
 export function readInput(raw: unknown): Record<string, unknown> {

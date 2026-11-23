@@ -43,7 +43,9 @@ export type MembershipRow = Omit<
 const ORG_STATUS = ["active", "suspended"] as const;
 const MEMBER_STATUS = ["active", "deactivated"] as const;
 
-function readMembershipRows(data: Rpc["my_org_membership"]["Returns"] | null): MembershipRow[] {
+export function readMembershipRows(
+  data: Rpc["my_org_membership"]["Returns"] | null,
+): MembershipRow[] {
   return (data ?? []).map((row) => {
     if (
       !(ORG_STATUS as readonly string[]).includes(row.org_status) ||

@@ -42,6 +42,8 @@ export {
 export {
   type Membership,
   type MembershipResult,
+  type MembershipRow,
+  readMembershipRows,
   type OrgContext,
   type OrgContextResult,
   type OrgPackage,

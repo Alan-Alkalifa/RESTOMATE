@@ -7,6 +7,7 @@ import { z } from "zod";
  * Messages are stable keys, never text, and never echo what the user typed.
  */
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const SLUG_MIN = 3;
 export const SLUG_MAX = 40;
 /** As in the database: a-z, 0-9 and hyphens; starts and ends with a letter or digit. */
@@ -15,6 +16,13 @@ export const NAME_MAX = 120; // organizations.name, locations.name
 export const ADDRESS_MAX = 500; // locations.address
 export const BPS_MAX = 10_000; // 100.00%
 export const DEFAULT_TIMEZONE = "Asia/Jakarta";
+/**
+ * The most restaurants one user can own (active Owner memberships). The database decides
+ * (`private.max_owned_orgs()`, `ORG_CAP`); this copy only lets a page warn before the form. If the
+ * two ever differ, the database wins and `createOrganization` answers `org.cap_reached`.
+ */
+export const MAX_OWNED_ORGS = 3;
+export const LOCATIONS_LIMIT = 200;
 
 /** The reasons `is_slug_available` and `create_organization` give for a slug. */
 export const SLUG_REASONS = ["SLUG_INVALID", "SLUG_RESERVED", "SLUG_TAKEN"] as const;
@@ -134,3 +142,10 @@ export function fieldErrorsOf(error: z.ZodError): Record<string, string[]> {
   }
   return out;
 }
+
+/** The input of `listLocations`. */
+export const listLocationsSchema = z.object({
+  orgId: z
+    .string({ error: "org.field.invalid" })
+    .regex(UUID_PATTERN, { error: "org.field.invalid" }),
+});

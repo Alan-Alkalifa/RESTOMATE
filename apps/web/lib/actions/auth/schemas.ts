@@ -65,6 +65,8 @@ export const signupSchema = z.object({
 export type SignupInput = z.input<typeof signupSchema>;
 
 export const forgotPasswordSchema = z.object({ email });
+export const resendConfirmationSchema = z.object({ email });
+export type ResendConfirmationInput = z.input<typeof resendConfirmationSchema>;
 export type ForgotPasswordInput = z.input<typeof forgotPasswordSchema>;
 
 export const resetPasswordSchema = z

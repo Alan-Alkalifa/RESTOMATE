@@ -10,17 +10,21 @@ import {
   refreshMemberAccess,
   requirePermission,
 } from "../../auth";
+import { protectInvitationPreview } from "../../arcjet/invitation";
 import { createAdminClient } from "../../supabase/admin";
 import { createClient } from "../../supabase/server";
+import { createStatelessAuthClient } from "../../supabase/stateless";
 import { sendInvitationEmail } from "./email";
 import { staffErrorResult } from "./errors";
 import {
   acceptSchema,
+  previewSchema,
   changeRoleSchema,
   fieldErrorsOf,
   inviteSchema,
   invitationRefSchema,
   listInvitationsSchema,
+  listMembersSchema,
   memberRefSchema,
   readInput,
   setLocationsSchema,
@@ -440,4 +444,150 @@ export async function listInvitations(
     // A stable sort keeps the newest-first order inside each group.
     .sort((a, b) => rank[a.status] - rank[b.status]);
   return ok({ invitations });
+}
+
+/*
+ * Listing members. A manager may read the org's member rows, roles and location links through
+ * their own client (RLS), so those reads run as the user. `profiles` only shows each user their own
+ * row, so names and addresses come from a service-role read: after `staff.manage`, pinned to the
+ * ids of this org's members, explicit columns. Emails are the profile's, never `auth.users`.
+ */
+
+export type MemberRow = {
+  memberId: string;
+  userId: string;
+  /** True for the caller's own row: the actions refuse it (`staff.member.self`). */
+  isSelf: boolean;
+  fullName: string | null;
+  email: string | null;
+  roleId: string;
+  roleName: string;
+  /** Null for a custom role. */
+  roleKey: string | null;
+  status: "active" | "deactivated";
+  deactivatedAt: string | null;
+  locationIds: string[];
+};
+
+/**
+ * The org's members: active first, then deactivated, each A to Z by name (the address when there
+ * is no name). At most `limit` (default 100, at most 200); the limit applies before the sort.
+ */
+export async function listMembers(input: unknown): Promise<ActionResult<{ members: MemberRow[] }>> {
+  const parsed = listMembersSchema.safeParse(readInput(input));
+  if (!parsed.success) return fail("validation", fieldErrorsOf(parsed.error));
+  const { orgId, limit } = parsed.data;
+
+  const manager = await managerOf(orgId);
+  if (!manager.ok) return manager.result;
+  const org = manager.ctx.org.id; // the verified org, never the caller's value from here on
+
+  const supabase = await createClient();
+  const members = await supabase
+    .from("organization_members")
+    .select("id, user_id, role_id, status, deactivated_at")
+    .eq("org_id", org)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  if (members.error) return fail("unavailable");
+  const rows = members.data ?? [];
+  if (rows.length === 0) return ok({ members: [] });
+
+  const memberIds = rows.map((m) => m.id);
+  const userIds = [...new Set(rows.map((m) => m.user_id))];
+  const roleIds = [...new Set(rows.map((m) => m.role_id))];
+  const [roles, links, profiles] = await Promise.all([
+    supabase.from("roles").select("id, name, system_key").eq("org_id", org).in("id", roleIds),
+    supabase
+      .from("location_staff")
+      .select("member_id, location_id")
+      .eq("org_id", org)
+      .in("member_id", memberIds),
+    createAdminClient().from("profiles").select("id, email, full_name").in("id", userIds),
+  ]);
+  if (roles.error || links.error || profiles.error) return fail("unavailable");
+
+  const roleOf = new Map((roles.data ?? []).map((r) => [r.id, r]));
+  const profileOf = new Map((profiles.data ?? []).map((p) => [p.id, p]));
+  const locationsOf = new Map<string, string[]>();
+  for (const l of links.data ?? []) {
+    locationsOf.set(l.member_id, [...(locationsOf.get(l.member_id) ?? []), l.location_id]);
+  }
+
+  const list = rows.map((m): MemberRow => {
+    const role = roleOf.get(m.role_id);
+    const profile = profileOf.get(m.user_id);
+    return {
+      memberId: m.id,
+      userId: m.user_id,
+      isSelf: m.user_id === manager.ctx.user.id,
+      fullName: profile?.full_name ?? null,
+      email: profile?.email ?? null,
+      roleId: m.role_id,
+      roleName: role?.name ?? "",
+      roleKey: role?.system_key ?? null,
+      status: m.status === "active" ? "active" : "deactivated",
+      deactivatedAt: m.deactivated_at,
+      locationIds: locationsOf.get(m.id) ?? [],
+    };
+  });
+  const label = (m: MemberRow) => (m.fullName ?? m.email ?? "").toLocaleLowerCase();
+  list.sort(
+    (a, b) =>
+      Number(a.status !== "active") - Number(b.status !== "active") ||
+      label(a).localeCompare(label(b)),
+  );
+  return ok({ members: list });
+}
+
+export type InvitationPreview =
+  | { status: "open" | "expired"; orgName: string; orgSlug: string; roleName: string }
+  | { status: "unavailable"; orgName: null; orgSlug: null; roleName: null };
+
+const UNAVAILABLE_PREVIEW: InvitationPreview = {
+  status: "unavailable",
+  orgName: null,
+  orgSlug: null,
+  roleName: null,
+};
+
+/**
+ * What an invitation link is for, before anyone signs in: "Join <org> as <role>". **No sign-in
+ * needed** (the invite page shows it to a signed-out visitor). The token is hashed in the database
+ * (`get_invitation_preview`); this action never logs or returns it.
+ *
+ * `status`: `open` and `expired` carry the names (the page can say whom to ask for a new link);
+ * `unavailable` carries nothing: an unknown, malformed, used or revoked link, and a suspended org,
+ * all look the same, so a guess learns nothing. Never the email, an ID or the locations.
+ * Rate-limited per IP.
+ */
+export async function previewInvitation(input: unknown): Promise<ActionResult<InvitationPreview>> {
+  const parsed = previewSchema.safeParse(readInput(input));
+  // A token that can't be one is the same answer as an unknown one, without asking the database.
+  if (!parsed.success) return ok(UNAVAILABLE_PREVIEW);
+
+  const verdict = await protectInvitationPreview();
+  if (!verdict.allowed)
+    return fail(verdict.reason === "rate_limited" ? "rate_limited" : "forbidden");
+
+  // The anon role may call this one function. A cookie-free client has no session to leak.
+  const { data, error } = await createStatelessAuthClient().rpc("get_invitation_preview", {
+    p_token: parsed.data.token,
+  });
+  if (error) return fail("unavailable");
+
+  // The generated types say `string`, but every name is null for `unavailable`: check the row.
+  const row = data?.[0] as
+    { org_name: unknown; org_slug: unknown; role_name: unknown; status: unknown } | undefined;
+  if (!row) return fail("unavailable");
+  const text = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
+  const [orgName, orgSlug, roleName] = [
+    text(row.org_name),
+    text(row.org_slug),
+    text(row.role_name),
+  ];
+  if ((row.status === "open" || row.status === "expired") && orgName && orgSlug && roleName) {
+    return ok({ status: row.status, orgName, orgSlug, roleName });
+  }
+  return ok(UNAVAILABLE_PREVIEW); // `unavailable`, an unknown status or missing names: closed
 }

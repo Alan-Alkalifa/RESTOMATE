@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   DEFAULT_AFTER_LOGIN,
-  LOGIN_PATH,
+  loginUrl,
+  safeNextPath,
   UNAVAILABLE,
   fail,
   getCurrentUser,
@@ -14,6 +15,7 @@ import {
 import {
   forgotPasswordSchema,
   loginSchema,
+  resendConfirmationSchema,
   readInput,
   resetPasswordSchema,
   signupSchema,
@@ -72,6 +74,8 @@ export async function signup(
   if (!parsed.ok) return parsed.result;
   const { email, password, fullName, locale } = parsed.data;
   const destination = parsed.data.next ?? DEFAULT_AFTER_LOGIN;
+  // What the user asked for, kept only if it is a safe same-site path; "" (nothing stored) if not.
+  const safeNext = safeNextPath(readInput(input).next, "");
 
   const refused = await protect("signup", email);
   if (refused) return refused;
@@ -84,7 +88,14 @@ export async function signup(
       email,
       password,
       // Read by the `profiles` trigger. No `emailRedirectTo`: the link uses the Site URL.
-      options: { data: { ...(fullName && { full_name: fullName }), locale: locale ?? "en" } },
+      options: {
+        data: {
+          ...(fullName && { full_name: fullName }),
+          locale: locale ?? "en",
+          // For the confirmation email's `&next={{ .Data.next }}`: only a safe same-site path.
+          ...(safeNext && { next: safeNext }),
+        },
+      },
     }),
   );
   if (outcome.status !== "done") return fail("unavailable");
@@ -139,6 +150,31 @@ export async function requestPasswordReset(input: unknown): Promise<ActionResult
 }
 
 /**
+ * Send the confirmation email again. Like sign-up and the reset request, the answer, the headers
+ * and the cookies are the same for an unknown address, an unconfirmed one and a confirmed one
+ * (cookie-free client; only a rate limit or an outage is reported), so it can't be used to find
+ * out who has an account. Needs no session: the person has not confirmed yet.
+ */
+export async function resendConfirmation(input: unknown): Promise<ActionResult> {
+  const parsed = parseInput(resendConfirmationSchema, readInput(input));
+  if (!parsed.ok) return parsed.result;
+  const { email } = parsed.data;
+
+  const refused = await protect("resendConfirmation", email);
+  if (refused) return refused;
+  await skipIfSignedIn(DEFAULT_AFTER_LOGIN);
+
+  const { supabase, guard } = statelessAuthClient();
+  const outcome = await runAuth(guard, () => supabase.auth.resend({ type: "signup", email }));
+  if (outcome.status !== "done") return fail("unavailable");
+  if (outcome.value.error) {
+    const result = authErrorResult(outcome.value.error);
+    if (result.error.code === "rate_limited" || result.error.code === "unavailable") return result;
+  }
+  return ok();
+}
+
+/**
  * Choose a new password. The user is signed in by the recovery link (`/auth/confirm`), so this
  * needs a verified session, and then ends every other session of the account.
  */
@@ -172,12 +208,14 @@ export async function resetPassword(input: unknown): Promise<ActionResult> {
  * signed in (at a shift change, many staff sign out from one IP). There is nothing to guess
  * here, and Server Actions already get Next's origin check.
  */
-export async function signOut(): Promise<ActionResult> {
+export async function signOut(input?: unknown): Promise<ActionResult> {
   const { supabase, guard } = await authClient();
   await runAuth(guard, () => supabase.auth.signOut({ scope: "local" }));
 
   // `signOut` clears them when Auth answers; when it does not, the browser still forgets us.
   const store = await cookies();
   for (const { name } of store.getAll()) if (name.startsWith("sb-")) store.delete(name);
-  redirect(LOGIN_PATH);
+  // Back to the login page, and on to `next` after the next sign-in when it is a safe same-site
+  // path (for example the invite link, after "sign out and use the invited address").
+  redirect(loginUrl(readInput(input).next));
 }

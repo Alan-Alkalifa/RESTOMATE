@@ -30,7 +30,7 @@ vi.mock("../../auth/user", async (original) => ({
 }));
 
 import { createClient } from "../../supabase/server";
-import { requestPasswordReset, signup } from "./actions";
+import { requestPasswordReset, resendConfirmation, signup } from "./actions";
 
 const REF = "abcdefgh";
 const json = (body: unknown, status = 200) =>
@@ -135,5 +135,37 @@ describe("control: the @supabase/ssr (PKCE) client shows the leak this fixes", (
     const existing = await viaSsr(SIGNUP.existing);
     expect(fresh.some((w) => w.includes("code-verifier"))).toBe(true);
     expect(existing).not.toEqual(fresh);
+  });
+});
+
+describe("resend confirmation: same result and no cookie for every kind of address", () => {
+  it("unknown, unconfirmed and confirmed are indistinguishable", async () => {
+    const answers = {
+      unknown: () => json({ message: "User not found" }, 404),
+      unconfirmed: () => json({}),
+      confirmed: () =>
+        json({ code: 422, error_code: "email_exists", msg: "already confirmed" }, 422),
+    };
+    const out = {
+      unknown: await run(
+        () => resendConfirmation({ email: "someone@example.com" }),
+        answers.unknown,
+      ),
+      unconfirmed: await run(
+        () => resendConfirmation({ email: "someone@example.com" }),
+        answers.unconfirmed,
+      ),
+      confirmed: await run(
+        () => resendConfirmation({ email: "someone@example.com" }),
+        answers.confirmed,
+      ),
+    };
+    for (const o of Object.values(out)) {
+      expect(o.result).toEqual({ ok: true, data: undefined });
+      expect(o.writes).toEqual([]); // no Set-Cookie at all
+      expect(JSON.parse(o.bodies[0])).toMatchObject({ type: "signup" });
+    }
+    expect(out.confirmed.result).toEqual(out.unknown.result);
+    expect(out.confirmed.writes).toEqual(out.unconfirmed.writes);
   });
 });
