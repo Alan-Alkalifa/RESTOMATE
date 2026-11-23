@@ -3,9 +3,7 @@
 Invite people, manage their roles, locations and access. Result and code conventions are in
 [README.md](./README.md); how a page gets the org context is in [auth.md](./auth.md).
 
-> Status: matches the merged code of PR #47 (M0-BE-22). `listInvitations` and the two keys
-> `staff.escalation_denied` / `staff.member.self` are in PR #50 (a follow-up to #47); they are part of
-> this contract and are final once #50 merges.
+> Status: final. Matches the merged code (M0-BE-22: #47 and its follow-up #50, M0-BE-30: #46).
 
 Import from `@/lib/actions/staff/actions`; schemas from `@/lib/actions/staff/schemas` (safe in a
 client component). Server Actions. Input is a `FormData` or a plain object.
