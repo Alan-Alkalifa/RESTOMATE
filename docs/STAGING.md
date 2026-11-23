@@ -15,7 +15,13 @@ In this Vercel project the **Production** target is staging: a merge to `main` u
 
 1. A PR merges to `main`. **CI** runs (lint, typecheck, unit, build, pgTAP, e2e).
 2. Vercel builds `main` and deploys the app. The build **fails on a bad or missing server variable** (see *Build and boot checks*).
-3. When CI succeeds on that commit, the workflow **Deploy DB (staging)** (`.github/workflows/deploy-db-staging.yml`) prints `supabase db push --dry-run` against the staging database, then applies the pending migrations. It never runs for a failed CI run, for a pull request, or for an older commit than the tip of `main`. Runs are serialized (one migration at a time).
+3. When CI succeeds on that commit, the workflow **Deploy DB (staging)** (`.github/workflows/deploy-db-staging.yml`) deploys the database:
+   - It runs only for a successful CI run of a **push** to `main`, or by hand on `main`, never for a pull request or a failed run. Runs are serialized (one migration at a time).
+   - The commit must be the tip of `main` **or an ancestor of it**. CI skips docs-only pushes, so a later docs-only push can become the tip before an earlier migration push's CI finishes; that earlier commit still deploys.
+   - If staging already has a migration this commit doesn't (a newer deploy already ran), it skips with a notice and stays green. **Never run `supabase migration repair` against staging** without the lead, even if the CLI suggests it.
+   - It checks that `SUPABASE_STAGING_DB_URL` is a `postgresql://` URI (no quotes, spaces or line breaks), masks it and its parts (password, host, user, project ref), prints `supabase db push --dry-run`, then applies the pending migrations. It never resets.
+
+Staging went live on 2026-11-23: the first runs applied the 10 M0 migrations and the staging seed.
 
 The app and the database deploy independently. A migration that the new code needs can land slightly after the app; keep migrations backward compatible with the previous app version (add before use, remove in a later release).
 
