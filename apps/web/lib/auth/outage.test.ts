@@ -22,7 +22,9 @@ const expired = JSON.stringify({
   user: { id: "11111111-1111-4111-8111-111111111111", aud: "authenticated" },
 });
 let cookieValue: string | null = expired;
+const incoming = new Headers();
 vi.mock("next/headers", () => ({
+  headers: async () => incoming,
   cookies: async () => ({
     getAll: () => (cookieValue ? [{ name: `sb-${REF}-auth-token`, value: cookieValue }] : []),
     set: () => {},

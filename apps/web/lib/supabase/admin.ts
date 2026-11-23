@@ -1,4 +1,5 @@
 import "server-only";
+import type { Database } from "@restomate/db";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdminEnv, getSupabaseEnv } from "../env";
 import { type DeadlineGuard, createDeadlineGuard } from "./fetch";
@@ -12,7 +13,7 @@ import { type DeadlineGuard, createDeadlineGuard } from "./fetch";
 export function createAdminClient(guard: DeadlineGuard = createDeadlineGuard()) {
   const { url } = getSupabaseEnv();
   const { SUPABASE_SERVICE_ROLE_KEY } = getSupabaseAdminEnv();
-  return createSupabaseClient(url, SUPABASE_SERVICE_ROLE_KEY, {
+  return createSupabaseClient<Database>(url, SUPABASE_SERVICE_ROLE_KEY, {
     global: { fetch: guard.fetch },
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });

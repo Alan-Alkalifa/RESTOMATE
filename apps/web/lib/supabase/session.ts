@@ -2,6 +2,7 @@ import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { getSupabaseEnv } from "../env";
 import { createDeadlineGuard } from "./fetch";
+import { AUTH_DOWN_HEADER } from "./signal";
 
 /** Supabase auth cookies are named `sb-<project ref>-auth-token`, split into `.0`, `.1`, ... */
 export function hasSupabaseCookie(request: NextRequest): boolean {
@@ -37,6 +38,12 @@ export async function updateSession(
   requestHeaders: Headers,
 ): Promise<NextResponse> {
   const passThrough = () => NextResponse.next({ request: { headers: requestHeaders } });
+  // The refresh failed in this request: tell the access layer so it does not spend a second
+  // deadline asking Auth again (see `./signal`).
+  const authDown = () => {
+    requestHeaders.set(AUTH_DOWN_HEADER, "1");
+    return passThrough();
+  };
   if (!hasSupabaseCookie(request)) return passThrough();
 
   const guard = createDeadlineGuard({ authMs: SESSION_REFRESH_DEADLINE_MS });
@@ -69,12 +76,12 @@ export async function updateSession(
       logRefresh(
         outcome.status === "timeout" ? "session_refresh_timeout" : "session_refresh_error",
       );
-      return passThrough();
+      return authDown();
     }
   } catch {
     closed = true;
     logRefresh("session_refresh_error");
-    return passThrough();
+    return authDown();
   }
 
   if (buffered.length === 0) return passThrough();

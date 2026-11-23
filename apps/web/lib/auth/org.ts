@@ -1,5 +1,6 @@
 import "server-only";
 import { cacheLife, cacheTag, updateTag } from "next/cache";
+import type { Database } from "@restomate/db";
 import { z } from "zod";
 import { createClient } from "../supabase/server";
 import { type AccessDenied, type ActionResult, fail, ok } from "./result";
@@ -8,7 +9,6 @@ import {
   FEATURE_KEYS,
   type PermissionKey,
   PERMISSION_KEYS,
-  UUID,
   memberTag,
   packageTag,
   userMembershipsTag,
@@ -23,40 +23,57 @@ import { type AuthUser, UNAVAILABLE, getCurrentUser } from "./user";
  * request and never share it. The explicit user and org ID arguments, and the tags, hold IDs only.
  */
 
-const membershipRow = z.object({
-  org_id: z.string().regex(UUID),
-  org_slug: z.string(),
-  org_name: z.string(),
-  org_status: z.enum(["active", "suspended"]),
-  member_id: z.string().regex(UUID),
-  member_status: z.enum(["active", "deactivated"]),
-  role_id: z.string().regex(UUID),
-  role_key: z.string().nullable(),
-  role_name: z.string(),
-});
-export type MembershipRow = z.infer<typeof membershipRow>;
+type Rpc = Database["public"]["Functions"];
 
-const packageRow = z.object({
-  package_key: z.string(),
-  package_name: z.string(),
-  subscription_status: z.string(),
-  trial_ends_at: z.string().nullable(),
-  current_period_end: z.string().nullable(),
-  max_locations: z.number().nullable(),
-  max_staff: z.number().nullable(),
-  max_tables: z.number().nullable(),
-  features: z.record(z.string(), z.boolean()),
-});
-export type OrgPackage = z.infer<typeof packageRow>;
+/**
+ * Row shapes come from the generated database types, so a migration that changes an RPC breaks
+ * the build here. The generated types say `string` for the text+check columns, so those few are
+ * narrowed below, and checked at run time (`readMembershipRows`), because access decisions hang on
+ * them. Anything that is not a known value is an error, never a default.
+ */
+export type MembershipRow = Omit<
+  Rpc["my_org_membership"]["Returns"][number],
+  "org_status" | "member_status" | "role_key"
+> & {
+  org_status: "active" | "suspended";
+  member_status: "active" | "deactivated";
+  role_key: string | null;
+};
+
+const ORG_STATUS = ["active", "suspended"] as const;
+const MEMBER_STATUS = ["active", "deactivated"] as const;
+
+function readMembershipRows(data: Rpc["my_org_membership"]["Returns"] | null): MembershipRow[] {
+  return (data ?? []).map((row) => {
+    if (
+      !(ORG_STATUS as readonly string[]).includes(row.org_status) ||
+      !(MEMBER_STATUS as readonly string[]).includes(row.member_status)
+    ) {
+      throw new Error("memberships_unreadable");
+    }
+    return {
+      ...row,
+      org_status: row.org_status as MembershipRow["org_status"],
+      member_status: row.member_status as MembershipRow["member_status"],
+      role_key: row.role_key ?? null,
+    };
+  });
+}
+
+/** `features` is `Json` in the generated type: a map of feature key to boolean. */
+const features = z.record(z.string(), z.boolean());
+export type OrgPackage = Omit<Rpc["get_org_package"]["Returns"][number], "features"> & {
+  features: z.infer<typeof features>;
+};
 
 async function loadMemberships(userId: string): Promise<MembershipRow[]> {
   "use cache: private";
   cacheTag(userMembershipsTag(userId));
   cacheLife({ stale: 30 });
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("my_org_membership", { p_org_id: null });
+  const { data, error } = await supabase.rpc("my_org_membership", {}); // no org: all of the caller's memberships
   if (error) throw new Error("memberships_unavailable"); // thrown, so a failure is never cached
-  return z.array(membershipRow).parse(data ?? []);
+  return readMembershipRows(data);
 }
 
 async function loadPermissions(userId: string, orgId: string): Promise<string[]> {
@@ -66,7 +83,7 @@ async function loadPermissions(userId: string, orgId: string): Promise<string[]>
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("my_permissions", { p_org_id: orgId });
   if (error) throw new Error("permissions_unavailable");
-  return z.array(z.string()).parse(data ?? []);
+  return z.array(z.string()).parse(data ?? []); // permission keys: checked against PERMISSION_KEYS on use
 }
 
 async function loadPackage(userId: string, orgId: string): Promise<OrgPackage | null> {
@@ -76,8 +93,9 @@ async function loadPackage(userId: string, orgId: string): Promise<OrgPackage | 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_org_package", { p_org_id: orgId });
   if (error) throw new Error("package_unavailable");
-  const rows = z.array(packageRow).parse(data ?? []);
-  return rows[0] ?? null; // no running subscription: no package, so no feature
+  const row = data?.[0];
+  if (!row) return null; // no running subscription: no package, so no feature
+  return { ...row, features: features.parse(row.features) };
 }
 
 export type OrgRef = { orgId: string } | { slug: string };
