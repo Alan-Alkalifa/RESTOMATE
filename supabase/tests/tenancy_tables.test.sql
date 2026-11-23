@@ -7,6 +7,11 @@ select ok((select bool_and(relrowsecurity) from pg_class where oid in ('public.o
 
 -- Slug format, length, uniqueness
 insert into public.organizations (name, slug) values ('Demo', 'demo-resto');
+
+-- Fixture: plan limits are enforced by the M0-BE-11 guards, so test orgs get an unlimited package.
+insert into public.packages (key, name) values ('test_unlimited', 'Unlimited (test)');
+insert into public.subscriptions (org_id, package_id, status)
+select o.id, (select id from public.packages where key = 'test_unlimited'), 'active' from public.organizations o;
 select is((select currency || timezone || status from public.organizations where slug = 'demo-resto'), 'IDRAsia/Jakartaactive', 'defaults');
 select throws_ok($$insert into public.organizations (name, slug) values ('x','ab')$$, '23514', null, 'slug too short');
 select lives_ok($$insert into public.organizations (name, slug) values ('x','abc')$$, '3 chars ok');
@@ -45,7 +50,7 @@ select throws_ok($$update public.locations set service_charge_bps = 10001$$, '23
 select throws_ok($$update public.locations set service_charge_bps = -1$$, '23514', null, 'negative service charge');
 select throws_ok($$update public.locations set timezone = 'UTC+7'$$, '22023', null, 'location refuses UTC+7');
 select throws_ok($$update public.locations set timezone = 'Nowhere/Land'$$, '22023', null, 'location timezone checked');
-select throws_ok($$insert into public.locations (org_id, name) values (gen_random_uuid(), 'Orphan')$$, '23503', null, 'location needs an organization');
+select throws_ok($$insert into public.locations (org_id, name) values (gen_random_uuid(), 'Orphan')$$, 'P0001', 'PLAN_LIMIT:locations', 'an unknown org has no subscription, so no location (the guard fires before the foreign key)');
 
 -- Branding: https only
 insert into public.org_branding (org_id) select id from public.organizations where slug = 'demo-resto';
@@ -64,10 +69,10 @@ select throws_ok($$select 1 from public.organizations$$, '42501', null, 'anon: o
 select throws_ok($$select 1 from public.locations$$, '42501', null, 'anon: locations');
 reset role;
 set local role authenticated;
-select throws_ok($$select 1 from public.organizations$$, '42501', null, 'authenticated: organizations');
+select is((select count(*)::int from public.organizations), 0, 'authenticated without membership sees no organizations rows (read policy, M0-BE-10)');
 select throws_ok($$select 1 from public.reserved_slugs$$, '42501', null, 'authenticated: reserved_slugs');
 select throws_ok($$insert into public.locations (org_id, name) select id, 'x' from public.organizations$$, '42501', null, 'authenticated: locations write');
-select throws_ok($$select 1 from public.org_branding$$, '42501', null, 'authenticated: org_branding');
+select is((select count(*)::int from public.org_branding), 0, 'authenticated without membership sees no org_branding rows (read policy, M0-BE-10)');
 reset role;
 
 select * from finish();
