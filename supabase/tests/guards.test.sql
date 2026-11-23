@@ -1,6 +1,6 @@
 -- M0-BE-11: each forbidden write fails in the database.
 begin;
-select plan(79);
+select plan(95);
 
 insert into auth.users (id, instance_id, aud, role, email)
 select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid,
@@ -165,6 +165,47 @@ select pg_temp.uid(8);
 select lives_ok($$select pg_temp.add_member((select id from public.organizations where slug = 'fresh-one'), 9, 'owner')$$, 'the Owner can add another Owner');
 select set_config('request.jwt.claims', '', true);
 select lives_ok($$select pg_temp.add_member((select id from public.organizations where slug = 'fresh-two'), 8, 'cashier')$$, 'with no auth.uid() (service_role, migrations) the write is trusted');
+
+-- ---------------------------------------------------------------------------------------------
+-- Acting on a member or invitation needs the rights of its current role
+-- esc-org: 1 and 2 owners, 3 manager, 4 cashier, 5 waiter
+-- ---------------------------------------------------------------------------------------------
+select set_config('request.jwt.claims', '', true);
+insert into public.organizations (name, slug) values ('Escalation', 'esc-org');
+insert into public.subscriptions (org_id, package_id, status) select id, (select id from public.packages where key = 'unl'), 'active' from public.organizations where slug = 'esc-org';
+select pg_temp.add_member((select id from public.organizations where slug = 'esc-org'), 1, 'owner');
+select pg_temp.add_member((select id from public.organizations where slug = 'esc-org'), 2, 'owner');
+select pg_temp.add_member((select id from public.organizations where slug = 'esc-org'), 3, 'manager');
+select pg_temp.add_member((select id from public.organizations where slug = 'esc-org'), 4, 'cashier');
+select pg_temp.add_member((select id from public.organizations where slug = 'esc-org'), 5, 'waiter');
+
+select pg_temp.uid(3);
+select throws_ok($$update public.organization_members set role_id = pg_temp.role_id(org_id, 'cashier') where user_id = '00000000-0000-0000-0000-000000000001' and org_id = (select id from public.organizations where slug = 'esc-org')$$, '42501', 'ESCALATION_DENIED', 'a manager cannot demote an Owner');
+select throws_ok($$update public.organization_members set status = 'deactivated', deactivated_at = now() where user_id = '00000000-0000-0000-0000-000000000001' and org_id = (select id from public.organizations where slug = 'esc-org')$$, '42501', 'ESCALATION_DENIED', 'a manager cannot deactivate an Owner');
+select lives_ok($$update public.organization_members set role_id = pg_temp.role_id(org_id, 'waiter') where user_id = '00000000-0000-0000-0000-000000000004' and org_id = (select id from public.organizations where slug = 'esc-org')$$, 'a manager can change a Cashier to Waiter');
+select lives_ok($$update public.organization_members set role_id = pg_temp.role_id(org_id, 'cashier') where user_id = '00000000-0000-0000-0000-000000000004' and org_id = (select id from public.organizations where slug = 'esc-org')$$, 'and back');
+select pg_temp.uid(4);
+select throws_ok($$update public.organization_members set role_id = pg_temp.role_id(org_id, 'cashier') where user_id = '00000000-0000-0000-0000-000000000005' and org_id = (select id from public.organizations where slug = 'esc-org')$$, '42501', 'ESCALATION_DENIED', 'a cashier cannot change a waiter (lacks reservations.view)');
+select throws_ok($$update public.organization_members set status = 'deactivated', deactivated_at = now() where user_id = '00000000-0000-0000-0000-000000000005' and org_id = (select id from public.organizations where slug = 'esc-org')$$, '42501', 'ESCALATION_DENIED', 'a cashier cannot deactivate a waiter');
+select pg_temp.uid(2);
+select lives_ok($$update public.organization_members set role_id = pg_temp.role_id(org_id, 'manager') where user_id = '00000000-0000-0000-0000-000000000001' and org_id = (select id from public.organizations where slug = 'esc-org')$$, 'an Owner can demote another Owner when one remains');
+select lives_ok($$update public.organization_members set role_id = pg_temp.role_id(org_id, 'owner') where user_id = '00000000-0000-0000-0000-000000000001' and org_id = (select id from public.organizations where slug = 'esc-org')$$, 'and promote them again');
+select pg_temp.uid(1);
+select lives_ok($$update public.organization_members set status = 'deactivated', deactivated_at = now() where user_id = '00000000-0000-0000-0000-000000000001' and org_id = (select id from public.organizations where slug = 'esc-org')$$, 'an Owner can deactivate themself when another Owner remains');
+select pg_temp.uid(2);
+select lives_ok($$update public.organization_members set status = 'active', deactivated_at = null where user_id = '00000000-0000-0000-0000-000000000001' and org_id = (select id from public.organizations where slug = 'esc-org')$$, 'an Owner can reactivate an Owner');
+-- invitations
+select lives_ok($$select pg_temp.invite((select id from public.organizations where slug = 'esc-org'), 'ownerinv@example.test', 'owner')$$, 'an Owner invites an Owner');
+select pg_temp.uid(3);
+select throws_ok($$update public.staff_invitations set revoked_at = now() where email = 'ownerinv@example.test'$$, '42501', 'ESCALATION_DENIED', 'a manager cannot revoke an Owner invitation');
+select throws_ok($$update public.staff_invitations set role_id = pg_temp.role_id(org_id, 'cashier') where email = 'ownerinv@example.test'$$, '42501', 'ESCALATION_DENIED', 'a manager cannot re-role an Owner invitation');
+select pg_temp.uid(2);
+select lives_ok($$update public.staff_invitations set revoked_at = now() where email = 'ownerinv@example.test'$$, 'an Owner can revoke it');
+select pg_temp.uid(3);
+select lives_ok($$select pg_temp.invite((select id from public.organizations where slug = 'esc-org'), 'cashinv@example.test', 'cashier')$$, 'a manager invites a cashier');
+select pg_temp.uid(9);
+select lives_ok($$update public.staff_invitations set accepted_at = now(), accepted_by = '00000000-0000-0000-0000-000000000009' where email = 'cashinv@example.test'$$, 'the invitee can accept (accepting is not acting on someone else''s invitation)');
+select set_config('request.jwt.claims', '', true);
 
 -- ---------------------------------------------------------------------------------------------
 -- Audit: ids and changed field names only

@@ -220,6 +220,13 @@ begin
     end if;
   end if;
 
+  -- Acting on someone else's role or status needs the rights of their current role: only an Owner
+  -- touches an Owner, and nobody touches a member whose role holds permissions they lack.
+  -- Self-deactivation stays allowed (LAST_OWNER above still applies).
+  if v_uid is not null and old.user_id <> v_uid and (new.role_id <> old.role_id or new.status <> old.status) then
+    perform private.assert_can_assign_role(old.org_id, old.role_id);
+  end if;
+
   if new.role_id <> old.role_id then
     perform private.assert_can_assign_role(new.org_id, new.role_id);
   end if;
@@ -265,8 +272,15 @@ begin
   if tg_op = 'INSERT' then
     perform private.check_plan_limit(new.org_id, 'staff', 1, true);
     perform private.assert_can_assign_role(new.org_id, new.role_id);
-  elsif new.role_id <> old.role_id then
-    perform private.assert_can_assign_role(new.org_id, new.role_id);
+  else
+    -- Revoking or re-roling an invitation needs the rights of its current role. Accepting (the
+    -- invitee sets accepted_at) is not an act on someone else's invitation, so it is not checked.
+    if (new.revoked_at is distinct from old.revoked_at or new.role_id <> old.role_id) then
+      perform private.assert_can_assign_role(old.org_id, old.role_id);
+    end if;
+    if new.role_id <> old.role_id then
+      perform private.assert_can_assign_role(new.org_id, new.role_id);
+    end if;
   end if;
   return new;
 end;
