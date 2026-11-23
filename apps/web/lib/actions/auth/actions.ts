@@ -30,7 +30,7 @@ import {
 /*
  * Auth Server Actions (M0-BE-20). Every one of them:
  *   1. parses its input with the shared Zod schema (a blank or malformed email never reaches Arcjet),
- *   2. is rate-limited by `protectAuth` BEFORE any Supabase call,
+ *   2. is rate-limited by `protectAuth` BEFORE any Supabase call (all but `signOut`, which is never refused),
  *   3. returns one `ActionResult` (codes and message keys only, no text, no echoed input),
  *   4. redirects on success where the user should move on (login, reset, sign out).
  * `input` is a `FormData` or a plain object. With `useActionState`, wrap it:
@@ -143,11 +143,12 @@ export async function resetPassword(input: unknown): Promise<ActionResult> {
 /**
  * Sign out of this session only (`scope: "local"`: the server revokes it, other devices stay
  * signed in) and clear its cookies, whether or not Auth could be reached. Redirects to login.
+ *
+ * Never rate-limited and never refused: a refused sign-out would leave a shared venue device
+ * signed in (at a shift change, many staff sign out from one IP). There is nothing to guess
+ * here, and Server Actions already get Next's origin check.
  */
 export async function signOut(): Promise<ActionResult> {
-  const refused = await protect("login");
-  if (refused) return refused;
-
   const { supabase, guard } = await authClient();
   await runAuth(guard, () => supabase.auth.signOut({ scope: "local" }));
 

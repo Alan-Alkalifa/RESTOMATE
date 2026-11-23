@@ -334,9 +334,14 @@ describe("signOut", () => {
     expect(world.deleted).toHaveLength(2);
   });
 
-  it("is rate-limited before Supabase", async () => {
-    world.protect = { allowed: false, reason: "rate_limited" };
-    expect(await signOut()).toEqual({ ok: false, error: { code: "rate_limited" } });
-    expect(world.calls).toEqual([]);
-  });
+  it.each(["rate_limited", "blocked"] as const)(
+    "is never refused: with Arcjet answering %s it still signs out and redirects",
+    async (reason) => {
+      world.protect = { allowed: false, reason };
+      await expect(redirected(signOut())).resolves.toBe("/login");
+      expect(world.protectArgs).toEqual([]);
+      expect(world.calls).toEqual([{ name: "signOut", args: { scope: "local" } }]);
+      expect(world.deleted).toEqual(["sb-ref-auth-token", "sb-ref-auth-token.0"]);
+    },
+  );
 });
