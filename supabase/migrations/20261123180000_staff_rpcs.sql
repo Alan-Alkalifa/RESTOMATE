@@ -22,9 +22,46 @@
 --   MEMBER_ALREADY_ACTIVE, MEMBER_ALREADY_DEACTIVATED, STATUS_INVALID
 --   PLAN_FEATURE:custom_roles  the package has no custom roles
 --   NAME_INVALID, ROLE_NAME_TAKEN, ROLE_SYSTEM (a system role can't be changed or deleted),
---   ROLE_IN_USE (a member or an invitation, open or closed, still points at the role),
+--   ROLE_IN_USE (a member or an open invitation holds the role; closed invitations don't),
 --   PERMISSION_INVALID (an unknown permission key)
 --   PLAN_LIMIT:staff, LAST_OWNER, ESCALATION_DENIED (42501) from the guards (M0-BE-11)
+
+-- ---------------------------------------------------------------------------------------------
+-- A closed invitation (accepted or revoked) must not block deleting a role: when its role is
+-- deleted the invitation keeps its history and its role_id becomes null. An open invitation always
+-- has a role, so it still blocks the deletion. Only the closed rows' role_id changes: the freeze
+-- trigger lets exactly that update through (the foreign key's own update) and nothing else.
+-- ---------------------------------------------------------------------------------------------
+alter table public.staff_invitations alter column role_id drop not null;
+alter table public.staff_invitations add constraint staff_invitations_open_has_role
+  check (role_id is not null or accepted_at is not null or revoked_at is not null);
+alter table public.staff_invitations drop constraint staff_invitations_role_fkey;
+alter table public.staff_invitations add constraint staff_invitations_role_fkey
+  foreign key (org_id, role_id) references public.roles (org_id, id) on delete set null (role_id);
+
+create or replace function private.freeze_closed_invitation()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if old.accepted_at is not null or old.revoked_at is not null then
+    -- The one change a closed invitation takes: its role was deleted (role_id set to null).
+    if new.role_id is null and old.role_id is not null
+       and to_jsonb(new) - 'role_id' - 'updated_at' = to_jsonb(old) - 'role_id' - 'updated_at' then
+      return new;
+    end if;
+    raise exception 'closed invitations cannot be changed' using errcode = '55000';
+  end if;
+  -- The list of locations only exists for all_locations = false.
+  if new.all_locations and exists (
+    select 1 from public.staff_invitation_locations l where l.invitation_id = new.id
+  ) then
+    raise exception 'invitation has a location list' using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
 
 -- ---------------------------------------------------------------------------------------------
 -- Helpers (private, no API role may execute them)
@@ -475,11 +512,16 @@ begin
     raise exception 'ROLE_SYSTEM' using errcode = 'P0001';
   end if;
   perform private.assert_can_assign_role(v_org, p_role_id);
-  begin
-    delete from public.roles where id = p_role_id;
-  exception when foreign_key_violation then
+  -- Members of any status and open invitations hold the role. Closed invitations don't: their
+  -- role_id becomes null with the deletion.
+  if exists (select 1 from public.organization_members m where m.org_id = v_org and m.role_id = p_role_id)
+     or exists (
+       select 1 from public.staff_invitations i
+       where i.org_id = v_org and i.role_id = p_role_id and i.accepted_at is null and i.revoked_at is null
+     ) then
     raise exception 'ROLE_IN_USE' using errcode = 'P0001';
-  end;
+  end if;
+  delete from public.roles where id = p_role_id;
 end;
 $$;
 

@@ -1,7 +1,7 @@
 -- M0-BE-30: staff RPCs. Definer functions, so cases run as postgres with auth.uid() set by the
 -- claims; the grant cases read the privileges.
 begin;
-select plan(170);
+select plan(184);
 
 insert into auth.users (id, instance_id, aud, role, email, email_confirmed_at)
 select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid,
@@ -355,7 +355,28 @@ select throws_ok($$select public.delete_role(pg_temp.role('staff-a', 'Supervisor
 select lives_ok($$select public.create_staff_invitation(pg_temp.org('staff-a'), 'barlead@example.test', (select id from rid where name = 'a'), pg_temp.h('r1'), true, null)$$, 'invite someone to Bar Boss');
 select throws_ok($$select public.delete_role((select id from rid where name = 'a'))$$, 'P0001', 'ROLE_IN_USE', 'delete: a role an open invitation holds');
 select lives_ok($$select public.revoke_staff_invitation(pg_temp.inv('barlead@example.test'))$$, 'revoke it');
-select throws_ok($$select public.delete_role((select id from rid where name = 'a'))$$, 'P0001', 'ROLE_IN_USE', 'delete: a closed invitation still points at the role');
+-- A closed invitation does not hold the role: it keeps its row and its role_id becomes null
+insert into rid select 'closed', public.create_role(pg_temp.org('staff-a'), 'Closed Once', null, array['orders.view']);
+select lives_ok($$select public.create_staff_invitation(pg_temp.org('staff-a'), 'closed1@example.test', (select id from rid where name = 'closed'), pg_temp.h('r2'), true, null)$$, 'invite someone to Closed Once');
+select throws_ok($$select public.delete_role((select id from rid where name = 'closed'))$$, 'P0001', 'ROLE_IN_USE', 'delete: an open invitation still blocks');
+select throws_ok($$update public.staff_invitations set role_id = null where email = 'closed1@example.test'$$, '23514', null, 'an open invitation cannot lose its role');
+select lives_ok($$select public.revoke_staff_invitation(pg_temp.inv('closed1@example.test'))$$, 'revoke it');
+create temp table inv_before as select count(*)::int as n from public.staff_invitations;
+select lives_ok($$select public.delete_role((select id from rid where name = 'closed'))$$, 'delete: a role only a closed (revoked) invitation points at');
+select is((select count(*)::int from public.staff_invitations) , (select n from inv_before), 'the invitation row is kept');
+select is((select coalesce(role_id::text, 'null') || '/' || (revoked_at is not null)::text from public.staff_invitations where email = 'closed1@example.test'), 'null/true', 'its role_id is null and it is still revoked');
+select throws_ok($$update public.staff_invitations set all_locations = not all_locations where email = 'closed1@example.test'$$, '55000', 'closed invitations cannot be changed', 'a closed invitation is otherwise still frozen');
+select throws_ok($$update public.staff_invitations set revoked_at = null where email = 'closed1@example.test'$$, '55000', 'closed invitations cannot be changed', 'and cannot be reopened');
+-- An accepted invitation, whose member has moved to another role
+insert into rid select 'acc', public.create_role(pg_temp.org('staff-a'), 'Accepted Once', null, array['orders.view']);
+select lives_ok($$select public.create_staff_invitation(pg_temp.org('staff-a'), 'u11@example.test', (select id from rid where name = 'acc'), pg_temp.h('acc-token'), true, null)$$, 'invite u11 to Accepted Once');
+select pg_temp.uid(11);
+select lives_ok($$select * from public.accept_invitation('acc-token')$$, 'u11 accepts');
+select pg_temp.uid(1);
+select throws_ok($$select public.delete_role((select id from rid where name = 'acc'))$$, 'P0001', 'ROLE_IN_USE', 'delete: a member holds it');
+select lives_ok($$select public.change_member_role(pg_temp.member('staff-a', 11), pg_temp.role('staff-a', 'waiter'))$$, 'the member moves to Waiter');
+select lives_ok($$select public.delete_role((select id from rid where name = 'acc'))$$, 'delete: only an accepted invitation points at it');
+select is((select (role_id is null)::text || '/' || (accepted_at is not null)::text from public.staff_invitations where email = 'u11@example.test'), 'true/true', 'the accepted invitation keeps its history with a null role');
 select lives_ok($$select public.delete_role((select id from rid where name = 'rep'))$$, 'delete: an unused custom role');
 select is((select count(*)::int from public.roles where id = (select id from rid where name = 'rep')) + (select count(*)::int from public.role_permissions where role_id = (select id from rid where name = 'rep')), 0, 'the role and its permissions are gone');
 select is((select count(*)::int from public.audit_logs where action = 'role.deleted' and entity_id = (select id::text from rid where name = 'rep')), 1, 'the deletion is audited');

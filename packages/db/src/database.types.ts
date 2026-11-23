@@ -309,14 +309,14 @@ isOneToOne: false
                   ]
                 },"staff_invitations": {
                   Row: {
-                    "accepted_at": string | null,"accepted_by": string | null,"all_locations": boolean,"created_at": string,"email": string,"expires_at": string,"id": string,"invited_by": string | null,"org_id": string,"revoked_at": string | null,"role_id": string,"token_hash": string,"updated_at": string
+                    "accepted_at": string | null,"accepted_by": string | null,"all_locations": boolean,"created_at": string,"email": string,"expires_at": string,"id": string,"invited_by": string | null,"org_id": string,"revoked_at": string | null,"role_id": string | null,"token_hash": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "accepted_at"?: string | null,"accepted_by"?: string | null,"all_locations"?: boolean,"created_at"?: string,"email": string,"expires_at": string,"id"?: string,"invited_by"?: string | null,"org_id": string,"revoked_at"?: string | null,"role_id": string,"token_hash": string,"updated_at"?: string
+                    "accepted_at"?: string | null,"accepted_by"?: string | null,"all_locations"?: boolean,"created_at"?: string,"email": string,"expires_at": string,"id"?: string,"invited_by"?: string | null,"org_id": string,"revoked_at"?: string | null,"role_id"?: string | null,"token_hash": string,"updated_at"?: string
                   }
                   Update: {
-                    "accepted_at"?: string | null,"accepted_by"?: string | null,"all_locations"?: boolean,"created_at"?: string,"email"?: string,"expires_at"?: string,"id"?: string,"invited_by"?: string | null,"org_id"?: string,"revoked_at"?: string | null,"role_id"?: string,"token_hash"?: string,"updated_at"?: string
+                    "accepted_at"?: string | null,"accepted_by"?: string | null,"all_locations"?: boolean,"created_at"?: string,"email"?: string,"expires_at"?: string,"id"?: string,"invited_by"?: string | null,"org_id"?: string,"revoked_at"?: string | null,"role_id"?: string | null,"token_hash"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
