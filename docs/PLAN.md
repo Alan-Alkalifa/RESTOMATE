@@ -801,6 +801,8 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-23 | Supabase client deadlines (M0-BE-14/15): Auth calls 2.5 s, after which an Auth outage reads as "unavailable" (never "signed out"); database, storage and function calls 10 s per call, never aborting each other. Access-layer lookups use `'use cache: private'`, not shared `'use cache'`, because the database functions answer for the caller's JWT | ALAN, from DAVIN's outage tests and CARLO's design |
 | 2026-11-23 | Arcjet bot rule allows search engines, previews, Slack and social unfurlers, monitors and Vercel. Login per-IP limit is 60 per 15 min because a venue's devices share one IP; per-email limits stop guessing | ALAN |
 | 2026-11-23 | Generated database types are checked in CI (regenerate after reset, fail on diff) | ALAN, from DAVIN's #38 QA |
+| 2026-11-23 | Staging database live: M0-BE-24 (PR #41) deploys migrations after CI on `main` (tip or ancestor; skips if staging is already ahead), and the first runs applied the 10 M0 migrations and the staging seed. ADIT's sandbox now runs the local stack (6 GB, without Studio) | ALAN |
+| 2026-11-23 | M0-BE-20 QA: auth email templates with `token_hash` links are M0-FE-10's (REYKI, with ADIT's `config.toml` wiring in a paired PR); until then the end-to-end confirmation link is not expected to sign the user in. Accepted: sign-out sits behind the proxy's shield and bot rules (real browsers pass); `/auth/confirm` redirects on the request origin (fine on Vercel) | ALAN, from DAVIN's QA |
 
 ### Open
 
@@ -818,7 +820,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | Consent for analytics (legal, project owner) | Before public launch |
 | `all_locations` invitations copy today's locations at accept time, so later locations don't reach that member (likely an `all_locations` flag on `organization_members`) | M2 Plan, before locations can be created in the app |
 | Deleting a location removes it from invitation lists without an audit row | M2 Plan, with location management |
-| ADIT's sandbox can't run the local Supabase stack (memory); asked the project owner to raise it to 6 GB | Project owner |
+| Access token lifetime: after a password reset, other devices' access JWTs stay valid until they expire (`jwt_expiry` 3600 s). Shorten it, or check the session server-side for sensitive actions | M6 production readiness |
 | Storefront analytics: a tenant's subdomain reaches PostHog in the `Origin` header (reverse proxy, or none on storefronts) | M4 Plan |
 
 ### `instant = false` opt-outs
