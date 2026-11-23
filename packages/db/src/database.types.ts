@@ -387,6 +387,11 @@ isOneToOne: false
 "delete_role":
 { Args: { "p_role_id": string }; Returns: undefined
                            },
+"get_invitation_preview":
+{ Args: { "p_token": string }; Returns: {
+              "org_name": string,"org_slug": string,"role_name": string,"status": string
+            }[]
+                           },
 "get_org_package":
 { Args: { "p_org_id": string }; Returns: {
               "current_period_end": string,"features": Json,"max_locations": number,"max_staff": number,"max_tables": number,"package_key": string,"package_name": string,"subscription_status": string,"trial_ends_at": string
