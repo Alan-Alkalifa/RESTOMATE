@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { protectRequest } from "./lib/arcjet";
 import { resolveHost } from "./lib/supabase/host";
 import { updateSession } from "./lib/supabase/session";
 
 /**
- * Host routing and session refresh only (Arcjet joins in M0-BE-16). This file NEVER decides who
+ * Host routing, abuse protection (Arcjet) and session refresh only. This file NEVER decides who
  * may do what: every page, action and route handler authorizes on the server, and RLS backs it.
  */
 
@@ -39,6 +40,15 @@ export async function proxy(request: NextRequest) {
   if (resolved.kind === "unknown") {
     return new NextResponse("Not Found", {
       status: 404,
+      headers: { "content-type": "text/plain" },
+    });
+  }
+
+  // Abuse protection (shield, bots), never authorization. Tenant hosts get shield only.
+  const verdict = await protectRequest(request, resolved.kind === "tenant" ? "tenant" : "app");
+  if (!verdict.allow) {
+    return new NextResponse("Forbidden", {
+      status: 403,
       headers: { "content-type": "text/plain" },
     });
   }
