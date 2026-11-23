@@ -12,6 +12,7 @@ const world = {
   protectCalls: 0,
   rpc: { data: [] as unknown, error: null as unknown },
   calls: [] as { fn: string; args: unknown }[],
+  rpcOptions: [] as unknown[],
   order: [] as string[],
   userChecked: false,
 };
@@ -32,9 +33,10 @@ vi.mock("../../auth/user", async (original) => ({
 }));
 vi.mock("../../supabase/stateless", () => ({
   createStatelessAuthClient: () => ({
-    rpc: async (fn: string, args: unknown) => {
+    rpc: async (fn: string, args: unknown, options?: unknown) => {
       world.order.push(`rpc:${fn}`);
       world.calls.push({ fn, args });
+      world.rpcOptions.push(options);
       return world.rpc;
     },
   }),
@@ -57,6 +59,7 @@ beforeEach(() => {
     protectCalls: 0,
     rpc: { data: [row()], error: null },
     calls: [],
+    rpcOptions: [],
     order: [],
     userChecked: false,
   });
@@ -174,6 +177,15 @@ describe("previewInvitation", () => {
       ok: false,
       error: { code: "unavailable" },
     });
+  });
+
+  it("asks the database with a POST (never GET, so the token stays out of access logs) and always sends p_token", async () => {
+    await previewInvitation({ token: TOKEN });
+    // supabase-js sends a GET only when called with `{ get: true }`; no options means POST.
+    expect(world.rpcOptions).toEqual([undefined]);
+    expect(world.calls).toHaveLength(1);
+    expect(world.calls[0].args).toEqual({ p_token: TOKEN });
+    expect(Object.keys(world.calls[0].args as object)).toEqual(["p_token"]);
   });
 
   it("never puts the token in the result", async () => {
