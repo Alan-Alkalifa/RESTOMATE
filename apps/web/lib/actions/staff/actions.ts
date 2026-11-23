@@ -10,12 +10,15 @@ import {
   refreshMemberAccess,
   requirePermission,
 } from "../../auth";
+import { protectInvitationPreview } from "../../arcjet/invitation";
 import { createAdminClient } from "../../supabase/admin";
 import { createClient } from "../../supabase/server";
+import { createStatelessAuthClient } from "../../supabase/stateless";
 import { sendInvitationEmail } from "./email";
 import { staffErrorResult } from "./errors";
 import {
   acceptSchema,
+  previewSchema,
   changeRoleSchema,
   fieldErrorsOf,
   inviteSchema,
@@ -535,4 +538,56 @@ export async function listMembers(input: unknown): Promise<ActionResult<{ member
       label(a).localeCompare(label(b)),
   );
   return ok({ members: list });
+}
+
+export type InvitationPreview =
+  | { status: "open" | "expired"; orgName: string; orgSlug: string; roleName: string }
+  | { status: "unavailable"; orgName: null; orgSlug: null; roleName: null };
+
+const UNAVAILABLE_PREVIEW: InvitationPreview = {
+  status: "unavailable",
+  orgName: null,
+  orgSlug: null,
+  roleName: null,
+};
+
+/**
+ * What an invitation link is for, before anyone signs in: "Join <org> as <role>". **No sign-in
+ * needed** (the invite page shows it to a signed-out visitor). The token is hashed in the database
+ * (`get_invitation_preview`); this action never logs or returns it.
+ *
+ * `status`: `open` and `expired` carry the names (the page can say whom to ask for a new link);
+ * `unavailable` carries nothing: an unknown, malformed, used or revoked link, and a suspended org,
+ * all look the same, so a guess learns nothing. Never the email, an ID or the locations.
+ * Rate-limited per IP.
+ */
+export async function previewInvitation(input: unknown): Promise<ActionResult<InvitationPreview>> {
+  const parsed = previewSchema.safeParse(readInput(input));
+  // A token that can't be one is the same answer as an unknown one, without asking the database.
+  if (!parsed.success) return ok(UNAVAILABLE_PREVIEW);
+
+  const verdict = await protectInvitationPreview();
+  if (!verdict.allowed)
+    return fail(verdict.reason === "rate_limited" ? "rate_limited" : "forbidden");
+
+  // The anon role may call this one function. A cookie-free client has no session to leak.
+  const { data, error } = await createStatelessAuthClient().rpc("get_invitation_preview", {
+    p_token: parsed.data.token,
+  });
+  if (error) return fail("unavailable");
+
+  // The generated types say `string`, but every name is null for `unavailable`: check the row.
+  const row = data?.[0] as
+    { org_name: unknown; org_slug: unknown; role_name: unknown; status: unknown } | undefined;
+  if (!row) return fail("unavailable");
+  const text = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
+  const [orgName, orgSlug, roleName] = [
+    text(row.org_name),
+    text(row.org_slug),
+    text(row.role_name),
+  ];
+  if ((row.status === "open" || row.status === "expired") && orgName && orgSlug && roleName) {
+    return ok({ status: row.status, orgName, orgSlug, roleName });
+  }
+  return ok(UNAVAILABLE_PREVIEW); // `unavailable`, an unknown status or missing names: closed
 }
