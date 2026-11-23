@@ -201,10 +201,8 @@ plus the access errors.
 - Cache tags refreshed (IDs only): for `acceptInvitation`, `user:<userId>:memberships` and
   `org:<orgId>:member:<userId>` of the caller; for `changeMemberRole`, `deactivateMember`,
   `reactivateMember` and `setMemberLocations`, the same two for the **member acted on**.
-- **Reading the member list:** a manager reads it through the user's own client (RLS: a member sees
-  their own row, `staff.manage` sees all of the org's). Roles are readable by every member (see
-  [roles.md](./roles.md)).
-- **Reading invitations:** use `listInvitations` below. The signed-in role has no read access to
+- **Reading the lists:** use `listMembers` for members and `listInvitations` for invitations (both below).
+  Don't read those tables from the browser. The signed-in role has no read access to
   `staff_invitations`.
 
 ## `listMembers({ orgId, limit? })`
