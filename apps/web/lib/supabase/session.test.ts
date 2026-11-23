@@ -40,14 +40,13 @@ function expectUnchanged(res: Response, request: NextRequest) {
   expect(request.cookies.get(`sb-${REF}-auth-token`)?.value).toBe(expired);
 }
 
-function expectQuietLogs(code: string) {
-  const lines = [...warn.mock.calls, ...error.mock.calls].map((c) => c.map(String).join(" "));
-  expect(lines).toEqual([JSON.stringify({ event: "session", code })]);
-  for (const text of lines) {
-    expect(text).not.toMatch(
-      /AuthRetryableFetchError|\n\s+at |refresh-token|publishable|supabase\.co/,
-    );
-  }
+/** Our own log: exactly one line, a code only. supabase-js's own console output is not ours. */
+function expectOurLog(code: string) {
+  const ours = [...warn.mock.calls, ...error.mock.calls]
+    .map((c) => String(c[0]))
+    .filter((line) => line.startsWith('{"event":"session"'));
+  expect(ours).toEqual([JSON.stringify({ event: "session", code })]);
+  expect(ours[0]).not.toMatch(/\n|refresh-token|publishable|supabase\.co/);
 }
 
 describe("updateSession deadline", () => {
@@ -81,7 +80,7 @@ describe("updateSession deadline", () => {
     expect(fetchMock).toHaveBeenCalled();
     expect(aborted).toBe(true);
     expectUnchanged(res, request);
-    expectQuietLogs("session_refresh_timeout");
+    expectOurLog("session_refresh_timeout");
   });
 
   it("still returns at the deadline when the fetch ignores the abort signal", async () => {
@@ -91,7 +90,7 @@ describe("updateSession deadline", () => {
     const pending = updateSession(request, new Headers());
     await vi.advanceTimersByTimeAsync(SESSION_REFRESH_DEADLINE_MS);
     expectUnchanged(await pending, request);
-    expectQuietLogs("session_refresh_timeout");
+    expectOurLog("session_refresh_timeout");
   });
 
   it("returns at once when Auth is unreachable, without waiting out the back-off", async () => {
@@ -111,7 +110,39 @@ describe("updateSession deadline", () => {
     // The retries supabase-js still has queued run out later and change nothing.
     await vi.advanceTimersByTimeAsync(60_000);
     expectUnchanged(await pending, request);
-    expectQuietLogs("session_refresh_error");
+    expectOurLog("session_refresh_error");
+  });
+
+  it("applies the cookie removal when Auth rejects the session", async () => {
+    vi.stubGlobal(
+      "fetch",
+      async () =>
+        new Response(
+          JSON.stringify({
+            code: 400,
+            error_code: "refresh_token_not_found",
+            msg: "Invalid Refresh Token: Refresh Token Not Found",
+          }),
+          { status: 400, headers: { "content-type": "application/json" } },
+        ),
+    );
+    const request = makeRequest();
+    const res = await updateSession(request, new Headers());
+
+    expect(res.status).toBe(200);
+    // The dead session is cleared in the browser, so it stops sending it.
+    const cleared = res.cookies.get(`sb-${REF}-auth-token`);
+    expect(cleared).toBeDefined();
+    expect(cleared?.value).toBe("");
+    expect(res.headers.get("set-cookie")).toMatch(/sb-abcdefgh-auth-token=;/);
+    expect(res.headers.get("set-cookie")).toMatch(/Max-Age=0|Expires=Thu, 01 Jan 1970/i);
+    // And it is never cached by a CDN.
+    expect(res.headers.get("cache-control")).toMatch(/no-store/);
+    // The request's own render no longer sees the dead cookie either.
+    expect(request.cookies.get(`sb-${REF}-auth-token`)?.value ?? "").toBe("");
+    expect(
+      warn.mock.calls.filter((c: unknown[]) => String(c[0]).startsWith('{"event":"session"')),
+    ).toEqual([]);
   });
 
   it("does not touch the network without an auth cookie", async () => {

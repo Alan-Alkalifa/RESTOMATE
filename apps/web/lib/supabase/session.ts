@@ -17,30 +17,6 @@ function logRefresh(code: "session_refresh_timeout" | "session_refresh_error") {
   console.warn(JSON.stringify({ event: "session", code }));
 }
 
-const FILTERED = Symbol.for("restomate.session.logFilter");
-type Filtered = ((...args: unknown[]) => void) & { [FILTERED]?: true };
-
-/**
- * supabase-js logs a transient network failure itself, with `console.warn(err)`: the error text
- * and a stack, from inside its own retry and recovery code. That is library text we must not
- * emit, and it cannot be switched off by an option. This drops exactly those calls (an
- * `AuthRetryableFetchError` as the first argument) and passes every other log through. It wraps
- * each console method once, and wraps again only if something replaced the method.
- */
-function filterAuthRetryLogs() {
-  for (const method of ["warn", "error"] as const) {
-    const original = console[method] as Filtered;
-    if (original[FILTERED]) continue;
-    const wrapped: Filtered = (...args) => {
-      const first = args[0] as { name?: unknown } | undefined;
-      if (first && typeof first === "object" && first.name === "AuthRetryableFetchError") return;
-      original.apply(console, args);
-    };
-    wrapped[FILTERED] = true;
-    console[method] = wrapped;
-  }
-}
-
 /**
  * Refreshes the auth cookies for this request and returns the response to send. This is a
  * refresh only, never authorization: the result of `getClaims()` is not used to allow or deny.
@@ -48,8 +24,10 @@ function filterAuthRetryLogs() {
  *
  * It never blocks the request. The refresh has one deadline (`SESSION_REFRESH_DEADLINE_MS`), and
  * the network call itself is aborted at that point, so supabase-js stops retrying too. On a
- * timeout or any error the request goes through unchanged: no cookie is read back or written,
- * so there are no half-refreshed cookies. Every page and action checks access itself.
+ * timeout or a network failure the request goes through unchanged: no cookie is read back or
+ * written, so there are no half-refreshed cookies. When Auth answers, the cookies it asks for are
+ * applied, including the removal of a dead session (refresh_token_not_found), so the browser
+ * stops sending it. Every page and action checks access itself.
  *
  * `requestHeaders` are the headers the app will see (set by `proxy.ts`).
  */
@@ -60,7 +38,6 @@ export async function updateSession(
   const passThrough = () => NextResponse.next({ request: { headers: requestHeaders } });
   if (!hasSupabaseCookie(request)) return passThrough();
 
-  filterAuthRetryLogs();
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let closed = false; // After the deadline, nothing from the refresh may touch the request.
@@ -111,13 +88,16 @@ export async function updateSession(
       }, SESSION_REFRESH_DEADLINE_MS);
     });
     const outcome = await Promise.race([
-      supabase.auth.getClaims().then((r) => (r.error ? ("error" as const) : ("ok" as const))),
+      // Completed, with a session or with an auth error: either way supabase-js has decided what
+      // the cookies should be (an error such as refresh_token_not_found makes it clear them).
+      supabase.auth.getClaims().then(() => "done" as const),
       deadline,
       failed,
     ]);
     closed = true;
 
-    if (outcome === "timeout" || outcome === "error") {
+    // Only a deadline or a network failure drops the buffered cookies.
+    if (outcome !== "done") {
       logRefresh(outcome === "timeout" ? "session_refresh_timeout" : "session_refresh_error");
       return passThrough();
     }
