@@ -370,10 +370,22 @@ isOneToOne: false
               "joined_member_id": string,"joined_org_id": string,"joined_org_slug": string
             }[]
                            },
+"change_member_role":
+{ Args: { "p_member_id": string,"p_role_id": string }; Returns: undefined
+                           },
 "create_organization":
 { Args: { "p_address"?: string,"p_location_name"?: string,"p_name": string,"p_service_charge_bps"?: number,"p_slug": string,"p_tax_bps"?: number,"p_tax_on_service"?: boolean,"p_timezone"?: string }; Returns: {
               "new_org_id": string,"new_org_slug": string
             }[]
+                           },
+"create_role":
+{ Args: { "p_description": string,"p_name": string,"p_org_id": string,"p_permission_keys": (string)[] }; Returns: string
+                           },
+"create_staff_invitation":
+{ Args: { "p_all_locations": boolean,"p_email": string,"p_location_ids": (string)[],"p_org_id": string,"p_role_id": string,"p_token_hash": string }; Returns: string
+                           },
+"delete_role":
+{ Args: { "p_role_id": string }; Returns: undefined
                            },
 "get_org_package":
 { Args: { "p_org_id": string }; Returns: {
@@ -396,8 +408,20 @@ isOneToOne: false
 "my_permissions":
 { Args: { "p_org_id": string }; Returns: string[]
                            },
+"resend_staff_invitation":
+{ Args: { "p_invitation_id": string,"p_new_token_hash": string }; Returns: string
+                           },
+"revoke_staff_invitation":
+{ Args: { "p_invitation_id": string }; Returns: undefined
+                           },
 "set_member_locations":
 { Args: { "p_location_ids": (string)[],"p_member_id": string }; Returns: undefined
+                           },
+"set_member_status":
+{ Args: { "p_member_id": string,"p_status": string }; Returns: string
+                           },
+"update_role":
+{ Args: { "p_description": string,"p_name": string,"p_permission_keys": (string)[],"p_role_id": string }; Returns: undefined
                            }
           }
           Enums: {
