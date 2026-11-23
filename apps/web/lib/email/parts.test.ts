@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getEmailConfig } from "./config";
 import { logAttempt } from "./log";
-import { parseMessage } from "./message";
+import { LOCAL_PART_MAX, parseMessage } from "./message";
+import { createSender } from "./sender";
 
 const valid = {
   kind: "staff_invitation",
@@ -50,6 +51,42 @@ describe("parseMessage", () => {
     ["too long", `${"a".repeat(250)}@example.com`],
   ])("rejects a recipient with %s", (_, to) => {
     expect(parseMessage({ ...valid, to })).toEqual({ ok: false, field: "to" });
+  });
+
+  it("caps the local part at 64 characters (RFC 5321)", () => {
+    const at64 = `${"a".repeat(LOCAL_PART_MAX)}@example.com`;
+    expect(parseMessage({ ...valid, to: at64 })).toEqual({
+      ok: true,
+      message: { ...valid, to: at64 },
+    });
+    for (const to of [
+      `${"a".repeat(LOCAL_PART_MAX + 1)}@example.com`,
+      `${"é".repeat(33)}@example.com`,
+    ]) {
+      expect(parseMessage({ ...valid, to })).toEqual({ ok: false, field: "to" });
+    }
+  });
+
+  it("refuses a 65-character local part as invalid_message before any transport call", async () => {
+    vi.stubEnv("EMAIL_FROM", "Restomate <noreply@example.com>");
+    vi.stubEnv("EMAIL_DELIVERY", "resend");
+    vi.stubEnv("RESEND_API_KEY", "re_not_real");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const transport = vi.fn();
+    const send = createSender(transport);
+    const result = await send({
+      ...valid,
+      kind: "staff_invitation",
+      to: `${"a".repeat(65)}@example.com`,
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: "invalid_message",
+      retryable: false,
+      field: "to",
+    });
+    expect(transport).not.toHaveBeenCalled();
   });
 
   it.each([

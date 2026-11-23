@@ -20,7 +20,15 @@ export const DEFAULT_TIMEZONE = "Asia/Jakarta";
 export const SLUG_REASONS = ["SLUG_INVALID", "SLUG_RESERVED", "SLUG_TAKEN"] as const;
 export type SlugReason = (typeof SLUG_REASONS)[number];
 
-/** Whether a slug (already trimmed and lower-cased) follows the database's rules. */
+/**
+ * The database's own normalization: `lower(btrim(slug))`. `btrim` strips spaces only, so a tab or
+ * a line break stays in the slug and makes it invalid, exactly as `is_slug_available` answers.
+ */
+export function normalizeSlug(raw: string): string {
+  return raw.replace(/^ +| +$/g, "").toLowerCase();
+}
+
+/** Whether a slug (already normalized with `normalizeSlug`) follows the database's rules. */
 export function isValidSlug(slug: string): boolean {
   return (
     slug.length >= SLUG_MIN &&
@@ -50,11 +58,10 @@ export function isValidTimezone(tz: string): boolean {
 const blankToUndefined = (v: unknown) =>
   v === null || (typeof v === "string" && v.trim() === "") ? undefined : v;
 
-/** Trimmed and lower-cased, as the database does before it checks. */
+/** Normalized as the database does before it checks (`normalizeSlug`). */
 export const slugSchema = z
   .string({ error: "org.slug.invalid" })
-  .trim()
-  .toLowerCase()
+  .transform(normalizeSlug)
   .refine(isValidSlug, { error: "org.slug.invalid" });
 
 const bps = z.preprocess(
