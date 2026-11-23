@@ -206,8 +206,8 @@ type InvitationRow = {
   and its link no longer works, **but it is still not closed**: it still blocks a new invitation to
   the same email (`conflict`, `staff.invitation.exists`). So `open` **and** `expired` rows can be
   **resent** (that revokes it and sends a fresh one) or **revoked**; only `accepted` and `revoked`
-  rows are final (`conflict`, `staff.invitation.closed`). For an `expired` row, **Resend** is the
-  right button.
+  rows are final (`conflict`, `staff.invitation.closed`). **The UI offers Resend (or Revoke) on both `open` and `expired` rows**,
+  and neither on `accepted` or `revoked` ones. For an `expired` row, Resend is the usual button.
 - The token and its hash are never in the result. The raw token only exists in the email.
 - **Errors:** `validation`, `forbidden` (no `staff.manage`), the access errors, and `unavailable`
   when any read fails (never a partial list).

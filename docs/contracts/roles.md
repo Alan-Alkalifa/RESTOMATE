@@ -70,10 +70,18 @@ signed-in user's membership, never from this value.
 
 Send only the fields the form changed, or the whole form: both work. An absent field means "keep".
 
-**Clearing every permission:** a `FormData` with no checked box has no `permissions` field at all, so
-it means "keep", not "none". To remove all permissions, call the action with a plain object
-(`{ ..., permissions: [] }`), not with a `FormData`. A form that must be able to do this should send
-an object.
+**The permissions checkboxes and `permissions_submitted`.** A `FormData` with no checked box has no
+`permissions` field, which would read as "keep". So a role form includes a **hidden field
+`permissions_submitted`** (any value, for example `1`) whenever it shows the permission checkboxes:
+
+| Form sends | Means |
+|---|---|
+| `permissions_submitted` and one or more `permissions` | Replace the permissions with these. |
+| `permissions_submitted` and **no** `permissions` | **Clear all** permissions. |
+| neither | **Keep** the current permissions. |
+
+A plain object does not need the marker: `permissions: [...]` replaces, `permissions: []` clears,
+absent keeps. *(Added in PR #49 after review; confirm against the merged code.)*
 
 **Output:** `ok()`.
 
