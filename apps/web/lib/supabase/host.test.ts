@@ -6,7 +6,7 @@ const prod: HostConfig = {
   rootDomain: "restomate.app",
   lenient: false,
 };
-const kind = (host: string | null, c: HostConfig = prod) => resolveHost(host, c);
+const kind = (host: string | null | undefined, c: HostConfig = prod) => resolveHost(host, c);
 
 describe("resolveHost", () => {
   it("serves the root domain and the app host", () => {
