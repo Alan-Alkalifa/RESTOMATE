@@ -2,6 +2,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseEnv } from "../env";
+import { type DeadlineGuard, createDeadlineGuard } from "./fetch";
 
 /**
  * Supabase client for Server Components, Server Actions and route handlers. It acts as the
@@ -9,12 +10,17 @@ import { getSupabaseEnv } from "../env";
  * `cookies()` is dynamic: call this inside `<Suspense>` (Cache Components).
  *
  * Verify a session with `auth.getClaims()`, never `auth.getSession()`: the cookie is not trusted.
+ *
+ * Every call has a short deadline and the first timeout or network failure ends the client's
+ * retries (`./fetch`), so a Supabase outage fails fast. Pass your own `guard` to also bound a
+ * whole operation with `guard.run()`.
  */
-export async function createClient() {
+export async function createClient(guard: DeadlineGuard = createDeadlineGuard()) {
   const { url, publishableKey } = getSupabaseEnv();
   const cookieStore = await cookies();
 
   return createServerClient(url, publishableKey, {
+    global: { fetch: guard.fetch },
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll(cookiesToSet) {

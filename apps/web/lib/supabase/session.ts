@@ -1,6 +1,7 @@
 import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { getSupabaseEnv } from "../env";
+import { createDeadlineGuard } from "./fetch";
 
 /** Supabase auth cookies are named `sb-<project ref>-auth-token`, split into `.0`, `.1`, ... */
 export function hasSupabaseCookie(request: NextRequest): boolean {
@@ -38,39 +39,16 @@ export async function updateSession(
   const passThrough = () => NextResponse.next({ request: { headers: requestHeaders } });
   if (!hasSupabaseCookie(request)) return passThrough();
 
-  const controller = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const guard = createDeadlineGuard({ authMs: SESSION_REFRESH_DEADLINE_MS });
   let closed = false; // After the deadline, nothing from the refresh may touch the request.
-  let failNow: () => void = () => {};
-  const failed = new Promise<"error">((resolve) => {
-    failNow = () => resolve("error");
-  });
   const buffered: CookieToSet[] = [];
   let cacheHeaders: Record<string, string> = {};
 
   try {
     const { url, publishableKey } = getSupabaseEnv();
     const supabase = createServerClient(url, publishableKey, {
-      global: {
-        // Every Auth call, and each retry, shares the one deadline. A network failure ends the
-        // refresh at once, and the abort makes any retry that supabase-js still schedules fail
-        // without a network call.
-        fetch: async (input, init) => {
-          try {
-            return await fetch(input, {
-              ...init,
-              signal: init?.signal
-                ? AbortSignal.any([init.signal, controller.signal])
-                : controller.signal,
-            });
-          } catch (error) {
-            // Network failure: end the refresh now. supabase-js would retry with back-off.
-            controller.abort();
-            failNow();
-            throw error;
-          }
-        },
-      },
+      // One deadline for the whole refresh, retries included (see `./fetch`).
+      global: { fetch: guard.fetch },
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll(cookiesToSet, headers) {
@@ -81,32 +59,22 @@ export async function updateSession(
       },
     });
 
-    const deadline = new Promise<"timeout">((resolve) => {
-      timer = setTimeout(() => {
-        controller.abort();
-        resolve("timeout");
-      }, SESSION_REFRESH_DEADLINE_MS);
-    });
-    const outcome = await Promise.race([
-      // Completed, with a session or with an auth error: either way supabase-js has decided what
-      // the cookies should be (an error such as refresh_token_not_found makes it clear them).
-      supabase.auth.getClaims().then(() => "done" as const),
-      deadline,
-      failed,
-    ]);
+    // Completed, with a session or with an auth error: either way supabase-js has decided what
+    // the cookies should be (an error such as refresh_token_not_found makes it clear them).
+    const outcome = await guard.run(() => supabase.auth.getClaims());
     closed = true;
 
     // Only a deadline or a network failure drops the buffered cookies.
-    if (outcome !== "done") {
-      logRefresh(outcome === "timeout" ? "session_refresh_timeout" : "session_refresh_error");
+    if (outcome.status !== "done") {
+      logRefresh(
+        outcome.status === "timeout" ? "session_refresh_timeout" : "session_refresh_error",
+      );
       return passThrough();
     }
   } catch {
     closed = true;
     logRefresh("session_refresh_error");
     return passThrough();
-  } finally {
-    clearTimeout(timer);
   }
 
   if (buffered.length === 0) return passThrough();
