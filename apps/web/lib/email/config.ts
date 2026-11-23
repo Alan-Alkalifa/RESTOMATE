@@ -6,9 +6,10 @@ export type EmailConfig =
 /** Undefined when email isn't configured. `getEmailEnv` refuses log mode in production. */
 export function getEmailConfig(): EmailConfig | undefined {
   try {
-    const env = getEmailEnv();
+    const env: { EMAIL_DELIVERY: "log" | "resend"; EMAIL_FROM: string; RESEND_API_KEY?: string } =
+      getEmailEnv();
     if (env.EMAIL_DELIVERY === "log") return { delivery: "log" };
-    if ("RESEND_API_KEY" in env) {
+    if (env.RESEND_API_KEY) {
       return { delivery: "resend", apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM };
     }
   } catch {
