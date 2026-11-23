@@ -1,26 +1,253 @@
 @import "tailwindcss";
+@import "../components/theme/palette.css";
+@import "../components/theme/theme-map.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Design tokens (DESIGN.md §10.1).
+ *   palette.css    raw colours            (DESIGN.md §2.2)
+ *   theme-map.css  the THEME MAP: the one place that picks the 60, the 30 and the 10 (§2.6)
+ *   this file      semantic tokens, type, shape, depth, space, motion, base styles
+ * Components use the semantic tokens only (`bg-surface`, `text-text-secondary`, `bg-primary`,
+ * `text-on-accent`). No hex values and no named palette classes (`bg-cobalt-50`) outside the theme files.
+ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@theme static {
+  /* Semantic colours (§2.3): they point at theme roles, never at a named colour. */
+  --color-bg: var(--color-dominant-50);
+  --color-surface: var(--color-dominant-0);
+  --color-surface-muted: var(--color-dominant-100);
+  --color-border: var(--color-dominant-200);
+  --color-border-control: var(--color-dominant-400);
+  --color-text: var(--color-dominant-900);
+  --color-text-secondary: var(--color-dominant-600);
+  --color-text-muted: var(--color-dominant-500);
+  --color-primary: var(--color-secondary-600);
+  --color-primary-hover: var(--color-secondary-700);
+  --color-primary-pressed: var(--color-secondary-800);
+  --color-primary-soft: var(--color-secondary-50);
+  --color-on-primary: var(--color-on-secondary);
+  --color-accent: var(--color-accent-400);
+  --color-accent-hover: var(--color-accent-300);
+  --color-accent-pressed: var(--color-accent-500);
+  --color-on-accent: var(--color-on-accent-fill);
+  --color-focus: var(--color-secondary-600);
+  --color-focus-inverse: var(--color-accent-400);
+  --color-nav-bg: var(--color-secondary-800);
+  --color-nav-text: var(--color-on-secondary);
+  --color-nav-muted: var(--color-secondary-200);
+  --color-nav-active: var(--color-accent-400);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Type (§3): Plus Jakarta Sans, loaded by next/font in the root layout. */
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --tracking-heading: -0.02em;
+  --tracking-caption: 0.04em;
+
+  --text-display-xl: 3.5rem;
+  --text-display-xl--line-height: 3.75rem;
+  --text-display-xl--font-weight: 800;
+  --text-display-xl--letter-spacing: -0.02em;
+  --text-display: 2.75rem;
+  --text-display--line-height: 3.25rem;
+  --text-display--font-weight: 800;
+  --text-display--letter-spacing: -0.02em;
+  --text-h1: 2rem;
+  --text-h1--line-height: 2.5rem;
+  --text-h1--font-weight: 700;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 2rem;
+  --text-h2--font-weight: 700;
+  --text-h2--letter-spacing: -0.02em;
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.75rem;
+  --text-h3--font-weight: 600;
+  --text-h3--letter-spacing: -0.02em;
+  --text-h4: 1.125rem;
+  --text-h4--line-height: 1.625rem;
+  --text-h4--font-weight: 600;
+  --text-h4--letter-spacing: -0.02em;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.75rem;
+  --text-body-lg--font-weight: 400;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-body--font-weight: 400;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-body-sm--font-weight: 400;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-caption--font-weight: 500;
+
+  /* Shape (§4.1). `radius-full` is for badges, pills, avatars and toggles. */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Depth (§4.2): soft, low and tinted with the text colour, never grey-black. */
+  --shadow-xs: 0 1px 2px color-mix(in srgb, var(--color-dominant-900) 6%, transparent);
+  --shadow-sm:
+    0 1px 3px color-mix(in srgb, var(--color-dominant-900) 6%, transparent),
+    0 2px 8px color-mix(in srgb, var(--color-dominant-900) 5%, transparent);
+  --shadow-md:
+    0 4px 12px color-mix(in srgb, var(--color-dominant-900) 8%, transparent),
+    0 2px 4px color-mix(in srgb, var(--color-dominant-900) 4%, transparent);
+  --shadow-lg:
+    0 12px 32px color-mix(in srgb, var(--color-dominant-900) 12%, transparent),
+    0 4px 8px color-mix(in srgb, var(--color-dominant-900) 4%, transparent);
+
+  /*
+   * Space (§4.3): Tailwind's 4 px grid is the scale (`p-4` = 16 px). These name the measures that repeat.
+   * They work on every spacing utility (`p-card`, `gap-field`, `min-h-touch`, `size-touch-pos`).
+   */
+  --spacing-card: 20px;
+  --spacing-card-compact: 16px;
+  --spacing-card-marketing: 32px;
+  --spacing-gap-admin: 16px;
+  --spacing-gap-marketing: 24px;
+  --spacing-field: 16px;
+  --spacing-label: 6px;
+  --spacing-page: 16px;
+  --spacing-page-md: 24px;
+  --spacing-page-lg: 32px;
+
+  /* Touch targets (§4.4): 44 px on admin, super admin and the customer site; 48 px on POS and KDS. */
+  --spacing-touch: 44px;
+  --spacing-touch-pos: 48px;
+  --spacing-touch-gap-pos: 8px;
+  --spacing-tile-w: 120px;
+  --spacing-tile-h: 96px;
+
+  /* Control heights (§6.1, §6.2) and admin chrome (§6.5, §6.6). */
+  --spacing-control-sm: 36px;
+  --spacing-control-md: 40px;
+  --spacing-control-lg: 48px;
+  --spacing-topbar: 64px;
+  --spacing-sidebar: 256px;
+  --spacing-sidebar-rail: 72px;
+  --spacing-row: 52px;
+  --spacing-row-compact: 44px;
+  --container-modal: 560px;
+  --container-modal-wide: 800px;
+
+  /* Motion (§4.5): calm and quick, ease-out entering and ease-in leaving. */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 250ms;
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-leave: cubic-bezier(0.4, 0, 1, 1);
+  --press-scale: 0.98;
+  --motion-distance: 8px;
+
+  --animate-fade-in: fade-in var(--duration-base) var(--ease-enter) both;
+  --animate-slide-up: slide-up var(--duration-slow) var(--ease-enter) both;
+  --animate-slide-in-right: slide-in-right var(--duration-slow) var(--ease-enter) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  /* The distance is 0 with reduced motion, so these become plain opacity fades. */
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(var(--motion-distance));
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(var(--motion-distance));
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Storefront brand tokens: `org_branding` sets --brand-* on the storefront layout (DESIGN.md §7.5). */
+@theme inline {
+  --color-brand-primary: var(--brand-primary, var(--color-secondary-600));
+  --color-on-brand-primary: var(--brand-on-primary, var(--color-on-secondary));
+  --color-brand-accent: var(--brand-accent, var(--color-accent-400));
+  --color-on-brand-accent: var(--brand-on-accent, var(--color-on-accent-fill));
+}
+
+/* Reduced motion (§4.5, §9): no movement, no shimmer; opacity fades stay. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-distance: 0px;
+    --press-scale: 1;
+    --animate-shimmer: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* A pressed control sinks slightly (§4.5). Add it to buttons and tiles. */
+@utility pressable {
+  transition: scale var(--duration-fast) var(--ease-enter);
+  &:active:not(:disabled) {
+    scale: var(--press-scale);
+  }
+}
+
+/* Focus ring on a secondary or dark surface: accent, not secondary (§2.3). */
+@utility focus-inverse {
+  &:focus-visible,
+  & :focus-visible {
+    outline-color: var(--color-focus-inverse);
+  }
+}
+
+/* The shimmer for skeletons (§6.8): `surface-muted` with a lighter sweep. It stops with reduced motion. */
+@utility skeleton {
+  background-color: var(--color-surface-muted);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-surface) 70%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+  }
+  /* A visible focus ring on every interactive element: 2 px, 2 px offset (§9). */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
 }

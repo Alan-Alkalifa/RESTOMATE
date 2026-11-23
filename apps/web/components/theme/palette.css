@@ -1,0 +1,58 @@
+/*
+ * PALETTE: the raw colours (DESIGN.md §2.2). Nothing but `theme-map.css` refers to these by name.
+ * Components never use a palette class (`bg-cobalt-50`): they use a semantic token (`bg-primary-soft`).
+ *
+ * To add a palette (for example teal): add `--color-teal-50` to `--color-teal-900` here, then
+ * point `theme-map.css` at it (DESIGN.md §2.6).
+ */
+
+/* static: emit every token, so a theme can also be overridden on :root. */
+@theme static {
+  /* Remove Tailwind's default palette, so only Restomate's colours exist (no stray bg-blue-500). */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* Cobalt (brand anchor: cobalt-600) */
+  --color-cobalt-50: #eef3fc;
+  --color-cobalt-100: #dce7f9;
+  --color-cobalt-200: #b9cef2;
+  --color-cobalt-300: #8aade6;
+  --color-cobalt-400: #5384d6;
+  --color-cobalt-500: #1f5fc4;
+  --color-cobalt-600: #0047ab;
+  --color-cobalt-700: #003a8e;
+  --color-cobalt-800: #002f73;
+  --color-cobalt-900: #06265a;
+
+  /* Snow (neutrals) */
+  --color-snow-0: #ffffff;
+  --color-snow-50: #f8fafd;
+  --color-snow-100: #f0f3f9;
+  --color-snow-200: #e2e7f0;
+  --color-snow-300: #cbd3e1;
+  --color-snow-400: #808ba2;
+  --color-snow-500: #626e87;
+  --color-snow-600: #525d74;
+  --color-snow-700: #3a4459;
+  --color-ink: #0f1b3d;
+
+  /* Lime */
+  --color-lime-100: #f2fdd0;
+  --color-lime-200: #e4fb9e;
+  --color-lime-300: #d2f766;
+  --color-lime-400: #c0f03a;
+  --color-lime-500: #a6db12;
+  --color-lime-700: #4f6b05;
+
+  /* Status: separate from the brand palette, so lime never means "success". Outside the 60-30-10. */
+  --color-success-50: #e9f7ef;
+  --color-success-600: #15803d;
+  --color-success-700: #166534;
+  --color-warning-50: #fef6e7;
+  --color-warning-500: #e89b0c;
+  --color-warning-700: #9a5b00;
+  --color-danger-50: #fdecec;
+  --color-danger-600: #c62828;
+  --color-danger-700: #a11d1d;
+}

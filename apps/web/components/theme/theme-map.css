@@ -1,0 +1,46 @@
+/*
+ * ===== THEME MAP: edit here to re-theme (DESIGN.md §2.6) =====
+ *
+ * The only place that assigns a colour to the 60, the 30 or the 10:
+ *   palette (palette.css) -> theme map (this file) -> semantic tokens (globals.css) -> components
+ *
+ * Keep the lightness order (low numbers light, high numbers dark), keep accent clearly different from
+ * success / warning / danger, and recheck the pairs in DESIGN.md §2.4 (`theme.test.ts` does it).
+ * A change here needs ALAN's approval.
+ */
+@theme static {
+  /* Dominant: 60% (the canvas) */
+  --color-dominant-0: var(--color-snow-0);
+  --color-dominant-50: var(--color-snow-50);
+  --color-dominant-100: var(--color-snow-100);
+  --color-dominant-200: var(--color-snow-200);
+  --color-dominant-300: var(--color-snow-300);
+  --color-dominant-400: var(--color-snow-400);
+  --color-dominant-500: var(--color-snow-500);
+  --color-dominant-600: var(--color-snow-600);
+  --color-dominant-700: var(--color-snow-700);
+  --color-dominant-900: var(--color-ink);
+
+  /* Secondary: 30% (brand and structure) */
+  --color-secondary-50: var(--color-cobalt-50);
+  --color-secondary-100: var(--color-cobalt-100);
+  --color-secondary-200: var(--color-cobalt-200);
+  --color-secondary-300: var(--color-cobalt-300);
+  --color-secondary-400: var(--color-cobalt-400);
+  --color-secondary-500: var(--color-cobalt-500);
+  --color-secondary-600: var(--color-cobalt-600);
+  --color-secondary-700: var(--color-cobalt-700);
+  --color-secondary-800: var(--color-cobalt-800);
+  --color-secondary-900: var(--color-cobalt-900);
+  --color-on-secondary: var(--color-white);
+
+  /* Accent: 10% (the spotlight) */
+  --color-accent-100: var(--color-lime-100);
+  --color-accent-200: var(--color-lime-200);
+  --color-accent-300: var(--color-lime-300);
+  --color-accent-400: var(--color-lime-400);
+  --color-accent-500: var(--color-lime-500);
+  --color-accent-700: var(--color-lime-700);
+  --color-on-accent-fill: var(--color-ink);
+}
+/* ===== END THEME MAP ===== */
