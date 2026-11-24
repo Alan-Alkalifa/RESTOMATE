@@ -15,6 +15,9 @@ In this Vercel project the **Production** target is staging: a merge to `main` u
 
 1. A PR merges to `main`. **CI** runs (lint, typecheck, unit, build, pgTAP, e2e).
 2. Vercel builds `main` and deploys the app. The build **fails on a bad or missing server variable** (see *Build and boot checks*).
+   - **Ignored build step (M0-BE-34):** `apps/web/vercel.json` `ignoreCommand` decides whether Vercel builds. It skips (exit 0) only when nothing changed under `apps/web`, `packages/`, `package.json`, `pnpm-lock.yaml` or `turbo.json` since `VERCEL_GIT_PREVIOUS_SHA`. It builds (exit 1) on any change, and also when the previous SHA is missing (force-pushed away, shallow clone). A skipped deployment shows "Canceled by Ignored Build Step"; that's expected, not a failure.
+   - The repo's `ignoreCommand` overrides the dashboard's *Ignored Build Step* field, so that field has no effect. Leave it as it is; clearing it is optional cleanup for the project owner.
+   - The vercel.json schema caps `ignoreCommand` at **256 characters** (currently 251). Any change that would go over the cap moves the logic into a script in the repo instead.
 3. When CI succeeds on that commit, the workflow **Deploy DB (staging)** (`.github/workflows/deploy-db-staging.yml`) deploys the database:
    - It runs only for a successful CI run of a **push** to `main`, or by hand on `main`, never for a pull request or a failed run. Runs are serialized (one migration at a time).
    - The commit must be the tip of `main` **or an ancestor of it**. CI skips docs-only pushes, so a later docs-only push can become the tip before an earlier migration push's CI finishes; that earlier commit still deploys.
