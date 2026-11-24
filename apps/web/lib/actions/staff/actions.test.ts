@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 const updated: string[] = [];
@@ -8,6 +8,34 @@ vi.mock("next/cache", () => ({
   updateTag: (t: string) => updated.push(t),
 }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("@arcjet/next", async () => (await import("../../arcjet/fake")).fakeModule);
+const emails: Record<string, unknown>[] = [];
+vi.mock("./email", () => ({
+  sendInvitationEmail: async (m: Record<string, unknown>) => {
+    emails.push(m);
+    return { ok: true, delivery: "log" };
+  },
+}));
+vi.mock("../../supabase/admin", () => ({
+  createAdminClient: () => {
+    const query = {
+      select: () => query,
+      eq: () => query,
+      maybeSingle: async () => ({
+        data: {
+          id: INV,
+          org_id: ORG,
+          email: "Siti@Example.com",
+          role_id: ROLE,
+          accepted_at: null,
+          revoked_at: null,
+        },
+        error: null,
+      }),
+    };
+    return { from: () => query };
+  },
+}));
 
 const ORG = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ME = "11111111-1111-4111-8111-111111111111";
@@ -15,6 +43,9 @@ const THEM = "22222222-2222-4222-8222-222222222222";
 const MEMBER = "33333333-3333-4333-8333-333333333333";
 const LOC = "44444444-4444-4444-8444-444444444444";
 const TOKEN = "A".repeat(43);
+const ROLE = "66666666-6666-4666-8666-666666666666";
+const INV = "77777777-7777-4777-8777-777777777777";
+const NEW_INV = "88888888-8888-4888-8888-888888888888";
 
 const world = {
   order: [] as string[],
@@ -71,7 +102,10 @@ vi.mock("../../supabase/server", () => ({
   },
 }));
 
-import { acceptInvitation, setMemberLocations } from "./actions";
+import { resetArcjetForTests } from "../../arcjet";
+import { resetFake } from "../../arcjet/fake";
+import { INVITATION_SEND_LIMITS, resetInvitationClientForTests } from "../../arcjet/invitation";
+import { acceptInvitation, inviteStaff, resendInvitation, setMemberLocations } from "./actions";
 
 const joined = () => ({
   data: [{ joined_org_id: ORG, joined_org_slug: "warung", joined_member_id: MEMBER }],
@@ -215,5 +249,78 @@ describe("setMemberLocations", () => {
       error: { code: "42501", message: "FORBIDDEN" },
     });
     expect(await setMemberLocations(input)).toEqual({ ok: false, error: { code: "forbidden" } });
+  });
+});
+
+describe("invitation email rate limit (BUG-003)", () => {
+  const invite = (email: string) => ({ orgId: ORG, email, roleId: ROLE, locationIds: [LOC] });
+  const limited = { ok: false, error: { code: "rate_limited" } };
+  const rpcCount = (fn: string) => world.calls.filter((c) => c.fn === fn).length;
+
+  beforeEach(() => {
+    vi.stubEnv("ARCJET_KEY", "test-arcjet-key-not-real");
+    resetFake();
+    resetArcjetForTests();
+    resetInvitationClientForTests();
+    emails.length = 0;
+    world.rpc.create_staff_invitation = () => ({ data: NEW_INV, error: null });
+    world.rpc.resend_staff_invitation = () => ({ data: NEW_INV, error: null });
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("refuses the 4th invitation to one address (any case) with no database call and no email", async () => {
+    const max = INVITATION_SEND_LIMITS.invitee.max;
+    for (let i = 0; i < max; i++)
+      expect((await inviteStaff(invite("siti@example.com"))).ok).toBe(true);
+    expect(emails).toHaveLength(max);
+
+    expect(await inviteStaff(invite(" SITI@Example.com "))).toEqual(limited);
+    expect(emails).toHaveLength(max);
+    expect(rpcCount("create_staff_invitation")).toBe(max);
+  });
+
+  it("still allows a different address", async () => {
+    for (let i = 0; i < INVITATION_SEND_LIMITS.invitee.max + 1; i++)
+      await inviteStaff(invite("siti@example.com"));
+    expect((await inviteStaff(invite("budi@example.com"))).ok).toBe(true);
+  });
+
+  it("counts resends against the same address, and refuses before the database and the email", async () => {
+    const max = INVITATION_SEND_LIMITS.invitee.max;
+    for (let i = 0; i < max; i++)
+      expect((await resendInvitation({ orgId: ORG, invitationId: INV })).ok).toBe(true);
+    expect(await resendInvitation({ orgId: ORG, invitationId: INV })).toEqual(limited);
+    expect(rpcCount("resend_staff_invitation")).toBe(max);
+    expect(emails).toHaveLength(max);
+    // an invite to the same address shares the count
+    expect(await inviteStaff(invite("siti@example.com"))).toEqual(limited);
+  });
+
+  it("limits one signed-in user across addresses", async () => {
+    const max = INVITATION_SEND_LIMITS.user.max;
+    for (let i = 0; i < max; i++)
+      expect((await inviteStaff(invite(`staff${i}@example.com`))).ok).toBe(true);
+    expect(await inviteStaff(invite("one-more@example.com"))).toEqual(limited);
+    expect(emails).toHaveLength(max);
+  });
+
+  it("is checked after permission, so a Cashier gets forbidden and spends no count", async () => {
+    world.permissions = ["orders.view"];
+    expect(await inviteStaff(invite("siti@example.com"))).toEqual({
+      ok: false,
+      error: { code: "forbidden" },
+    });
+    world.permissions = ["staff.manage"];
+    for (let i = 0; i < INVITATION_SEND_LIMITS.invitee.max; i++)
+      expect((await inviteStaff(invite("siti@example.com"))).ok).toBe(true);
+  });
+
+  it("fails open without an Arcjet key", async () => {
+    vi.stubEnv("ARCJET_KEY", "");
+    resetArcjetForTests();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (let i = 0; i < INVITATION_SEND_LIMITS.invitee.max + 2; i++)
+      expect((await inviteStaff(invite("siti@example.com"))).ok).toBe(true);
+    warn.mockRestore();
   });
 });

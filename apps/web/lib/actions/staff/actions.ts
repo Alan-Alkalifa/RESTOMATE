@@ -10,7 +10,7 @@ import {
   refreshMemberAccess,
   requirePermission,
 } from "../../auth";
-import { protectInvitationPreview } from "../../arcjet/invitation";
+import { protectInvitationPreview, protectInvitationSend } from "../../arcjet/invitation";
 import { createAdminClient } from "../../supabase/admin";
 import { createClient } from "../../supabase/server";
 import { createStatelessAuthClient } from "../../supabase/stateless";
@@ -158,6 +158,13 @@ async function emailInvitation(input: {
   return sent.ok;
 }
 
+/** Rate limit for anything that emails an invitee (BUG-003): before the database and the email. */
+async function limitInvitationSend(userId: string, email: string) {
+  const verdict = await protectInvitationSend({ userId, email });
+  if (verdict.allowed) return null;
+  return fail(verdict.reason === "rate_limited" ? "rate_limited" : "forbidden");
+}
+
 /**
  * Invite someone by email with a role and locations (or all locations). The token is made here,
  * only its SHA-256 goes to the database, and the raw token exists in the email alone. The
@@ -171,6 +178,9 @@ export async function inviteStaff(input: unknown): Promise<ActionResult<EmailOut
 
   const manager = await managerOf(v.orgId);
   if (!manager.ok) return manager.result;
+
+  const limited = await limitInvitationSend(manager.ctx.user.id, v.email);
+  if (limited) return limited;
 
   const { token, tokenHash } = await newInvitationToken();
   const supabase = await createClient();
@@ -214,6 +224,9 @@ export async function resendInvitation(input: unknown): Promise<ActionResult<Ema
   const old = found.invitation;
   if (old.accepted_at || old.revoked_at)
     return fail("conflict", { form: ["staff.invitation.closed"] });
+
+  const limited = await limitInvitationSend(manager.ctx.user.id, old.email);
+  if (limited) return limited;
 
   const { token, tokenHash } = await newInvitationToken();
   const supabase = await createClient();
