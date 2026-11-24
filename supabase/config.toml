@@ -108,8 +108,25 @@ pass = "env(RESEND_API_KEY)"
 admin_email = "no-reply@mail.restomate.app"
 sender_name = "Restomate"
 
-# Templates are added with the files in supabase/templates/ (M0-FE-10). A content_path to a file
-# that doesn't exist yet stops `supabase start`.
+# Templates live in supabase/templates/ (M0-FE-10). A content_path to a missing file stops
+# `supabase start`. content_path is relative to the project root. Links are
+# {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=... Hosted projects need the same
+# subjects and HTML pasted into the dashboard by hand (docs/STAGING.md).
+[auth.email.template.confirmation]
+subject = "Confirm your email / Konfirmasi email Anda"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset your password / Atur ulang kata sandi Anda"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new email / Konfirmasi email baru Anda"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.invite]
+subject = "You're invited to Restomate / Anda diundang ke Restomate"
+content_path = "./supabase/templates/invite.html"
 
 [auth.sms]
 enabled = false
