@@ -10,9 +10,9 @@
 
 ## Verdict
 
-**PASS, final once BUG-007 and BUG-006 are fixed and retested** (decision by ALAN, 2026-11-24). Both are routed: ADIT MF-T53 (CI browser install, cached Chromium) and REYKI MF-T54 (no Lenis smooth scroll with reduced motion). They branch from `mf-t40-signoff`, so nothing cascades. After the two retests (section 5a) this document gets the updated verdict and bug table.
+**PASS, final** (2026-11-24). The two retests that held the verdict are done: BUG-007 (CI browser install) is closed by #77 and BUG-006 (Lenis with reduced motion) by #78, and BUG-008 (the e2e server depended on the environment it started from) by #79. `main` is green on `3f4c77e` (CI run 45366372633: Check, Database and E2E all pass).
 
-The four acceptance lines and the M0 exit pass now. No S1 or S2 bug is open in the product (BUG-007 is an S2 in CI; BUG-006 is an S3).
+The four acceptance lines and the M0 exit pass. No S1 or S2 bug is open: BUG-007 and BUG-008 (S2, CI) and BUG-006 (S3) are closed; BUG-004 and BUG-005 are deferred to M1 as S4.
 
 The per-address login limit, the slug-check limit and the invitation-resend limit are **pending manual verification, owner: project owner, after Close** (section 4, with the steps). They are not automated, by design: the bot rule blocks automated clients on previews and staging. ALAN, as lead, decided this is not a blocker, because no 4.9.x acceptance line is a rate limit.
 
@@ -26,8 +26,8 @@ The per-address login limit, the slug-check limit and the invitation-resend limi
 | Arcjet enforcement live on a preview (bot rule) | PASS (observed) |
 | Rate limits: presets configured and unit-tested (413 tests) | PASS |
 | Login, slug-check and invitation-resend limits, live | Pending manual verification, owner: project owner, after Close (section 4); not a blocker |
-| CI runs both suites (MF-T36 done-when) | Pending BUG-007 fix and retest (MF-T53) |
-| Marketing page honours reduced motion (DESIGN 4.5) | Pending BUG-006 fix and retest (MF-T54) |
+| CI runs both suites (MF-T36 done-when) | PASS: `main` CI run 45366372633 (`3f4c77e`) runs pgTAP (Database) and the full Playwright suite on both projects (E2E), all green. Browser-cache hit on a second run: not yet confirmed (section 5a) |
+| Marketing page honours reduced motion (DESIGN 4.5) | PASS (BUG-006 closed by #78) |
 
 ## 1. Acceptance lines
 
@@ -63,7 +63,7 @@ The per-address login limit, the slug-check limit and the invitation-resend limi
 - **Isolation:** `supabase/tests/tenant_isolation.test.sql`, 186 assertions: two tenants, all 11 tenant tables, select, insert, update and delete across tenants in both directions, `anon` on all 18 public tables, a user in no organisation, positive controls, profiles. A mutation run with four deliberate breaks fails 15 of them (`docs/qa/M0-isolation-report.md`). Limit: write isolation is proven at the privilege layer because no tenant table has a write grant yet; the file fails on purpose when one appears.
 - **Privilege baseline:** `privilege_baseline.test.sql`, 42 assertions, fails when default privileges are re-granted.
 - **Abuse:** `abuse.test.sql`, 58 assertions, escalation, cross-tenant, last owner, plan limits, invitations, slugs (`docs/qa/M0-abuse-report.md`).
-- **Totals, local:** pgTAP 15 files, 1132 tests, PASS (the CI Database job passes on #70 and #74). Playwright, full suite on both projects: 36 tests, 34 passed, 2 failed (both BUG-006, marketing reduced motion).
+- **Totals, local:** pgTAP 15 files, 1132 tests, PASS (the CI Database job passes on #70 and #74). Playwright, full suite on both projects, first run: 36 tests, 34 passed, 2 failed (both BUG-006, marketing reduced motion). After #78 and #79: desktop 18 passed, 4 skipped, 0 failed; tablet 18 passed, 4 skipped, 0 failed (4 skipped per project are the gated diagnostics: hydration race and the three live-protection tests); the same suite is green in CI on `main` (run 45366372633).
 
 ## 3. The checks ALAN listed for the frontend step
 
@@ -75,7 +75,7 @@ The per-address login limit, the slug-check limit and the invitation-resend limi
 | Wrong-email invite, generic bad links | PASS | section 1, 4.9.1 |
 | `#65` bundle: gsap and lenis only in marketing chunks | PASS | production build: gsap is in chunk `2gz1hjvmvff1_.js` and lenis in `2vifqmlsix5q9.js`; only the `/` route's first-load list and client manifest reference them, none of `/app`, `/app/[slug]` (and its roles and staff), `/admin`, `/s/[slug]`, `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/invite/accept`, `/create-restaurant` |
 | DESIGN 4.5: reduced motion on modals, sheets, toasts | PASS | `reduced-motion.e2e.ts`: no frame-by-frame movement for the modal, sheet or toast with reduced motion; the modal control moves when motion is allowed (with reduced motion Motion snaps the offset while the element is still transparent) |
-| DESIGN 4.5: marketing page has no smooth scroll | **FAIL (BUG-006, S3)** | Lenis still takes over the wheel with reduced motion (control confirms the check can tell); its `respectReducedMotion` only affects programmatic scrolls |
+| DESIGN 4.5: marketing page has no smooth scroll | PASS (after #78) | First run FAIL (BUG-006): Lenis took over the wheel with reduced motion, because its `respectReducedMotion` only affects programmatic scrolls. #78 does not mount Lenis or the GSAP ticker hookup when the preference is on and follows the setting live; the spec and its control (Lenis still runs when motion is allowed) pass on desktop and tablet, with no console or hydration warnings |
 | Storefront placeholder at `/s/[slug]`, suspended notice | PASS | `storefront.e2e.ts`: restaurant name and "Online ordering opens soon."; unknown address shows nothing of another restaurant; after suspension "Temporarily unavailable" and the name is gone |
 | `/` and `/app` chooser no longer throw (BUG-001) | PASS | `smoke` and `app-chooser` specs |
 
@@ -104,25 +104,27 @@ Do these in a normal browser on staging (or the Vercel preview) after Close. Rec
 | BUG-003 Invitation resend has no limit and mails the invitee | S3 | MF-T22, CARLO | Fixed in #73; retest PASS on code and unit tests; live refusal is manual step 3 (project owner) |
 | BUG-004 `Date.now()` prerender warning in `next dev` for `/app`, `/app/[slug]`, `/create-restaurant` | S4 | MF-T31, REYKI | Deferred to M1 (backlog on board B1); not seen on a preview or production build (not run) |
 | BUG-005 Restaurant name cleared when typed before hydration | S4 | MF-T30, REYKI | Deferred to M1, S4. Dev only: 0 of 12 production attempts (6x and 20x CPU throttle) lost it, 2 of 6 in dev |
-| BUG-006 Marketing page still smooth-scrolls the wheel with reduced motion | S3 | MF-T34, REYKI | Open, routed to MF-T54 (REYKI); retest pending |
-| BUG-007 CI E2E job is cancelled in "Install browsers" (15-minute timeout) | S2 (CI) | MF-T02, ADIT | Open, routed to MF-T53 (ADIT, cached Chromium); retest pending on that PR's E2E job |
+| BUG-006 Marketing page still smooth-scrolls the wheel with reduced motion | S3 | MF-T34, REYKI | Closed: fixed in #78 (MF-T54), retested PASS (spec 12 of 12 locally, full suite 18 passed on desktop and tablet) |
+| BUG-007 CI E2E job is cancelled in "Install browsers" (15-minute timeout) | S2 (CI) | MF-T02, ADIT | Closed: fixed in #77 (MF-T53: Chromium only, cached by Playwright version, step and job timeouts). #77's run 45357183389 got through the install and ran the full suite (32 passed, 8 skipped, 4 failed = BUG-008 x2 and BUG-006 x2); `main` run 45366372633 is green. Cache hit on a second run: pending |
+| BUG-008 The e2e web server depends on the environment it is started from (`EMAIL_FROM` missing in CI, so the journey failed at "Invitation sent.") | S2 (CI) | MF-T36, DAVIN | Closed: fixed in #79, which pins every variable the app reads in the web server env. #79's CI run 45363358969: journey passes on both projects, only the 2 BUG-006 failures left |
 
-PASS requires no open S1 or S2 in the product: none. BUG-007 is an S2 in CI, not in the app; until it is fixed the Playwright suite is not gated in CI (the Database job, with all pgTAP files, is). BUG-006 and BUG-007 together make the E2E job red after BUG-007 is fixed, until BUG-006 is.
+PASS requires no open S1 or S2: none is open. BUG-004 and BUG-005 are deferred to M1 as S4. The Playwright suite is now gated in CI together with the pgTAP suite.
 
-## 5a. Retests that finalise the verdict
+## 5a. The retests that finalised the verdict
 
-| Bug | Fix task | Retest, and what counts as PASS |
+| Bug | Fix | Retest and result |
 |---|---|---|
-| BUG-007 CI browser install | ADIT MF-T53 | On that PR's CI run, job E2E: the "Install browsers" step finishes (minutes, not the 15-minute cancel), the step "Run Playwright" starts and the whole suite runs on both projects. The only failures allowed are the two BUG-006 tests (marketing reduced motion), until MF-T54 merges. This is also the retest of MF-T36's done-when: "both suites run in CI" (the Database job already runs every pgTAP file) |
-| BUG-006 Lenis with reduced motion | REYKI MF-T54 | On that branch, locally: `reduced-motion.e2e.ts`, "marketing page: no smooth scroll and no moving reveals" passes on desktop and tablet; its control "the marketing page smooth-scrolls when motion is allowed" still passes (smooth scroll still works without the preference); then the full suite (`pnpm test:e2e`) shows no new failure |
+| BUG-007 CI browser install | #77 (ADIT, MF-T53) | CI run 45357183389: the install step finished, the full suite ran on both projects; only the known failures (BUG-008 x2, BUG-006 x2). Totals cross-checked against the suite (22 tests per project, 44: 32 passed, 8 skipped, 4 failed). Job log read by ALAN. **Closed.** Also the retest of MF-T36's done-when "both suites run in CI": `main` run 45366372633 is green (verified by DAVIN: Check, Database, E2E = success) |
+| BUG-008 e2e server environment | #79 (DAVIN) | Reproduced and fixed locally in a clean environment (journey on desktop and tablet); #79's CI run 45363358969: journey passes on both projects. **Closed** |
+| BUG-006 Lenis with reduced motion | #78 (REYKI, MF-T54) | Run by DAVIN against #78's head `2354c5f` (`main` plus its one commit): `reduced-motion` spec 12 of 12 on both projects; full suite desktop 18 passed / 4 skipped / 0 failed, tablet 18 passed / 4 skipped / 0 failed; no console or hydration warnings in either mode. **Closed** |
 
-After both: update the verdict line, the bug table and section 3 of this file, then tell ALAN PASS.
+**Still open from 5a: the browser-cache hit on a second run.** The first run on `main` (45366372633) saved the cache (`Cache not found for input keys: playwright-Linux-1.65.1-chromium` is expected on a first run, because a cache saved on a pull-request ref cannot be read from `main`). CI skips `docs/**` and `*.md`, so the docs-only PR that updates this file does not start a run; the hit is confirmed on the next run on `main` that touches code (or by re-running the E2E job of run 45366372633). Run ID to be added here when confirmed.
 
 ## 6. Not verified, with owners
 - Login, slug-check and invitation-resend limits live, and real Resend delivery: section 4, pending manual verification, owner: project owner.
 - Concurrency races on limits and on the last owner: not required for M0.
 - BUG-004 on a preview or production build (not run); real device sizes (the tablet project is an emulated 1280x800 touch viewport).
-- The Playwright suite in CI (BUG-007).
+- Browser-cache hit in CI on a second run (section 5a).
 
 ## 7. Rerunning
 `docs/qa/README.md` has the commands. In short: `pnpm db:stop && pnpm db:start` (restart after any `supabase/config.toml` change; `pnpm exec supabase start -x studio,imgproxy` on a 6 GB machine), `pnpm db:reset`, `pnpm db:test`, export the local keys, `pnpm test:e2e`. Opt-in diagnostics: `E2E_HYDRATION_RACE=1` (BUG-005), `E2E_LIVE_SHARE_URL` and friends (live protection, skipped when the preview refuses automation).
