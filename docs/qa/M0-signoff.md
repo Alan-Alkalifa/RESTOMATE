@@ -10,9 +10,11 @@
 
 ## Verdict
 
-**PASS.** The four acceptance lines and the M0 exit pass. No S1 or S2 bug is open in the product (BUG-007 is an S2 in CI, see section 5; BUG-006 is an S3).
+**PASS, final once BUG-007 and BUG-006 are fixed and retested** (decision by ALAN, 2026-11-24). Both are routed: ADIT MF-T53 (CI browser install, cached Chromium) and REYKI MF-T54 (no Lenis smooth scroll with reduced motion). They branch from `mf-t40-signoff`, so nothing cascades. After the two retests (section 5a) this document gets the updated verdict and bug table.
 
-One item is listed under "Verified after merge / manual" (section 4): the per-address login limit, the slug-check limit and the invitation-resend limit are not verified by automation, by design, because the bot rule blocks automated clients on previews and staging. ALAN, as lead, decided this does not block the M0 exit, since none of the 4.9.x acceptance lines is a rate limit.
+The four acceptance lines and the M0 exit pass now. No S1 or S2 bug is open in the product (BUG-007 is an S2 in CI; BUG-006 is an S3).
+
+The per-address login limit, the slug-check limit and the invitation-resend limit are **pending manual verification, owner: project owner, after Close** (section 4, with the steps). They are not automated, by design: the bot rule blocks automated clients on previews and staging. ALAN, as lead, decided this is not a blocker, because no 4.9.x acceptance line is a rate limit.
 
 | Line | Verdict |
 |---|---|
@@ -23,7 +25,9 @@ One item is listed under "Verified after merge / manual" (section 4): the per-ad
 | Exit: sign up, create a restaurant, invite a Cashier, with full tenant isolation | PASS |
 | Arcjet enforcement live on a preview (bot rule) | PASS (observed) |
 | Rate limits: presets configured and unit-tested (413 tests) | PASS |
-| Login, slug-check and invitation-resend limits, live | Pending manual verification, owner: project owner (section 4) |
+| Login, slug-check and invitation-resend limits, live | Pending manual verification, owner: project owner, after Close (section 4); not a blocker |
+| CI runs both suites (MF-T36 done-when) | Pending BUG-007 fix and retest (MF-T53) |
+| Marketing page honours reduced motion (DESIGN 4.5) | Pending BUG-006 fix and retest (MF-T54) |
 
 ## 1. Acceptance lines
 
@@ -98,12 +102,21 @@ Do these in a normal browser on staging (or the Vercel preview) after Close. Rec
 | BUG-001 Server components call `buttonClasses()` from a client module (`/` and the `/app` chooser) | S2 | MF-T34, REYKI | Closed, retested PASS on `d09f495` (both pages) |
 | BUG-002 `randomUUID` prerender error | n/a | MF-T17 | Not needed: it disappeared with BUG-001 |
 | BUG-003 Invitation resend has no limit and mails the invitee | S3 | MF-T22, CARLO | Fixed in #73; retest PASS on code and unit tests; live refusal is manual step 3 (project owner) |
-| BUG-004 `Date.now()` prerender warning in `next dev` for `/app`, `/app/[slug]`, `/create-restaurant` | S4 | MF-T31, REYKI | Deferred to M1; not seen on a preview or production build (not run) |
-| BUG-005 Restaurant name cleared when typed before hydration | S4 | MF-T30, REYKI | Dev only: 0 of 12 production attempts (6x and 20x CPU throttle) lost it, 2 of 6 in dev. Planned for M1 |
-| BUG-006 Marketing page still smooth-scrolls the wheel with reduced motion | S3 | MF-T34, REYKI | Open, routed |
-| BUG-007 CI E2E job is cancelled in "Install browsers" (15-minute timeout) | S2 (CI) | MF-T02, ADIT | Open, routed |
+| BUG-004 `Date.now()` prerender warning in `next dev` for `/app`, `/app/[slug]`, `/create-restaurant` | S4 | MF-T31, REYKI | Deferred to M1 (backlog on board B1); not seen on a preview or production build (not run) |
+| BUG-005 Restaurant name cleared when typed before hydration | S4 | MF-T30, REYKI | Deferred to M1, S4. Dev only: 0 of 12 production attempts (6x and 20x CPU throttle) lost it, 2 of 6 in dev |
+| BUG-006 Marketing page still smooth-scrolls the wheel with reduced motion | S3 | MF-T34, REYKI | Open, routed to MF-T54 (REYKI); retest pending |
+| BUG-007 CI E2E job is cancelled in "Install browsers" (15-minute timeout) | S2 (CI) | MF-T02, ADIT | Open, routed to MF-T53 (ADIT, cached Chromium); retest pending on that PR's E2E job |
 
 PASS requires no open S1 or S2 in the product: none. BUG-007 is an S2 in CI, not in the app; until it is fixed the Playwright suite is not gated in CI (the Database job, with all pgTAP files, is). BUG-006 and BUG-007 together make the E2E job red after BUG-007 is fixed, until BUG-006 is.
+
+## 5a. Retests that finalise the verdict
+
+| Bug | Fix task | Retest, and what counts as PASS |
+|---|---|---|
+| BUG-007 CI browser install | ADIT MF-T53 | On that PR's CI run, job E2E: the "Install browsers" step finishes (minutes, not the 15-minute cancel), the step "Run Playwright" starts and the whole suite runs on both projects. The only failures allowed are the two BUG-006 tests (marketing reduced motion), until MF-T54 merges. This is also the retest of MF-T36's done-when: "both suites run in CI" (the Database job already runs every pgTAP file) |
+| BUG-006 Lenis with reduced motion | REYKI MF-T54 | On that branch, locally: `reduced-motion.e2e.ts`, "marketing page: no smooth scroll and no moving reveals" passes on desktop and tablet; its control "the marketing page smooth-scrolls when motion is allowed" still passes (smooth scroll still works without the preference); then the full suite (`pnpm test:e2e`) shows no new failure |
+
+After both: update the verdict line, the bug table and section 3 of this file, then tell ALAN PASS.
 
 ## 6. Not verified, with owners
 - Login, slug-check and invitation-resend limits live, and real Resend delivery: section 4, pending manual verification, owner: project owner.
