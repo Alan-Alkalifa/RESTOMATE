@@ -10,7 +10,9 @@
 
 ## Verdict
 
-**The four acceptance lines and the M0 exit pass. The overall verdict is HELD: one required check is still open** (live rate-limit refusal on a preview, see section 4). ALAN's rule: not PASS without it. No S1 or S2 bug is open in the product (BUG-007 is an S2 in CI, see section 5).
+**PASS.** The four acceptance lines and the M0 exit pass. No S1 or S2 bug is open in the product (BUG-007 is an S2 in CI, see section 5; BUG-006 is an S3).
+
+One item is listed under "Verified after merge / manual" (section 4): the per-address login limit, the slug-check limit and the invitation-resend limit are not verified by automation, by design, because the bot rule blocks automated clients on previews and staging. ALAN, as lead, decided this does not block the M0 exit, since none of the 4.9.x acceptance lines is a rate limit.
 
 | Line | Verdict |
 |---|---|
@@ -19,7 +21,9 @@
 | 4.9.3 Staff limited to specific locations | PASS |
 | 4.9.6 Deactivating a staff member signs them out everywhere | PASS |
 | Exit: sign up, create a restaurant, invite a Cashier, with full tenant isolation | PASS |
-| Live rate-limit refusal on a preview (login, slug check; resend after merge) | **OPEN** |
+| Arcjet enforcement live on a preview (bot rule) | PASS (observed) |
+| Rate limits: presets configured and unit-tested (413 tests) | PASS |
+| Login, slug-check and invitation-resend limits, live | Pending manual verification, owner: project owner (section 4) |
 
 ## 1. Acceptance lines
 
@@ -30,7 +34,7 @@
 - **Wrong-email invitation** (`invitation-links.e2e.ts`, both projects): signed in as another account, "Accept invitation" shows "You're signed in with a different email" and the page text never contains the invited address or its local part; "Sign out and use the invited address" returns to `/login` with the invitation as the next step, and after signing in with the invited address the invitation page returns and Accept works.
 - **Other bad links** (same file): no token, a malformed token, an unknown token, a revoked token and an expired token each show the same "This invitation link doesn't work" page, with byte-identical text and no organisation name or address.
 - **Abuse** (`supabase/tests/abuse.test.sql`, 58 assertions): reused, expired, revoked, unknown, wrong-case and unconfirmed-email tokens are refused with the exact code; the preview returns one identical answer for dead tokens and never the email or an id (`docs/qa/M0-abuse-report.md`).
-- **Resend limit:** BUG-003 (resend and invite had no limit) is fixed in #73 (code and unit tests PASS). **Verified after merge: real Resend delivery and the resend rate limit (4 resends to one address) on staging right after Close. Owner: DAVIN. Date: to be written here when done.**
+- **Resend limit:** BUG-003 (resend and invite had no limit) is fixed in #73 (code and unit tests PASS). The live refusal and the real Resend delivery of an invitation are on the manual list in section 4 (they need a signed-in browser, which the bot rule blocks for automation).
 
 ### 4.9.2 Default roles and custom roles: PASS
 `apps/web/e2e/roles-and-locations.e2e.ts` (both projects):
@@ -71,13 +75,21 @@
 | Storefront placeholder at `/s/[slug]`, suspended notice | PASS | `storefront.e2e.ts`: restaurant name and "Online ordering opens soon."; unknown address shows nothing of another restaurant; after suspension "Temporarily unavailable" and the name is gone |
 | `/` and `/app` chooser no longer throw (BUG-001) | PASS | `smoke` and `app-chooser` specs |
 
-## 4. Live rate limit on a preview: OPEN
-Required by ALAN before the verdict: login limit, slug-check limit (and resends, moved to after merge).
-- **Preview used:** `dpl_JsJzkaWkkAAaWYYSWSnSnRnbPH3J` (branch `mf-t39-e2e`, `bf46516`; app code is the stack top).
-- **Observed live:** the preview's Arcjet bot rule is enforcing. Every request from the automated browser gets the proxy's bare `403 Forbidden` before any page (`e2e/live-rate-limit.e2e.ts`, test "bot protection", passes).
-- **Not verified:** the login limit (5 per address per 15 minutes) and the slug-check limit (30 per signed-in user per 10 minutes) cannot be reached from automation, because the same rule blocks the login page. A normal user-agent string did not change that, and I stopped there rather than fake client signals to defeat a protection. The slug check also needs a confirmed account on the preview.
-- **Decision requested from ALAN:** (a) a human runs it by hand on the preview, steps in the message sent with this document; (b) a sanctioned QA path in the Preview-only Arcjet rule, then `live-rate-limit.e2e.ts` runs as written; or (c) accept the unit-tested presets (413 tests) plus the live bot-rule evidence for M0, and verify the limits on staging after Close.
-- Unit-level evidence that does exist: all presets pass their Vitest suites (`lib/arcjet`, `lib/actions`); the invitation-send preset in #73 was code-read (order: validate, authorise, limit, RPC, email).
+## 4. Rate limits and live protection
+
+**Passing evidence**
+- **Presets configured and unit-tested:** login (60 per IP and 5 per address per 15 min), signup, password reset and resend confirmation (5 per IP and 3 per address per hour), slug check (60 per IP and 30 per user per 10 min), create organisation (10 per IP and 5 per user per hour), invitation preview (60 per IP per 10 min), and from #73 the invitation send (30 per user and 3 per invitee address per hour, shared by invite and resend). `vitest run lib/arcjet lib/actions`: 413 passed, 12 skipped (stack-bound integration tests). Code read of #73: validate, authorise, limit, RPC, email.
+- **Arcjet enforcement shown live:** on preview `dpl_JsJzkaWkkAAaWYYSWSnSnRnbPH3J` (branch `mf-t39-e2e`, `bf46516`; app code is the stack top) every request from the automated browser gets the app proxy's bare `403 Forbidden` before any page, which is the bot rule refusing automation. Recorded as the passing test "bot protection" in `apps/web/e2e/live-rate-limit.e2e.ts`.
+
+**Not verified by automation, by design** (decision by ALAN: option (c), no QA bypass in M0). The same bot rule blocks automated clients on previews and staging, so the limiter is not reachable from a test; a normal user-agent string did not help and no client signals were faked. `live-rate-limit.e2e.ts` stays in the repo and skips with that reason; whether to sanction a preview QA path is an M1 question.
+
+### Verified after merge / manual: pending manual verification, owner: project owner
+Do these in a normal browser on staging (or the Vercel preview) after Close. Record the date and what you saw below each step.
+
+1. **Login limit (5 wrong passwords per address per 15 minutes).** Open `/login`. Use one made-up address (for example `qa-limit-1@example.com`), which needs no account. Submit a wrong password six times in a row. Expected: attempts 1 to 5 show "The email or password is wrong."; attempt 6 shows "Too many tries. Try again in a few minutes." Result: ________ Date: ________
+2. **Slug-check limit (30 checks per signed-in user per 10 minutes).** Sign in with any confirmed account that has no restaurant (or that can open `/create-restaurant`). Retype the address field more than 30 times within 10 minutes (the form checks after a short pause). Expected: after the 30th check the form stops answering "available" and shows the rate-limit message or the "could not check" hint; record which. Result: ________ Date: ________
+3. **Invitation-resend limit (3 sends per invitee address per hour, shared by invite and resend, from #73).** Sign in as the owner of a restaurant, open Staff, invite a made-up address, then press Resend on that invitation. The invite and the first two Resends work; the third Resend shows the rate-limit message and sends no email. Result: ________ Date: ________
+4. **Real delivery of an invitation.** Invite an address you can read. Expected: one email, English then Bahasa Indonesia in the Restomate layout, with a button to `/invite/accept?token=…` on the app's own URL; opening it shows "Join <restaurant>" and Accept works. The renderer is already checked (section 1, 4.9.1); this checks Resend, the sender domain and the real link. Result: ________ Date: ________
 
 ## 5. Bugs
 
@@ -85,7 +97,7 @@ Required by ALAN before the verdict: login limit, slug-check limit (and resends,
 |---|---|---|---|
 | BUG-001 Server components call `buttonClasses()` from a client module (`/` and the `/app` chooser) | S2 | MF-T34, REYKI | Closed, retested PASS on `d09f495` (both pages) |
 | BUG-002 `randomUUID` prerender error | n/a | MF-T17 | Not needed: it disappeared with BUG-001 |
-| BUG-003 Invitation resend has no limit and mails the invitee | S3 | MF-T22, CARLO | Fixed in #73; retest PASS on code and unit tests; live refusal after merge (owner DAVIN) |
+| BUG-003 Invitation resend has no limit and mails the invitee | S3 | MF-T22, CARLO | Fixed in #73; retest PASS on code and unit tests; live refusal is manual step 3 (project owner) |
 | BUG-004 `Date.now()` prerender warning in `next dev` for `/app`, `/app/[slug]`, `/create-restaurant` | S4 | MF-T31, REYKI | Deferred to M1; not seen on a preview or production build (not run) |
 | BUG-005 Restaurant name cleared when typed before hydration | S4 | MF-T30, REYKI | Dev only: 0 of 12 production attempts (6x and 20x CPU throttle) lost it, 2 of 6 in dev. Planned for M1 |
 | BUG-006 Marketing page still smooth-scrolls the wheel with reduced motion | S3 | MF-T34, REYKI | Open, routed |
@@ -94,11 +106,10 @@ Required by ALAN before the verdict: login limit, slug-check limit (and resends,
 PASS requires no open S1 or S2 in the product: none. BUG-007 is an S2 in CI, not in the app; until it is fixed the Playwright suite is not gated in CI (the Database job, with all pgTAP files, is). BUG-006 and BUG-007 together make the E2E job red after BUG-007 is fixed, until BUG-006 is.
 
 ## 6. Not verified, with owners
-- Live rate-limit refusals (login, slug check): see section 4. Owner DAVIN with ALAN's decision.
-- Real Resend delivery of the invitation and the resend rate limit (4 resends to one address, #73): staging after Close. Owner DAVIN, date to be added here.
+- Login, slug-check and invitation-resend limits live, and real Resend delivery: section 4, pending manual verification, owner: project owner.
 - Concurrency races on limits and on the last owner: not required for M0.
-- Production build and preview checks of BUG-004; real device sizes (the tablet project is an emulated 1280x800 touch viewport).
+- BUG-004 on a preview or production build (not run); real device sizes (the tablet project is an emulated 1280x800 touch viewport).
 - The Playwright suite in CI (BUG-007).
 
 ## 7. Rerunning
-`docs/qa/README.md` has the commands. In short: `pnpm db:stop && pnpm db:start` (restart after any `supabase/config.toml` change; `pnpm exec supabase start -x studio,imgproxy` on a 6 GB machine), `pnpm db:reset`, `pnpm db:test`, export the local keys, `pnpm test:e2e`. Opt-in diagnostics: `E2E_HYDRATION_RACE=1` (BUG-005), `E2E_LIVE_SHARE_URL` and friends (live protection).
+`docs/qa/README.md` has the commands. In short: `pnpm db:stop && pnpm db:start` (restart after any `supabase/config.toml` change; `pnpm exec supabase start -x studio,imgproxy` on a 6 GB machine), `pnpm db:reset`, `pnpm db:test`, export the local keys, `pnpm test:e2e`. Opt-in diagnostics: `E2E_HYDRATION_RACE=1` (BUG-005), `E2E_LIVE_SHARE_URL` and friends (live protection, skipped when the preview refuses automation).
