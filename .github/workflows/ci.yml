@@ -156,7 +156,7 @@ jobs:
     needs: check
     if: needs.check.outputs.e2e == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - *checkout
       - *pnpm
@@ -182,8 +182,28 @@ jobs:
           export_value NEXT_PUBLIC_SUPABASE_URL API_URL
           export_value NEXT_PUBLIC_SUPABASE_ANON_KEY ANON_KEY
           export_value SUPABASE_SERVICE_ROLE_KEY SERVICE_ROLE_KEY
-      - name: Install browsers
-        run: pnpm run test:e2e:install
+      # The config uses Chromium only (desktop and tablet projects), so only that is installed.
+      # `playwright install` with no browser name also downloads Firefox and WebKit, and its
+      # --with-deps pulls the system packages for all three. The browser download is cached by
+      # Playwright version; system packages are not part of the cache, so they are installed on
+      # every run, for Chromium only.
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --silent --dir apps/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
+      - name: Install browser and system packages
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 8
+        run: pnpm --dir apps/web exec playwright install --with-deps --only-shell chromium
+      - name: Install system packages for the cached browser
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 8
+        run: pnpm --dir apps/web exec playwright install-deps chromium
       - name: Run Playwright
         env:
           NEXT_PUBLIC_APP_URL: http://localhost:3000
