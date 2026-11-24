@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getTranslate } from "@/components/i18n/server";
 import { OrgNotice, ShellLoading, Unavailable } from "@/components/shell/notices";
-import { buttonClasses } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-variants";
 import { Card } from "@/components/ui/card";
 import { listMyOrganizations } from "@/lib/actions/organization/actions";
 import { loginUrl } from "@/lib/auth";
