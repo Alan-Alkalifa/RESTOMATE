@@ -9,12 +9,7 @@ vi.mock("../../email", () => ({
   },
 }));
 
-import {
-  acceptInvitationUrl,
-  invitationEmailKey,
-  renderInvitationEmail,
-  sendInvitationEmail,
-} from "./email";
+import { acceptInvitationUrl, invitationEmailKey, sendInvitationEmail } from "./email";
 
 const INV = "44444444-4444-4444-8444-444444444444";
 const TOKEN = "A".repeat(43);
@@ -60,13 +55,20 @@ describe("invitation email", () => {
     );
   });
 
-  it("escapes names in the HTML and keeps the subject on one line", () => {
-    const r = renderInvitationEmail({
+  it("sends the themed bilingual template with the escaped accept URL", async () => {
+    await sendInvitationEmail({
+      invitationId: INV,
+      to: "siti@example.com",
+      token: TOKEN,
       orgName: 'Warung <b>"A"</b>\r\nBcc: x',
       roleName: "Cashier",
-      acceptUrl: "https://app.restomate.app/x",
     });
-    expect(r.html).not.toContain("<b>");
-    expect(r.subject).not.toMatch(/[\r\n]/);
+    const m = sent[0];
+    const url = acceptInvitationUrl(TOKEN);
+    expect(String(m.html)).toContain(url.replace(/&/g, "&amp;"));
+    expect(String(m.html)).not.toContain("<b>");
+    expect(String(m.subject)).toContain("Anda diundang");
+    expect(String(m.subject)).not.toMatch(/[\r\n]/);
+    expect(String(m.text)).toContain(url);
   });
 });
