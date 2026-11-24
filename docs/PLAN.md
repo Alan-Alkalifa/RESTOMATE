@@ -14,7 +14,7 @@ Last updated: 2026-11-22. **The project restarts from zero: nothing below is don
 
 | Phase | State | Active step | QA verdict | Closed on |
 |---|---|---|---|---|
-| M0 Foundation | Active | 2. Backend (ADIT, CARLO) | — | — |
+| M0 Foundation | Active | 5. Close (ALAN) | PASS 2026-11-24 (`docs/qa/M0-signoff.md`) | — |
 | M1 Signup and super admin | Not started | — | — | — |
 | M2 Venue and menu | Not started | — | — | — |
 | M3 Service core (MVP) | Not started | — | — | — |
@@ -165,6 +165,12 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 - [x] **M0-BE-30 Staff and role RPCs.** _(ADIT)_ Definer RPCs for every staff and custom-role write, so the M0-BE-11 guards run as the caller (a `service_role` write has no `auth.uid()`). Deactivation ends the user's sessions in the same transaction. *Done when:* each requires `staff.manage` and runs the guards.
 - [x] **M0-BE-31 Frontend reads and contract gaps.** _(CARLO)_ `listMyOrganizations`, `listMembers`, `listLocations`, `resendConfirmation`, `signOut({ next })`, the signup `next`, `previewInvitation`, and the contract additions REYKI asked for. *Done when:* REYKI can build M0-FE-04 to 08 from the contracts.
 - [x] **M0-BE-32 Invitation preview RPC.** _(ADIT)_ `get_invitation_preview(token)` for anon: org, role and status, one identical answer for every unusable token. *Done when:* the invite page can show "Join X as Cashier" before accepting.
+- [x] **M0-BE-33 tsconfig drift from next dev.** _(ADIT)_ Added during the Backend step; details and done-when on board task MF-T48.
+- [x] **M0-BE-34 Vercel ignored build step.** _(ADIT)_ `apps/web/vercel.json` `ignoreCommand` that builds when the previous SHA is gone (STAGING.md). *Done when:* a force-pushed branch builds and a docs-only push skips (PR #58).
+- [x] **M0-BE-35 Auth email template wiring.** _(ADIT)_ `supabase/config.toml` points at the four M0-FE-10 templates. *Done when:* Mailpit shows the themed mails with `token_hash` links (PR #68).
+- [x] **M0-BE-36 Themed invitation email.** _(CARLO)_ `sendInvitationEmail` uses the M0-FE-10 renderer. *Done when:* the invite sends the bilingual, escaped template (PR #69).
+- [x] **M0-BE-37 Invitation rate limit.** _(CARLO)_ Arcjet preset on invite and resend: 30 per user and 3 per invitee address per hour, before the RPC and the email (QA BUG-003). *Done when:* the 4th send to one address is refused with no email (PR #73).
+- [x] **M0-BE-38 CI E2E browsers.** _(ADIT)_ Chromium only, cached by Playwright version (QA BUG-007). *Done when:* the E2E job runs the full suite in CI (PR #77).
 
 #### 4.2.1 Permission catalog
 
@@ -213,34 +219,35 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 
 ### 4.3 Frontend — REYKI
 
-- [ ] **M0-FE-01 Theme.** Tokens from `DESIGN.md` §10, 60-30-10 theme map, Plus Jakarta Sans. *Done when:* changing the map re-themes the app with no component edit.
-- [ ] **M0-FE-02 Base components.** Buttons, fields, cards, badges, tabs, tables, modal, sheet, toast, skeleton, empty, error, offline bar. Motion foundation: `motion` dependency, `components/motion/tokens.ts`, `LazyMotion` + `MotionConfig reducedMotion="user"` provider, with press, modal, sheet and toast motion built on it (`DESIGN.md` §4.5). *Done when:* each has every state in `DESIGN.md` §6, works by keyboard, and moves only by opacity with reduced motion.
-- [ ] **M0-FE-03 Translations.** English and Bahasa Indonesia, language switch, number and date formats. *Done when:* no screen has hard-coded text.
-- [ ] **M0-FE-04 Auth screens.** Login, signup, check email, forgot, reset, invalid link. *Done when:* errors keep the user's input.
-- [ ] **M0-FE-05 Create restaurant.** Name, live slug check, first location with tax and service defaults. *Done when:* it ends on the restaurant dashboard.
-- [ ] **M0-FE-06 Admin shell.** Sidebar from permissions, location switcher, no-access and global error pages. *Done when:* each role sees only its navigation.
-- [ ] **M0-FE-07 Staff screens.** Members, pending invites, invite form, role and location edit, deactivate, accept page. *Done when:* a bad invite link always shows the same generic page.
-- [ ] **M0-FE-08 Role editor.** Permission checklist, system roles read-only, locked state by package. *Done when:* an owner can create and assign a role.
-- [ ] **M0-FE-09 Public and platform shells.** Marketing layout, guarded super admin layout with its dark sidebar, storefront placeholder and suspended notice. The marketing layout mounts Lenis driven by GSAP's ticker with `ScrollTrigger` (`DESIGN.md` §4.5.3); `gsap`, `@gsap/react` and `lenis` load only there. *Done when:* each surface opens on its own route, and no other surface's bundle includes GSAP or Lenis.
-- [ ] **M0-FE-10 Emails.** Confirmation, recovery and staff invitation in the Restomate theme. *Done when:* links use `token_hash` and render in Mailpit.
+- [x] **M0-FE-01 Theme.** Tokens from `DESIGN.md` §10, 60-30-10 theme map, Plus Jakarta Sans. *Done when:* changing the map re-themes the app with no component edit.
+- [x] **M0-FE-02 Base components.** Buttons, fields, cards, badges, tabs, tables, modal, sheet, toast, skeleton, empty, error, offline bar. Motion foundation: `motion` dependency, `components/motion/tokens.ts`, `LazyMotion` + `MotionConfig reducedMotion="user"` provider, with press, modal, sheet and toast motion built on it (`DESIGN.md` §4.5). *Done when:* each has every state in `DESIGN.md` §6, works by keyboard, and moves only by opacity with reduced motion.
+- [x] **M0-FE-03 Translations.** English and Bahasa Indonesia, language switch, number and date formats. *Done when:* no screen has hard-coded text.
+- [x] **M0-FE-04 Auth screens.** Login, signup, check email, forgot, reset, invalid link. *Done when:* errors keep the user's input.
+- [x] **M0-FE-05 Create restaurant.** Name, live slug check, first location with tax and service defaults. *Done when:* it ends on the restaurant dashboard.
+- [x] **M0-FE-06 Admin shell.** Sidebar from permissions, location switcher, no-access and global error pages. *Done when:* each role sees only its navigation.
+- [x] **M0-FE-07 Staff screens.** Members, pending invites, invite form, role and location edit, deactivate, accept page. *Done when:* a bad invite link always shows the same generic page.
+- [x] **M0-FE-08 Role editor.** Permission checklist, system roles read-only, locked state by package. *Done when:* an owner can create and assign a role.
+- [x] **M0-FE-09 Public and platform shells.** Marketing layout, guarded super admin layout with its dark sidebar, storefront placeholder and suspended notice. The marketing layout mounts Lenis driven by GSAP's ticker with `ScrollTrigger` (`DESIGN.md` §4.5.3); `gsap`, `@gsap/react` and `lenis` load only there. *Done when:* each surface opens on its own route, and no other surface's bundle includes GSAP or Lenis.
+- [x] **M0-FE-10 Emails.** Confirmation, recovery and staff invitation in the Restomate theme. *Done when:* links use `token_hash` and render in Mailpit.
+- [x] **M0-FE-11 No smooth scroll with reduced motion.** With reduced motion the marketing page mounts neither Lenis nor the GSAP ticker (QA BUG-006, `DESIGN.md` §4.5.2). *Done when:* the reduced-motion e2e passes and the control still smooth-scrolls (PR #78).
 
 ### 4.4 QA — DAVIN
 
-- [ ] **M0-QA-01 Test base.** Test plan, bug and report templates, pgTAP and Playwright setup. *Done when:* both suites run in CI.
-- [ ] **M0-QA-02 Isolation.** Select, insert, update and delete across two tenants on every table. *Done when:* every cross-tenant attempt fails.
-- [ ] **M0-QA-03 Abuse.** Escalation, last owner, limits, reused, expired and wrong-email invites, slug rules, rate limit. *Done when:* each is refused.
-- [ ] **M0-QA-04 End to end.** Signup, confirm, create restaurant, invite Cashier, accept, deactivate. *Done when:* the exit passes on desktop and tablet.
-- [ ] **M0-QA-05 Sign-off.** *Done when:* `docs/qa/M0-signoff.md` gives evidence for each line below.
+- [x] **M0-QA-01 Test base.** Test plan, bug and report templates, pgTAP and Playwright setup. *Done when:* both suites run in CI.
+- [x] **M0-QA-02 Isolation.** Select, insert, update and delete across two tenants on every table. *Done when:* every cross-tenant attempt fails.
+- [x] **M0-QA-03 Abuse.** Escalation, last owner, limits, reused, expired and wrong-email invites, slug rules, rate limit. *Done when:* each is refused.
+- [x] **M0-QA-04 End to end.** Signup, confirm, create restaurant, invite Cashier, accept, deactivate. *Done when:* the exit passes on desktop and tablet.
+- [x] **M0-QA-05 Sign-off.** *Done when:* `docs/qa/M0-signoff.md` gives evidence for each line below.
 
 **Acceptance**
-- [ ] **4.9.1** Invite staff by email; they set their own password.
-- [ ] **4.9.2** Default roles: Owner, Manager, Cashier, Waiter, Kitchen. Owners can create custom roles from a permission checklist.
-- [ ] **4.9.3** Staff can be limited to specific locations.
-- [ ] **4.9.6** Deactivating a staff member signs them out everywhere.
+- [x] **4.9.1** Invite staff by email; they set their own password.
+- [x] **4.9.2** Default roles: Owner, Manager, Cashier, Waiter, Kitchen. Owners can create custom roles from a permission checklist.
+- [x] **4.9.3** Staff can be limited to specific locations.
+- [x] **4.9.6** Deactivating a staff member signs them out everywhere.
 
 ### 4.5 Close — ALAN
 
-- [ ] **M0-CL-01 Review and merge.** *Done when:* all M0 PRs are merged in order and `main` is green.
+- [x] **M0-CL-01 Review and merge.** *Done when:* all M0 PRs are merged in order and `main` is green.
 - [ ] **M0-CL-02 Staging.** Deploy, run Supabase advisors, request approval for the first platform admin. *Done when:* login works on staging.
 - [ ] **M0-CL-03 Close.** *Done when:* boxes and §1 are updated and M1 is named active.
 
@@ -813,6 +820,11 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-23 | Contracts (`docs/contracts/`) are the frontend's source of truth for M0. A page without the needed permission shows a notice and hides its nav entry (not a 404). The invitation email is bilingual (EN and ID) with escaped values. Timezone pickers offer canonical IANA names only, Indonesian zones first | ALAN, with REYKI and CARLO |
 | 2026-11-24 | Motion libraries added to the design system (`DESIGN.md` §4.5.1–4.5.3): Motion for component motion on every surface; GSAP (`ScrollTrigger`) and Lenis smooth scroll on marketing pages only; never in admin, super admin, POS, KDS, auth or the storefront scroll. Reduced motion, server-rendered final state, client islands and a bundle check are required. Set up in M0-FE-02 (Motion) and M0-FE-09 (GSAP + Lenis) | Project owner, via ALAN |
 | 2026-11-24 | Storefront placeholder lives at `/s/[slug]` in M0 (M0-FE-09). The proxy only tags tenant hosts with `x-restomate-tenant` and does not rewrite, and staging has no custom domain, so tenant subdomains are local-only until M4. M4-BE-01 adds the tenant-host rewrite to `/s/<slug>` and the 404 for `/s/*` on other hosts. The starter `app/page.tsx` is removed; the marketing home serves `/` | ALAN, from REYKI's #65 |
+| 2026-11-24 | 4.9.6: deactivation is per organization. Refresh is revoked and every request re-checks membership at once; the access token left in the browser reads no data until it expires (≤ 1 h) and the user sees "Your access was removed". No forced redirect to `/login`, because that would also cut off the person's other restaurants | ALAN, from DAVIN's M0 QA |
+| 2026-11-24 | Rate limits in M0 are proven by unit tests (all presets) plus Arcjet enforcing live on a preview (bot rule). The per-address login, slug-check and invitation-resend limits can't be driven by automation (the bot rule blocks it on previews and staging), so the project owner checks them by hand on staging after Close (steps in `docs/qa/M0-signoff.md`). No QA bypass in the proxy; a sanctioned preview QA path is an M1 question | ALAN |
+| 2026-11-24 | M0 QA bugs: BUG-001 S2 (server calls into a client module) fixed in #65; BUG-003 S3 (unlimited invitation resend) fixed in #73; BUG-006 S3, BUG-007 S2 (CI) and BUG-008 S2 (CI) fixed in #78, #77 and #79; BUG-002 not needed; BUG-004 and BUG-005 (S4, dev-only) deferred to M1 (backlog B1-T01, B1-T02). The e2e accepts invitations with a known token, because `EMAIL_DELIVERY=log` never prints the token; the renderer and link are covered by unit and render tests | ALAN, from DAVIN's QA |
+| 2026-11-24 | Close of a stacked phase: each upper PR is replayed with `git rebase --onto origin/main <lower head>` and merged only if the replay changes exactly what `main` added on top of the lower PR's tested head (patch-id compare), so the merged code is the tested code. Each PR is retargeted to `main` before its base branch is deleted | ALAN |
+| 2026-11-24 | M0-CL-02 staging advisors: "RLS enabled, no policy" on server-only tables and SECURITY DEFINER RPCs callable by anon/authenticated are by design (M0-BE-29, M0-BE-30) and covered by the isolation and abuse suites. Five unindexed foreign keys go to M1 (backlog B1-T03). Staging has the same 12 migrations as `main` | ALAN |
 
 ### Open
 
@@ -830,6 +842,9 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | Consent for analytics (legal, project owner) | Before public launch |
 | `all_locations` invitations copy today's locations at accept time, so later locations don't reach that member (likely an `all_locations` flag on `organization_members`) | M2 Plan, before locations can be created in the app |
 | Deleting a location removes it from invitation lists without an audit row | M2 Plan, with location management |
+| Vercel plan: Hobby caps deployments at 100 a day, which stopped previews during M0 QA and Close (project owner) | Before M1's Frontend step |
+| A sanctioned preview path for automated live rate-limit tests (e2e/live-rate-limit.e2e.ts stays skipped until then) | M1 Plan |
+| Manual check on staging of the login, slug-check and invitation-resend limits, and real invitation delivery (project owner, steps in `docs/qa/M0-signoff.md`) | After M0 Close |
 | Access token lifetime: after a password reset, other devices' access JWTs stay valid until they expire (`jwt_expiry` 3600 s). Shorten it, or check the session server-side for sensitive actions | M6 production readiness |
 | Storefront analytics: a tenant's subdomain reaches PostHog in the `Origin` header (reverse proxy, or none on storefronts) | M4 Plan |
 
