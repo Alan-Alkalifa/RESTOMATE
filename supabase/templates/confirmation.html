@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Confirm your email / Konfirmasi email Anda</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F8FAFD;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#F8FAFD;">Confirm your email / Konfirmasi email Anda</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F8FAFD;">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+<tr><td style="padding:0 0 16px 0;font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#0047AB;">Restomate</td></tr>
+<tr><td style="background-color:#FFFFFF;border:1px solid #E2E7F0;border-radius:16px;overflow:hidden;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td height="4" style="height:4px;line-height:4px;font-size:0;background-color:#C0F03A;">&nbsp;</td></tr>
+<tr><td style="padding:32px 28px;font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;color:#0F1B3D;">
+<h1 lang="en" style="margin:0 0 12px 0;font-size:22px;line-height:30px;font-weight:700;color:#0F1B3D;">Confirm your email</h1>
+<p lang="en" style="margin:0 0 24px 0;font-size:16px;line-height:24px;color:#0F1B3D;">Thanks for signing up. Confirm your email address to finish creating your account.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px 0;">
+<tr><td align="center" style="background-color:#0047AB;border-radius:8px;"><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=signup{{ if .Data.next }}&amp;next={{ urlquery .Data.next }}{{ end }}" style="display:inline-block;padding:12px 24px;font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;font-size:16px;line-height:24px;font-weight:600;color:#FFFFFF;text-decoration:none;">Confirm email / Konfirmasi email</a></td></tr>
+</table>
+<p lang="en" style="margin:0 0 24px 0;font-size:14px;line-height:20px;color:#626E87;">If you didn't ask for this, you can ignore this email. The link works once.</p>
+<hr style="border:0;border-top:1px solid #E2E7F0;margin:0 0 24px 0;">
+<h2 lang="id" style="margin:0 0 12px 0;font-size:22px;line-height:30px;font-weight:700;color:#0F1B3D;">Konfirmasi email Anda</h2>
+<p lang="id" style="margin:0 0 24px 0;font-size:16px;line-height:24px;color:#0F1B3D;">Terima kasih telah mendaftar. Konfirmasi alamat email Anda untuk menyelesaikan pembuatan akun.</p>
+<p lang="id" style="margin:0 0 24px 0;font-size:14px;line-height:20px;color:#626E87;">Jika Anda tidak memintanya, abaikan email ini. Tautan hanya berlaku sekali.</p>
+<p style="margin:0;font-size:12px;line-height:18px;color:#626E87;word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=signup{{ if .Data.next }}&amp;next={{ urlquery .Data.next }}{{ end }}</p>
+</td></tr>
+</table>
+</td></tr>
+<tr><td style="padding:16px 0 0 0;font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;font-size:12px;line-height:18px;color:#626E87;text-align:center;">Restomate</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
