@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTranslate } from "@/components/i18n/server";
-import { buttonClasses } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-variants";
 import { Card } from "@/components/ui/card";
 import { Suspense } from "react";
 import { Reveal } from "./_components/reveal";
