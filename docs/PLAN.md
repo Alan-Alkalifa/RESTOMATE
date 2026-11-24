@@ -14,8 +14,8 @@ Last updated: 2026-11-22. **The project restarts from zero: nothing below is don
 
 | Phase | State | Active step | QA verdict | Closed on |
 |---|---|---|---|---|
-| M0 Foundation | Active | 5. Close (ALAN) | PASS 2026-11-24 (`docs/qa/M0-signoff.md`) | — |
-| M1 Signup and super admin | Not started | — | — | — |
+| M0 Foundation | Closed | — | PASS 2026-11-24 (`docs/qa/M0-signoff.md`) | 2026-11-24 |
+| M1 Signup and super admin | Active | 1. Plan (ALAN) | — | — |
 | M2 Venue and menu | Not started | — | — | — |
 | M3 Service core (MVP) | Not started | — | — | — |
 | M4 Customer site | Not started | — | — | — |
@@ -248,8 +248,8 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 ### 4.5 Close — ALAN
 
 - [x] **M0-CL-01 Review and merge.** *Done when:* all M0 PRs are merged in order and `main` is green.
-- [ ] **M0-CL-02 Staging.** Deploy, run Supabase advisors, request approval for the first platform admin. *Done when:* login works on staging.
-- [ ] **M0-CL-03 Close.** *Done when:* boxes and §1 are updated and M1 is named active.
+- [x] **M0-CL-02 Staging.** Deploy, run Supabase advisors, request approval for the first platform admin. *Done when:* login works on staging.
+- [x] **M0-CL-03 Close.** *Done when:* boxes and §1 are updated and M1 is named active.
 
 ---
 
@@ -825,6 +825,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-24 | M0 QA bugs: BUG-001 S2 (server calls into a client module) fixed in #65; BUG-003 S3 (unlimited invitation resend) fixed in #73; BUG-006 S3, BUG-007 S2 (CI) and BUG-008 S2 (CI) fixed in #78, #77 and #79; BUG-002 not needed; BUG-004 and BUG-005 (S4, dev-only) deferred to M1 (backlog B1-T01, B1-T02). The e2e accepts invitations with a known token, because `EMAIL_DELIVERY=log` never prints the token; the renderer and link are covered by unit and render tests | ALAN, from DAVIN's QA |
 | 2026-11-24 | Close of a stacked phase: each upper PR is replayed with `git rebase --onto origin/main <lower head>` and merged only if the replay changes exactly what `main` added on top of the lower PR's tested head (patch-id compare), so the merged code is the tested code. Each PR is retargeted to `main` before its base branch is deleted | ALAN |
 | 2026-11-24 | M0-CL-02 staging advisors: "RLS enabled, no policy" on server-only tables and SECURITY DEFINER RPCs callable by anon/authenticated are by design (M0-BE-29, M0-BE-30) and covered by the isolation and abuse suites. Five unindexed foreign keys go to M1 (backlog B1-T03). Staging has the same 12 migrations as `main` | ALAN |
+| 2026-11-24 | M0 closed. Staging: the project owner signed up, created a restaurant and logged in on staging, and the live login limit refused the 6th wrong password ("Too many tries…"), so the manual login check passed. The first platform admin is approved for the project owner's own account; the insert (STAGING.md) runs once that account has signed up on staging, and it isn't recorded here by address. Still pending owner checks: the slug-check and invitation-resend limits and real invitation delivery. M1 is active, starting with the Plan step | ALAN, with the project owner |
 
 ### Open
 
@@ -844,7 +845,8 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | Deleting a location removes it from invitation lists without an audit row | M2 Plan, with location management |
 | Vercel plan: Hobby caps deployments at 100 a day, which stopped previews during M0 QA and Close (project owner) | Before M1's Frontend step |
 | A sanctioned preview path for automated live rate-limit tests (e2e/live-rate-limit.e2e.ts stays skipped until then) | M1 Plan |
-| Manual check on staging of the login, slug-check and invitation-resend limits, and real invitation delivery (project owner, steps in `docs/qa/M0-signoff.md`) | After M0 Close |
+| Manual check on staging of the slug-check and invitation-resend limits, and real invitation delivery (project owner, steps in `docs/qa/M0-signoff.md`; the login limit passed 2026-11-24) | M1 Plan |
+| First platform admin insert on staging (approved; waits for the owner's admin account to sign up) | M1 Plan |
 | Access token lifetime: after a password reset, other devices' access JWTs stay valid until they expire (`jwt_expiry` 3600 s). Shorten it, or check the session server-side for sensitive actions | M6 production readiness |
 | Storefront analytics: a tenant's subdomain reaches PostHog in the `Origin` header (reverse proxy, or none on storefronts) | M4 Plan |
 
