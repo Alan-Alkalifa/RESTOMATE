@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { MotionProvider } from "@/components/motion/provider";
+import { LocaleRoot } from "@/components/i18n/locale-root";
 import "./globals.css";
 
 // Self-hosted at build time by next/font (no request to Google at runtime). Latin covers both
@@ -19,7 +21,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${jakarta.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <MotionProvider>
+          <LocaleRoot>{children}</LocaleRoot>
+        </MotionProvider>
+      </body>
     </html>
   );
 }
