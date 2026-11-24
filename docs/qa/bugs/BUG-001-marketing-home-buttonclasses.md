@@ -1,4 +1,4 @@
-# BUG-001: Marketing home throws "Attempted to call buttonClasses() from the server"; hero CTA missing
+# BUG-001: Server components call `buttonClasses()` from a client module (marketing home and the /app chooser)
 
 | | |
 |---|---|
@@ -34,6 +34,10 @@ Suggested direction (REYKI decides): move `buttonClasses` and its variant table 
 - Playwright: `smoke.e2e.ts > the marketing page renders` fails: `waiting for locator('main a[href="/signup"]').first()` ... `element(s) not found`. Log: `/tmp/e2e5.log` in the QA sandbox; the failing run is reproduced by step 3.
 - Secondary noise from the same request (CARLO, MF-T17, `lib/analytics/server.ts:119`): `Route "/": Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering`. The error reporter calls `randomUUID()` while a route is prerendering, which Cache Components forbids. It only shows up because the page above throws; if it still appears after the fix, file it separately against MF-T17.
 
+## Second page (added after REYKI's scan)
+`app/(admin)/app/page.tsx`, the "choose a restaurant" screen for an account with two or more restaurants, used `buttonClasses` for "Create another restaurant" and threw the same error. Covered by `apps/web/e2e/app-chooser.e2e.ts`: create a confirmed user and two restaurants through the Supabase APIs, log in through the UI, open `/app`, expect the heading, both restaurant links, and the "Create another restaurant" link, then click through to a restaurant with no page error.
+
 ## Retest (filled after the fix)
 | Date | Commit | Result | Regression run on |
 |---|---|---|---|
+| 2026-11-24 | stack top `d09f495` (`buttonClasses` now in `components/ui/button-variants.ts`) | PASS. `/`: h1 and the `main a[href="/signup"]` link render, no `buttonClasses` error in the server log. `/app` with two restaurants: chooser, both links and "Create another restaurant" render, click-through works. `pnpm test:e2e`: 6 passed (desktop and tablet) | pgTAP 15 files / 1132 tests PASS; typecheck, eslint, prettier clean |
