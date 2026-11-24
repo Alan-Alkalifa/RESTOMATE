@@ -15,7 +15,7 @@ export function OnboardingChrome({ children }: { children: ReactNode }) {
       />
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 px-page py-10 md:px-page-md">
         <header className="flex items-center justify-between gap-4">
-          <span className="text-h3 text-primary">{t("brand.name")}</span>
+          <span className="text-h3 text-primary">{t("auth.screen.brand")}</span>
           <LanguageSwitch />
         </header>
         {children}
