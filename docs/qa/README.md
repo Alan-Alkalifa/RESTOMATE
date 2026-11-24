@@ -7,6 +7,8 @@ Owner: DAVIN. Everything QA produces lives here; tests live in `supabase/tests/*
 | `test-plan.md` | What is tested per milestone, on which targets, with which tools |
 | `bug-template.md` | Copy for every bug. One bug names one task ID, so ALAN can route it to one owner |
 | `report-template.md` | Copy for every PASS/FAIL report. Nothing passes without evidence |
+| `bugs/` | One file per bug (BUG-001, BUG-003, BUG-004; BUG-002 was not needed) |
+| `M0-isolation-report.md`, `M0-abuse-report.md` | Reports for M0-QA-02 and M0-QA-03 |
 | `M0-signoff.md` | M0 sign-off (created by M0-QA-05) |
 
 ## Running the suites
