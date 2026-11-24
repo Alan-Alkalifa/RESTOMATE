@@ -243,5 +243,8 @@
   "staff.invite_page.accept": "Terima undangan",
   "staff.invite_page.invalid.title": "Tautan undangan ini tidak berfungsi",
   "staff.invite_page.invalid.description": "Mungkin sudah dipakai, kedaluwarsa, atau ditujukan ke alamat email lain. Minta manajer Anda mengirim undangan baru.",
-  "staff.invite_page.invalid.action": "Ke restoran saya"
+  "staff.invite_page.invalid.action": "Ke restoran saya",
+  "staff.invite_page.mismatch.title": "Anda masuk dengan email yang berbeda",
+  "staff.invite_page.mismatch.description": "Undangan ini dikirim ke alamat lain. Keluar, lalu masuk atau buat akun dengan alamat tujuan undangan.",
+  "staff.invite_page.mismatch.action": "Keluar dan gunakan alamat yang diundang"
 }

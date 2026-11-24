@@ -243,5 +243,8 @@
   "staff.invite_page.accept": "Accept invitation",
   "staff.invite_page.invalid.title": "This invitation link doesn't work",
   "staff.invite_page.invalid.description": "It may have been used, expired or be meant for another email address. Ask your manager to send a new invitation.",
-  "staff.invite_page.invalid.action": "Go to my restaurants"
+  "staff.invite_page.invalid.action": "Go to my restaurants",
+  "staff.invite_page.mismatch.title": "You're signed in with a different email",
+  "staff.invite_page.mismatch.description": "This invitation was sent to another address. Sign out, then sign in or create an account with the address it was sent to.",
+  "staff.invite_page.mismatch.action": "Sign out and use the invited address"
 }

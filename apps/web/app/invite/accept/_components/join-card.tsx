@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { useI18n } from "@/components/i18n/provider";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { signOut } from "@/lib/actions/auth/actions";
 import { acceptInvitation } from "@/lib/actions/staff/actions";
 import { InviteInvalid } from "./chrome";
 
@@ -64,9 +65,34 @@ export function AcceptCard({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [bad, setBad] = useState(false);
+  const [mismatch, setMismatch] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (bad) return <InviteInvalid />;
+
+  // Signed in with another address than the invited one. The invited address is never shown.
+  if (mismatch) {
+    return (
+      <Card role="status" className="flex flex-col gap-4">
+        <h1 className="text-h2 text-text">{t("staff.invite_page.mismatch.title")}</h1>
+        <p className="text-body text-text-secondary">
+          {t("staff.invite_page.mismatch.description")}
+        </p>
+        <Button
+          className="self-start"
+          loading={pending}
+          onClick={() =>
+            // Ends this session only and returns to this invitation after the next sign-in.
+            startTransition(async () => {
+              await signOut({ next: `/invite/accept?token=${token}` });
+            })
+          }
+        >
+          {t("staff.invite_page.mismatch.action")}
+        </Button>
+      </Card>
+    );
+  }
 
   function accept() {
     setError(null);
@@ -77,6 +103,13 @@ export function AcceptCard({
         return;
       }
       switch (result.error.code) {
+        case "forbidden":
+          if (result.error.fieldErrors?.form?.includes("staff.invitation.email_mismatch")) {
+            setMismatch(true);
+          } else {
+            setBad(true);
+          }
+          return;
         case "conflict": // already a member of this restaurant
           router.replace("/app");
           return;
