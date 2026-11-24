@@ -484,7 +484,7 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 
 ### 8.2 Backend — ADIT and CARLO
 
-- [ ] **M4-BE-01 Host separation.** _(CARLO)_ `{slug}` storefront, `app.` admin, root marketing, redirects. *Done when:* each surface answers only on its host.
+- [ ] **M4-BE-01 Host separation.** _(CARLO)_ `{slug}` storefront, `app.` admin, root marketing, redirects. `proxy.ts` rewrites tenant hosts to the storefront route `/s/<slug>/...` (built in M0-FE-09), and `/s/*` returns 404 on every other host. *Done when:* each surface answers only on its host.
 - [ ] **M4-BE-02 Storefront data.** _(CARLO)_ Menu, branding, locations, contact, demo logo seed. *Done when:* only published data of active orgs is public.
 - [ ] **M4-BE-03 Opening hours.** _(ADIT)_ Hours and exceptions per location timezone. *Done when:* closed locations refuse orders.
 - [ ] **M4-BE-04 Guest sessions.** _(ADIT)_ Table-linked session and private order-status token. *Done when:* one guest can't read another's order.
@@ -812,6 +812,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-23 | M0 Backend step closed: M0-BE-01 to 32 merged after DAVIN's QA. Added during the step: M0-BE-30 (staff/role writes as definer RPCs, so the database guards see the caller), M0-BE-31 and M0-BE-32 (the reads and the invitation preview REYKI's contract check found missing). M0-BE-23 moved from CARLO to ADIT: the board listed ADIT and ADIT started it while CARLO was on M0-BE-22; it kept one owner and no shared files | ALAN |
 | 2026-11-23 | Contracts (`docs/contracts/`) are the frontend's source of truth for M0. A page without the needed permission shows a notice and hides its nav entry (not a 404). The invitation email is bilingual (EN and ID) with escaped values. Timezone pickers offer canonical IANA names only, Indonesian zones first | ALAN, with REYKI and CARLO |
 | 2026-11-24 | Motion libraries added to the design system (`DESIGN.md` §4.5.1–4.5.3): Motion for component motion on every surface; GSAP (`ScrollTrigger`) and Lenis smooth scroll on marketing pages only; never in admin, super admin, POS, KDS, auth or the storefront scroll. Reduced motion, server-rendered final state, client islands and a bundle check are required. Set up in M0-FE-02 (Motion) and M0-FE-09 (GSAP + Lenis) | Project owner, via ALAN |
+| 2026-11-24 | Storefront placeholder lives at `/s/[slug]` in M0 (M0-FE-09). The proxy only tags tenant hosts with `x-restomate-tenant` and does not rewrite, and staging has no custom domain, so tenant subdomains are local-only until M4. M4-BE-01 adds the tenant-host rewrite to `/s/<slug>` and the 404 for `/s/*` on other hosts. The starter `app/page.tsx` is removed; the marketing home serves `/` | ALAN, from REYKI's #65 |
 
 ### Open
 
