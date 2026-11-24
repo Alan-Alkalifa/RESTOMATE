@@ -45,3 +45,24 @@ export function findLink(body: string, needle: string): string {
   if (!match) throw new Error(`No link containing ${needle} in the mail`);
   return match;
 }
+
+/** Waits for a mail to `to` whose HTML or text contains `needle`, newest first. */
+export async function waitForMailWith(to: string, needle: string, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const hits = (await listMessages()).filter((m) =>
+      m.To.some((t) => t.Address.toLowerCase() === to.toLowerCase()),
+    );
+    for (const hit of hits) {
+      const full = (await (await fetch(`${mailpitUrl()}/api/v1/message/${hit.ID}`)).json()) as {
+        Subject: string;
+        HTML: string;
+        Text: string;
+      };
+      if ((full.HTML + full.Text).includes(needle))
+        return { id: hit.ID, subject: full.Subject, html: full.HTML, text: full.Text };
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`No mail for ${to} containing ${needle} within ${timeoutMs / 1000}s`);
+}

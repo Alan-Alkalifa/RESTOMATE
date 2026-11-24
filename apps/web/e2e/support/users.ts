@@ -73,3 +73,45 @@ export async function createOrganizationAs(
   });
   await json(res, "create organization");
 }
+
+/**
+ * Invites `inviteeEmail` into `slug` as a Cashier, as the owner, through the same RPC the app uses, with a
+ * token the test knows. The app's own invitation email is not readable locally (EMAIL_DELIVERY=log records
+ * no body or link), so acceptance is driven from this link.
+ */
+export async function inviteCashierWithToken(
+  ownerEmail: string,
+  slug: string,
+  inviteeEmail: string,
+  token: string,
+): Promise<void> {
+  const access = await accessToken(ownerEmail);
+  const headers = {
+    apikey: anon(),
+    authorization: `Bearer ${access}`,
+    "content-type": "application/json",
+  };
+  const rest = (path: string) => `${url()}/rest/v1/${path}`;
+  const [org] = (await (
+    await fetch(rest(`organizations?slug=eq.${slug}&select=id`), { headers })
+  ).json()) as Array<{ id: string }>;
+  const [role] = (await (
+    await fetch(rest(`roles?org_id=eq.${org.id}&system_key=eq.cashier&select=id`), { headers })
+  ).json()) as Array<{ id: string }>;
+  const hash = Buffer.from(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)),
+  ).toString("hex");
+  const res = await fetch(rest("rpc/create_staff_invitation"), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      p_org_id: org.id,
+      p_email: inviteeEmail,
+      p_role_id: role.id,
+      p_token_hash: `\\x${hash}`,
+      p_all_locations: true,
+      p_location_ids: null,
+    }),
+  });
+  await json(res, "create staff invitation");
+}
