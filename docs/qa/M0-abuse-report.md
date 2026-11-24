@@ -1,4 +1,4 @@
-# M0-QA-03 Abuse report: PASS for the database rules, PARTIAL for the rate limit
+# M0-QA-03 Abuse report: PASS (database rules; rate limits unit-tested, live check manual)
 
 | | |
 |---|---|
@@ -9,7 +9,7 @@
 
 ## Result
 `supabase/tests/abuse.test.sql`: 58 assertions, all pass, each with the exact error code the server maps. Whole pgTAP suite: 15 files, 1132 tests, PASS.
-The rate limit is configured and unit-tested but its live enforcement is **not verified** (see below). One abuse path without a limit was found: BUG-003 (S3).
+The rate limit is configured and unit-tested; its live enforcement is a manual check after Close (see below). One abuse path without a limit was found: BUG-003 (S3).
 
 ## Exit criterion: "each is refused"
 | Abuse case | Attack | Refused with | Result |
@@ -46,6 +46,6 @@ Dropping the `organization_members_guard_update` and `staff_invitations_guard_wr
 No Arcjet limit exists on `inviteStaff`, `resendInvitation`, `acceptInvitation` and the role actions; they depend on the database rules above and on sign-in. That gap is BUG-003.
 
 ## Not verified
-- **Live rate limiting.** Arcjet fails open without a key (by design), so the local stack and CI never refuse a request for rate. Proving the real limits needs a call to Arcjet with a key I may use for QA. This sandbox has an `ARCJET_KEY`, but I do not know whether it is tied to production, so I did not use it, and the e2e web server blanks it. Waiting on ALAN's decision (a dev or test key, or accept the unit tests as the M0 evidence).
+- **Live rate limiting.** Arcjet fails open without a key (by design), so the local stack and CI never refuse a request for rate. On a preview, Arcjet's bot rule refuses automated browsers before any page (shown live on `dpl_JsJzkaWkkAAaWYYSWSnSnRnbPH3J`, test in `e2e/live-rate-limit.e2e.ts`), so the limiter itself is not reachable from automation there or on staging. Decision (ALAN, 2026-11-24): no QA bypass in M0; the login, slug-check and invitation-resend limits are a manual check by the project owner after Close, with the steps in `docs/qa/M0-signoff.md` section 4. I did not use the sandbox's `ARCJET_KEY` (unknown scope).
 - The email sent by `resendInvitation` (read in code, not run).
 - Concurrency: two simultaneous requests racing a limit. The code takes advisory and row locks; I have not run a parallel attack.

@@ -1,0 +1,15 @@
+Subject: You're invited to Warung "Sedap" <Rasa> & Co on Restomate / Anda diundang ke Warung "Sedap" <Rasa> & Co di Restomate
+
+You're invited to join Warung "Sedap" <Rasa> & Co as Cashier.
+
+Accept: http://localhost:3000/invite/accept?token=G4aV2kKfBsOjeQ1c7cZXowB0tzPD7LosfZ1d7yC273U
+
+The link works once and expires in 7 days. If you weren't expecting this, you can ignore this email.
+
+---
+
+Anda diundang untuk bergabung dengan Warung "Sedap" <Rasa> & Co sebagai Cashier.
+
+Terima: http://localhost:3000/invite/accept?token=G4aV2kKfBsOjeQ1c7cZXowB0tzPD7LosfZ1d7yC273U
+
+Tautan hanya berlaku sekali dan kedaluwarsa dalam 7 hari. Jika Anda tidak mengharapkan ini, abaikan email ini.
