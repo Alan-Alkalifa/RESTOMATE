@@ -19,6 +19,7 @@ Owner: DAVIN. Everything QA produces lives here; tests live in `supabase/tests/*
 | Playwright | `pnpm db:start && pnpm db:reset`, export the local keys (see `.github/workflows/ci.yml`, job E2E), then `pnpm test:e2e:install && pnpm test:e2e` | the same stack, plus browsers |
 
 After `db:reset` the CLI does not wait for Auth, Storage or Realtime. Tests that use them wait for health first (`apps/web/e2e/support/wait-for-stack.ts`; pgTAP does not need it).
+After a change to `supabase/config.toml` (email templates, auth settings) restart the stack (`pnpm db:stop`, then `pnpm db:start`): `db:reset` does not reload Auth, which keeps serving the old templates (found in M0-QA-04: mail arrived with the default link instead of `/auth/confirm`). On a machine with about 6 GB, `pnpm exec supabase start -x studio,imgproxy` avoids the Studio health-check timeout.
 CI runs both on every PR that changes `supabase/`, `apps/`, `packages/` or build config.
 
 ## Rules (from the QA role)
