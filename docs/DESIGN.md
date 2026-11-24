@@ -8,7 +8,7 @@
 >
 > When the code and this file disagree, raise it with ALAN. Fix one or the other; don't let them drift.
 
-Last updated: 2026-11-22
+Last updated: 2026-11-24
 
 ---
 
@@ -338,6 +338,37 @@ Calm and quick: **150 ms** for hovers and presses, **200–250 ms** for menus, m
 - With `prefers-reduced-motion`, remove movement and keep only opacity fades.
 - Skeleton shimmer stops with reduced motion.
 
+#### 4.5.1 Motion libraries
+
+We use three libraries. Each has one job, so an element is never animated by two of them.
+
+| Library | Package (import) | Job | Where |
+|---|---|---|---|
+| **Motion** ([docs](https://motion.dev/docs)) | `motion` (`motion/react`) | Component motion: presses, menus, popovers, modals, sheets, toasts, list items added or removed, tab indicators, the KDS ticket slide-in, exit animations (`AnimatePresence`) | Every surface |
+| **GSAP** ([docs](https://gsap.com/docs/v3/)) | `gsap`, `@gsap/react` (`useGSAP`) | Timelines and scroll-driven sequences (`ScrollTrigger`): hero reveals, feature bands, product screenshot sequences | Frontend (marketing, §7.6) only. The storefront hero (§7.5) may use one short reveal from M4 |
+| **Lenis** ([docs](https://github.com/darkroomengineering/lenis/blob/main/README.md)) | `lenis` (`lenis/react`) | Smooth page scroll | Frontend (marketing, §7.6) only |
+
+**Not allowed:** Lenis or GSAP in the restaurant admin, super admin, POS, KDS, onboarding, auth screens or emails. Those are work tools. They keep native scrolling and Motion's short component motion only. The storefront keeps native scroll, because it is mobile-first and ordering must feel instant.
+
+#### 4.5.2 Shared rules (all three)
+
+- **Tokens first.** Durations and easings come from one file, `apps/web/components/motion/tokens.ts` (`fast` 150 ms, `base` 200 ms, `slow` 250 ms, `ease-out` entering, `ease-in` leaving). Marketing sequences may run up to 600 ms per step and still use these easings. No springs with visible bounce, except a small press settle.
+- **Animate only `transform` and `opacity`.** Never width, height, top, left or colour by JavaScript. Use Motion's `layout` only for small lists (fewer than 50 rows), never for POS grids or KDS columns.
+- **Reduced motion is mandatory.** The movement goes and only opacity fades stay (§4.5). Motion uses `<MotionConfig reducedMotion="user">` at the root. GSAP sequences are built inside `gsap.matchMedia()` under `(prefers-reduced-motion: no-preference)`, and with reduced motion the content shows in its final state. Lenis keeps its default `respectReducedMotion: true`.
+- **Content never waits for JavaScript.** The server-rendered HTML shows the final, readable state. Never hide the LCP element (hero headline or image) behind `opacity: 0` until a script runs. Reveal animations start from a small offset or fade and are added on the client.
+- **Client islands only.** Animated parts are small `'use client'` components that receive server-rendered `children`. A page or layout never becomes a client component just to animate. This keeps Cache Components and streaming intact.
+- **Clean up.** Every GSAP animation lives in `useGSAP` with a `scope` ref, so it is reverted on unmount. Lenis is created and destroyed by `ReactLenis`. No global listeners are left behind on route change.
+- **No loops or auto-play** that run longer than 5 seconds without a pause control (WCAG 2.2.2). No scroll-jacking: scroll never snaps, reverses or locks the page. Anchor links, keyboard scrolling (Space, Page Down, Home, End) and focus moves must still work.
+- **Bundle budget.** Motion loads through `LazyMotion` with the `m` component (`domAnimation` features; `domMax` only where drag or layout is needed). GSAP and Lenis load only in the marketing route group, never from `components/ui/`. Check the size against the build output in the PR.
+- **Use current docs.** Use the linked docs, not memory, for API details.
+
+#### 4.5.3 Smooth scroll on the marketing site (Lenis + GSAP)
+
+- One `<ReactLenis root>` in the marketing layout, imported with `lenis/dist/lenis.css`.
+- GSAP's ticker drives Lenis, so `ScrollTrigger` and the scroll stay in sync. Set `options={{ autoRaf: false }}`, call `lenis.raf(time * 1000)` from `gsap.ticker.add`, connect `lenis.on('scroll', ScrollTrigger.update)` and call `gsap.ticker.lagSmoothing(0)`. Remove the ticker callback on unmount (see the Lenis README "GSAP ScrollTrigger" section).
+- Keep `syncTouch` off (the default), so phones and tablets scroll natively.
+- Anything that scrolls on its own inside the page (modals, sheets, menus, code or table blocks) gets `data-lenis-prevent`. Lenis is paused while a modal is open.
+
 ---
 
 ## 5. Iconography and illustration
@@ -452,6 +483,7 @@ Every screen designs all four states.
 - The cart footer holds the totals (tabular, right-aligned) and **one** spotlight button: "Send to kitchen" or "Charge Rp 125.000".
 - Modifiers open in a bottom sheet with large choice chips. Required groups are marked "Required" and the "Add" button stays disabled until they are satisfied.
 - No hover-only interactions. Every action works by tap.
+- Motion is limited to presses, the cart line added or removed, and the sheet. Native scrolling only (§4.5.1).
 
 ### 7.3 KDS (kitchen display, light)
 - Light theme, bright and high-contrast so it reads under kitchen lighting and at a distance.
@@ -476,6 +508,7 @@ Every screen designs all four states.
 - Dominant page with one secondary hero or feature band. Accent appears on the "Start free trial" spotlight button and as a highlighter (`accent-200`) behind one or two headline words.
 - `display` type, friendly illustrations, product screenshots in `radius-xl` frames with `shadow-lg`.
 - Onboarding is a calm, centred card (max 560 px) with a step indicator in secondary and the final step's button in accent.
+- Marketing pages are the only place for Lenis smooth scroll and GSAP scroll sequences (§4.5.1, §4.5.3). Signup and onboarding use Motion only.
 
 ### 7.7 Email
 - **Restomate emails** (auth, staff invites, subscription invoices): dominant-50 background, a white card with `radius-lg` corners, a 4 px accent bar at the top of the card, the Restomate wordmark, and a secondary-600 button with `on-secondary` text.

@@ -214,14 +214,14 @@ Acceptance lines carry their `PROJECT.md` number: `4.1.3` is the third criterion
 ### 4.3 Frontend — REYKI
 
 - [ ] **M0-FE-01 Theme.** Tokens from `DESIGN.md` §10, 60-30-10 theme map, Plus Jakarta Sans. *Done when:* changing the map re-themes the app with no component edit.
-- [ ] **M0-FE-02 Base components.** Buttons, fields, cards, badges, tabs, tables, modal, sheet, toast, skeleton, empty, error, offline bar. *Done when:* each has every state in `DESIGN.md` §6 and works by keyboard.
+- [ ] **M0-FE-02 Base components.** Buttons, fields, cards, badges, tabs, tables, modal, sheet, toast, skeleton, empty, error, offline bar. Motion foundation: `motion` dependency, `components/motion/tokens.ts`, `LazyMotion` + `MotionConfig reducedMotion="user"` provider, with press, modal, sheet and toast motion built on it (`DESIGN.md` §4.5). *Done when:* each has every state in `DESIGN.md` §6, works by keyboard, and moves only by opacity with reduced motion.
 - [ ] **M0-FE-03 Translations.** English and Bahasa Indonesia, language switch, number and date formats. *Done when:* no screen has hard-coded text.
 - [ ] **M0-FE-04 Auth screens.** Login, signup, check email, forgot, reset, invalid link. *Done when:* errors keep the user's input.
 - [ ] **M0-FE-05 Create restaurant.** Name, live slug check, first location with tax and service defaults. *Done when:* it ends on the restaurant dashboard.
 - [ ] **M0-FE-06 Admin shell.** Sidebar from permissions, location switcher, no-access and global error pages. *Done when:* each role sees only its navigation.
 - [ ] **M0-FE-07 Staff screens.** Members, pending invites, invite form, role and location edit, deactivate, accept page. *Done when:* a bad invite link always shows the same generic page.
 - [ ] **M0-FE-08 Role editor.** Permission checklist, system roles read-only, locked state by package. *Done when:* an owner can create and assign a role.
-- [ ] **M0-FE-09 Public and platform shells.** Marketing layout, guarded super admin layout with its dark sidebar, storefront placeholder and suspended notice. *Done when:* each surface opens on its own route.
+- [ ] **M0-FE-09 Public and platform shells.** Marketing layout, guarded super admin layout with its dark sidebar, storefront placeholder and suspended notice. The marketing layout mounts Lenis driven by GSAP's ticker with `ScrollTrigger` (`DESIGN.md` §4.5.3); `gsap`, `@gsap/react` and `lenis` load only there. *Done when:* each surface opens on its own route, and no other surface's bundle includes GSAP or Lenis.
 - [ ] **M0-FE-10 Emails.** Confirmation, recovery and staff invitation in the Restomate theme. *Done when:* links use `token_hash` and render in Mailpit.
 
 ### 4.4 QA — DAVIN
@@ -811,6 +811,7 @@ Draft PRs never deploy to staging. DAVIN tests them locally or on preview, and s
 | 2026-11-23 | M0-BE-20 QA: auth email templates with `token_hash` links are M0-FE-10's (REYKI, with ADIT's `config.toml` wiring in a paired PR); until then the end-to-end confirmation link is not expected to sign the user in. Accepted: sign-out sits behind the proxy's shield and bot rules (real browsers pass); `/auth/confirm` redirects on the request origin (fine on Vercel) | ALAN, from DAVIN's QA |
 | 2026-11-23 | M0 Backend step closed: M0-BE-01 to 32 merged after DAVIN's QA. Added during the step: M0-BE-30 (staff/role writes as definer RPCs, so the database guards see the caller), M0-BE-31 and M0-BE-32 (the reads and the invitation preview REYKI's contract check found missing). M0-BE-23 moved from CARLO to ADIT: the board listed ADIT and ADIT started it while CARLO was on M0-BE-22; it kept one owner and no shared files | ALAN |
 | 2026-11-23 | Contracts (`docs/contracts/`) are the frontend's source of truth for M0. A page without the needed permission shows a notice and hides its nav entry (not a 404). The invitation email is bilingual (EN and ID) with escaped values. Timezone pickers offer canonical IANA names only, Indonesian zones first | ALAN, with REYKI and CARLO |
+| 2026-11-24 | Motion libraries added to the design system (`DESIGN.md` §4.5.1–4.5.3): Motion for component motion on every surface; GSAP (`ScrollTrigger`) and Lenis smooth scroll on marketing pages only; never in admin, super admin, POS, KDS, auth or the storefront scroll. Reduced motion, server-rendered final state, client islands and a bundle check are required. Set up in M0-FE-02 (Motion) and M0-FE-09 (GSAP + Lenis) | Project owner, via ALAN |
 
 ### Open
 

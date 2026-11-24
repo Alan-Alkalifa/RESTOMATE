@@ -7,6 +7,7 @@ Who does what: `docs/PLAN.md` §1.1 and `.jsmhq-role.md`. One phase and one step
 ## Stack
 
 - Next.js 16 (App Router, Cache Components), React, TypeScript 5.x, Tailwind v4, Plus Jakarta Sans
+- Motion (`motion/react`) for component motion everywhere; GSAP (`gsap`, `@gsap/react`) and Lenis smooth scroll on marketing pages only (`docs/DESIGN.md` §4.5.1)
 - Supabase (Postgres, Auth, Realtime, Storage), `@supabase/ssr`
 - DOKU (payments), Resend (email), Arcjet (abuse protection), PostHog (analytics, errors)
 - pnpm + Turborepo, Zod, Vitest (unit), pgTAP (database), Playwright (e2e), GitHub Actions, Vercel
