@@ -4,6 +4,12 @@ import { defineConfig, devices } from "@playwright/test";
 // Specs end in `.e2e.ts`, never `.spec.ts`, so Vitest does not collect them.
 // CI exports the local keys (see the E2E job). Locally: `pnpm db:status` prints them.
 
+// `lib/actions/staff/email.ts` is `server-only`. The react-server condition makes that import a no-op, so a spec
+// can run the real `acceptInvitationUrl()`. It is set for the test workers only: the web server below gets the
+// original NODE_OPTIONS back, because `next dev` must not run with it.
+const ORIGINAL_NODE_OPTIONS = process.env.NODE_OPTIONS ?? "";
+process.env.NODE_OPTIONS = `${ORIGINAL_NODE_OPTIONS} --conditions=react-server`.trim();
+
 const PORT = Number(process.env.E2E_PORT ?? 3000);
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
 
@@ -52,7 +58,12 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
         // Tests never call real services: no key means Arcjet fails open and mail goes to Mailpit/log.
-        env: { ARCJET_KEY: "", RESEND_API_KEY: "", EMAIL_DELIVERY: "log" },
+        env: {
+          ARCJET_KEY: "",
+          RESEND_API_KEY: "",
+          EMAIL_DELIVERY: "log",
+          NODE_OPTIONS: ORIGINAL_NODE_OPTIONS,
+        },
         stdout: "ignore",
         stderr: "pipe",
       },
