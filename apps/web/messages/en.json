@@ -85,7 +85,7 @@
   "language.label": "Language",
   "count.items.one": "{count} item",
   "count.items.other": "{count} items",
-  "brand.name": "Restomate",
+  "auth.screen.brand": "Restomate",
   "auth.screen.login.title": "Log in",
   "auth.screen.login.subtitle": "Welcome back. Log in to your restaurant.",
   "auth.screen.login.submit": "Log in",

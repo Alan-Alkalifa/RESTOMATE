@@ -85,7 +85,7 @@
   "language.label": "Bahasa",
   "count.items.one": "{count} item",
   "count.items.other": "{count} item",
-  "brand.name": "Restomate",
+  "auth.screen.brand": "Restomate",
   "auth.screen.login.title": "Masuk",
   "auth.screen.login.subtitle": "Selamat datang kembali. Masuk ke restoran Anda.",
   "auth.screen.login.submit": "Masuk",
