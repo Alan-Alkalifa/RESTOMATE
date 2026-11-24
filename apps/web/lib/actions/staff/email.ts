@@ -1,6 +1,7 @@
 import "server-only";
 import { getAppEnv } from "../../env";
 import { sendEmail, type SendResult } from "../../email";
+import { renderInvitationEmail } from "../../email/templates/invitation";
 
 /** Where an invitation link lands. The page (REYKI) reads `token` and calls `acceptInvitation`. */
 export const ACCEPT_INVITATION_PATH = "/invite/accept";
@@ -10,32 +11,6 @@ export function acceptInvitationUrl(token: string): string {
   const url = new URL(ACCEPT_INVITATION_PATH, getAppEnv().NEXT_PUBLIC_APP_URL);
   url.searchParams.set("token", token);
   return url.toString();
-}
-
-export type InvitationEmailInput = { orgName: string; roleName: string; acceptUrl: string };
-
-/**
- * PLACEHOLDER body, plain text with the link. REYKI replaces this one function with the themed,
- * translated template (M0-FE-10). It must return a subject, html and text, and nothing else.
- */
-export function renderInvitationEmail(input: InvitationEmailInput): {
-  subject: string;
-  html: string;
-  text: string;
-} {
-  // A control character or line separator in a subject could start a new header line.
-  const subject = `You're invited to ${input.orgName} on Restomate`.replace(
-    /[\p{Cc}\u2028\u2029]/gu,
-    " ",
-  );
-  const text = `You're invited to join ${input.orgName} as ${input.roleName}.\n\nAccept: ${input.acceptUrl}\n\nThe link works once and expires in 7 days.`;
-  const esc = (s: string) =>
-    s.replace(
-      /[&<>"']/g,
-      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
-    );
-  const html = `<p>You're invited to join ${esc(input.orgName)} as ${esc(input.roleName)}.</p><p><a href="${esc(input.acceptUrl)}">Accept the invitation</a></p><p>The link works once and expires in 7 days.</p>`;
-  return { subject, html, text };
 }
 
 /**
