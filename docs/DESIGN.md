@@ -354,7 +354,7 @@ We use three libraries. Each has one job, so an element is never animated by two
 
 - **Tokens first.** Durations and easings come from one file, `apps/web/components/motion/tokens.ts` (`fast` 150 ms, `base` 200 ms, `slow` 250 ms, `ease-out` entering, `ease-in` leaving). Marketing sequences may run up to 600 ms per step and still use these easings. No springs with visible bounce, except a small press settle.
 - **Animate only `transform` and `opacity`.** Never width, height, top, left or colour by JavaScript. Use Motion's `layout` only for small lists (fewer than 50 rows), never for POS grids or KDS columns.
-- **Reduced motion is mandatory.** The movement goes and only opacity fades stay (§4.5). Motion uses `<MotionConfig reducedMotion="user">` at the root. GSAP sequences are built inside `gsap.matchMedia()` under `(prefers-reduced-motion: no-preference)`, and with reduced motion the content shows in its final state. Lenis keeps its default `respectReducedMotion: true`.
+- **Reduced motion is mandatory.** The movement goes and only opacity fades stay (§4.5). Motion uses `<MotionConfig reducedMotion="user">` at the root. GSAP sequences are built inside `gsap.matchMedia()` under `(prefers-reduced-motion: no-preference)`, and with reduced motion the content shows in its final state. With reduced motion, **Lenis is not mounted at all**, so the page scrolls natively. Lenis's own `respectReducedMotion` only affects scrolls started by code, not the wheel (found in M0 QA, BUG-006).
 - **Content never waits for JavaScript.** The server-rendered HTML shows the final, readable state. Never hide the LCP element (hero headline or image) behind `opacity: 0` until a script runs. Reveal animations start from a small offset or fade and are added on the client.
 - **Client islands only.** Animated parts are small `'use client'` components that receive server-rendered `children`. A page or layout never becomes a client component just to animate. This keeps Cache Components and streaming intact.
 - **Clean up.** Every GSAP animation lives in `useGSAP` with a `scope` ref, so it is reverted on unmount. Lenis is created and destroyed by `ReactLenis`. No global listeners are left behind on route change.
@@ -367,6 +367,7 @@ We use three libraries. Each has one job, so an element is never animated by two
 - One `<ReactLenis root>` in the marketing layout, imported with `lenis/dist/lenis.css`.
 - GSAP's ticker drives Lenis, so `ScrollTrigger` and the scroll stay in sync. Set `options={{ autoRaf: false }}`, call `lenis.raf(time * 1000)` from `gsap.ticker.add`, connect `lenis.on('scroll', ScrollTrigger.update)` and call `gsap.ticker.lagSmoothing(0)`. Remove the ticker callback on unmount (see the Lenis README "GSAP ScrollTrigger" section).
 - Keep `syncTouch` off (the default), so phones and tablets scroll natively.
+- Mount `<ReactLenis>` and the GSAP ticker only when `(prefers-reduced-motion: no-preference)` matches, and follow changes to that setting while the page is open.
 - Anything that scrolls on its own inside the page (modals, sheets, menus, code or table blocks) gets `data-lenis-prevent`. Lenis is paused while a modal is open.
 
 ---
